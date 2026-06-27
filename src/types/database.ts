@@ -1,13 +1,19 @@
-export type AccountType = 'bank' | 'cash' | 'credit_card' | 'savings' | 'investment'
+export type AccountType = 'checking' | 'savings' | 'cash' | 'credit' | 'investment' | 'other'
 export type TransactionType = 'income' | 'expense' | 'transfer'
-export type RecurringFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly'
+export type CategoryType = 'income' | 'expense' | 'both'
+export type RecurringFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly'
 export type LoanType = 'given' | 'received'
 
 export interface Profile {
   id: string
-  display_name: string
-  default_currency: string
+  display_name: string | null
+  avatar_url: string | null
+  currency: string
+  locale: string
+  timezone: string
+  onboarding_done: boolean
   created_at: string
+  updated_at: string
 }
 
 export interface Account {
@@ -15,22 +21,25 @@ export interface Account {
   user_id: string
   name: string
   type: AccountType
+  color: string | null
+  icon: string | null
   balance: number
   currency: string
-  icon: string | null
-  color: string | null
   is_active: boolean
+  sort_order: number
   created_at: string
+  updated_at: string
 }
 
 export interface Category {
   id: string
   user_id: string
   name: string
-  type: TransactionType
-  icon: string | null
+  type: CategoryType
   color: string | null
+  icon: string | null
   parent_id: string | null
+  is_default: boolean
   sort_order: number
   created_at: string
 }
@@ -42,12 +51,15 @@ export interface Transaction {
   category_id: string | null
   type: TransactionType
   amount: number
-  description: string
-  date: string
+  description: string | null
   notes: string | null
-  transfer_to_account_id: string | null
-  recurring_rule_id: string | null
+  date: string
+  transfer_peer_id: string | null
+  recurring_id: string | null
+  receipt_url: string | null
+  receipt_data: Record<string, unknown> | null
   created_at: string
+  updated_at: string
 }
 
 export interface RecurringRule {
@@ -61,9 +73,12 @@ export interface RecurringRule {
   frequency: RecurringFrequency
   start_date: string
   end_date: string | null
-  next_occurrence: string
+  next_due_date: string
+  last_run_date: string | null
   is_active: boolean
+  auto_create: boolean
   created_at: string
+  updated_at: string
 }
 
 export interface Budget {
@@ -74,27 +89,30 @@ export interface Budget {
   month: number
   year: number
   created_at: string
+  updated_at: string
 }
 
 export interface Loan {
   id: string
   user_id: string
-  person_name: string
+  counterpart: string
   type: LoanType
   amount: number
-  remaining_amount: number
+  remaining: number
   description: string | null
-  date: string
   due_date: string | null
   is_settled: boolean
+  settled_at: string | null
   created_at: string
+  updated_at: string
 }
 
 export interface LoanPayment {
   id: string
   loan_id: string
+  user_id: string
   amount: number
-  date: string
+  paid_at: string
   notes: string | null
   created_at: string
 }
@@ -102,10 +120,12 @@ export interface LoanPayment {
 export interface Birthday {
   id: string
   user_id: string
-  person_name: string
-  date: string
+  name: string
+  birth_date: string
+  reminder_days: number[]
   notes: string | null
   created_at: string
+  updated_at: string
 }
 
 export interface Database {
@@ -113,13 +133,13 @@ export interface Database {
     Tables: {
       profiles: {
         Row: Profile
-        Insert: Omit<Profile, 'created_at'>
-        Update: Partial<Omit<Profile, 'id' | 'created_at'>>
+        Insert: Omit<Profile, 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>>
       }
       accounts: {
         Row: Account
-        Insert: Omit<Account, 'id' | 'created_at'>
-        Update: Partial<Omit<Account, 'id' | 'user_id' | 'created_at'>>
+        Insert: Omit<Account, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Account, 'id' | 'user_id' | 'created_at' | 'updated_at'>>
       }
       categories: {
         Row: Category
@@ -128,23 +148,23 @@ export interface Database {
       }
       transactions: {
         Row: Transaction
-        Insert: Omit<Transaction, 'id' | 'created_at'>
-        Update: Partial<Omit<Transaction, 'id' | 'user_id' | 'created_at'>>
+        Insert: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>>
       }
       recurring_rules: {
         Row: RecurringRule
-        Insert: Omit<RecurringRule, 'id' | 'created_at'>
-        Update: Partial<Omit<RecurringRule, 'id' | 'user_id' | 'created_at'>>
+        Insert: Omit<RecurringRule, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<RecurringRule, 'id' | 'user_id' | 'created_at' | 'updated_at'>>
       }
       budgets: {
         Row: Budget
-        Insert: Omit<Budget, 'id' | 'created_at'>
-        Update: Partial<Omit<Budget, 'id' | 'user_id' | 'created_at'>>
+        Insert: Omit<Budget, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Budget, 'id' | 'user_id' | 'created_at' | 'updated_at'>>
       }
       loans: {
         Row: Loan
-        Insert: Omit<Loan, 'id' | 'created_at'>
-        Update: Partial<Omit<Loan, 'id' | 'user_id' | 'created_at'>>
+        Insert: Omit<Loan, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Loan, 'id' | 'user_id' | 'created_at' | 'updated_at'>>
       }
       loan_payments: {
         Row: LoanPayment
@@ -153,8 +173,18 @@ export interface Database {
       }
       birthdays: {
         Row: Birthday
-        Insert: Omit<Birthday, 'id' | 'created_at'>
-        Update: Partial<Omit<Birthday, 'id' | 'user_id' | 'created_at'>>
+        Insert: Omit<Birthday, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Birthday, 'id' | 'user_id' | 'created_at' | 'updated_at'>>
+      }
+    }
+    Functions: {
+      adjust_account_balance: {
+        Args: { p_account_id: string; p_amount: number }
+        Returns: void
+      }
+      create_default_categories: {
+        Args: { p_user_id: string }
+        Returns: void
       }
     }
   }

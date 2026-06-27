@@ -51,10 +51,10 @@ export default function BirthdaysPage() {
               {birthdays.map((b) => (
                 <div key={b.id} className="flex items-center justify-between py-2 border-b last:border-0">
                   <div>
-                    <p className="text-sm font-medium">{b.person_name}</p>
+                    <p className="text-sm font-medium">{b.name}</p>
                     {b.notes && <p className="text-xs text-muted-foreground">{b.notes}</p>}
                   </div>
-                  <span className="text-sm tabular-nums text-muted-foreground">{formatDate(b.date, 'dd MMMM')}</span>
+                  <span className="text-sm tabular-nums text-muted-foreground">{formatDate(b.birth_date, 'dd MMMM')}</span>
                 </div>
               ))}
             </div>

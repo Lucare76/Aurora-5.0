@@ -29,7 +29,7 @@ const navItems = [
 
 interface SidebarProps {
   onSignOut: () => void
-  displayName?: string
+  displayName?: string | null
 }
 
 export function Sidebar({ onSignOut, displayName }: SidebarProps) {

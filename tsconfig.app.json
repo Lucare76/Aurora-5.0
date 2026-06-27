@@ -7,20 +7,16 @@
     "types": ["vite/client"],
     "skipLibCheck": true,
     "baseUrl": ".",
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@/*": ["./src/*"]
     },
-
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-
-    /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
@@ -28,4 +24,3 @@
   },
   "include": ["src"]
 }
-"ignoreDeprecations": "6.0

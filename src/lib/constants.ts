@@ -21,13 +21,15 @@ export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
   transfer: 'Trasferimento',
 }
 
-export const RECURRING_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'] as const
+export const RECURRING_FREQUENCIES = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'] as const
 export type RecurringFrequency = (typeof RECURRING_FREQUENCIES)[number]
 
 export const FREQUENCY_LABELS: Record<RecurringFrequency, string> = {
   daily: 'Giornaliera',
   weekly: 'Settimanale',
+  biweekly: 'Bisettimanale',
   monthly: 'Mensile',
+  quarterly: 'Trimestrale',
   yearly: 'Annuale',
 }
 

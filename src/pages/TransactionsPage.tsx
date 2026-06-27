@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import type { SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, ArrowLeftRight } from 'lucide-react'
@@ -16,8 +17,12 @@ import { useAccounts } from '@/hooks/useAccounts'
 import { useCategories } from '@/hooks/useCategories'
 import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/utils'
-import { TRANSACTION_TYPE_LABELS } from '@/lib/constants'
-import type { TransactionType } from '@/types/database'
+
+const TRANSACTION_TYPE_LABELS = {
+  income: 'Entrata',
+  expense: 'Uscita',
+  transfer: 'Giroconto',
+}
 
 const transactionSchema = z.object({
   description: z.string().min(1, 'Descrizione obbligatoria'),
@@ -29,7 +34,15 @@ const transactionSchema = z.object({
   notes: z.string().optional(),
 })
 
-type TransactionForm = z.infer<typeof transactionSchema>
+type TransactionForm = {
+  description: string
+  amount: number
+  date: string
+  type: 'income' | 'expense' | 'transfer'
+  account_id: string
+  category_id?: string
+  notes?: string
+}
 
 export default function TransactionsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -38,31 +51,31 @@ export default function TransactionsPage() {
   const { categories } = useCategories()
 
   const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<TransactionForm>({
-    resolver: zodResolver(transactionSchema),
+    resolver: zodResolver(transactionSchema) as any,
     defaultValues: { type: 'expense', date: new Date().toISOString().split('T')[0] },
   })
 
   const selectedType = watch('type')
+  const filteredCategories = categories.filter((c) => c.type === selectedType || c.type === 'both')
 
-  const filteredCategories = categories.filter((c) => c.type === selectedType)
-
-  const onSubmit = async (data: TransactionForm) => {
+  const onSubmit: SubmitHandler<TransactionForm> = async (data) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Non autenticato')
+
       const { error } = await supabase.from('transactions').insert({
         description: data.description,
         amount: data.amount,
         date: data.date,
-        type: data.type as TransactionType,
+        type: data.type,
         account_id: data.account_id,
         category_id: data.category_id || null,
         notes: data.notes || null,
-        user_id: (await supabase.auth.getUser()).data.user!.id,
-        transfer_to_account_id: null,
-        recurring_rule_id: null,
-      })
+        user_id: user.id,
+      } as any)
       if (error) throw error
 
-      await supabase.rpc('adjust_account_balance', {
+      await (supabase.rpc as any)('adjust_account_balance', {
         p_account_id: data.account_id,
         p_amount: data.type === 'income' ? data.amount : -data.amount,
       })
@@ -71,8 +84,8 @@ export default function TransactionsPage() {
       setDialogOpen(false)
       reset()
       refetch()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Errore nel salvataggio')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore nel salvataggio')
     }
   }
 
@@ -103,12 +116,12 @@ export default function TransactionsPage() {
               <div className="space-y-2">
                 <Label>Descrizione</Label>
                 <Input {...register('description')} placeholder="Descrizione" />
-                {errors.description && <p className="text-sm text-danger">{errors.description.message}</p>}
+                {errors.description && <p className="text-sm text-red-500">{errors.description.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Importo</Label>
                 <Input type="number" step="0.01" {...register('amount')} placeholder="0.00" />
-                {errors.amount && <p className="text-sm text-danger">{errors.amount.message}</p>}
+                {errors.amount && <p className="text-sm text-red-500">{errors.amount.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Data</Label>
@@ -122,7 +135,7 @@ export default function TransactionsPage() {
                     <option key={a.id} value={a.id}>{a.name}</option>
                   ))}
                 </select>
-                {errors.account_id && <p className="text-sm text-danger">{errors.account_id.message}</p>}
+                {errors.account_id && <p className="text-sm text-red-500">{errors.account_id.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Categoria</Label>

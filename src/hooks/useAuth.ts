@@ -55,7 +55,7 @@ export function useAuth() {
     if (error) throw error
 
     if (data.user) {
-      await supabase.rpc('create_default_categories')
+      await (supabase.rpc as any)('create_default_categories', { p_user_id: data.user.id })
     }
   }
 

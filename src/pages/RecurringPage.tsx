@@ -58,7 +58,7 @@ export default function RecurringPage() {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-muted-foreground">
-                    Prossima: {formatDate(rule.next_occurrence)}
+                    Prossima: {formatDate(rule.next_due_date)}
                   </p>
                   <AmountDisplay
                     amount={rule.amount}

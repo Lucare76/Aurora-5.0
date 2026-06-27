@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import type { SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Plus, Wallet } from 'lucide-react'
@@ -14,8 +15,16 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { useAccounts } from '@/hooks/useAccounts'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
-import { ACCOUNT_TYPES, ACCOUNT_TYPE_LABELS } from '@/lib/constants'
-import type { AccountType } from '@/types/database'
+
+const ACCOUNT_TYPES = ['checking', 'savings', 'cash', 'credit', 'investment', 'other'] as const
+const ACCOUNT_TYPE_LABELS: Record<typeof ACCOUNT_TYPES[number], string> = {
+  checking: 'Conto corrente',
+  savings: 'Risparmio',
+  cash: 'Contanti',
+  credit: 'Carta di credito',
+  investment: 'Investimenti',
+  other: 'Altro',
+}
 
 const accountSchema = z.object({
   name: z.string().min(1, 'Nome obbligatorio'),
@@ -24,36 +33,45 @@ const accountSchema = z.object({
   currency: z.string().default('EUR'),
 })
 
-type AccountForm = z.infer<typeof accountSchema>
+type AccountForm = {
+  name: string
+  type: typeof ACCOUNT_TYPES[number]
+  balance: number
+  currency: string
+}
 
 export default function AccountsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const { accounts, totalBalance, loading, refetch } = useAccounts()
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<AccountForm>({
-    resolver: zodResolver(accountSchema),
-    defaultValues: { type: 'bank', currency: 'EUR', balance: 0 },
+    resolver: zodResolver(accountSchema) as any,
+    defaultValues: { type: 'checking', currency: 'EUR', balance: 0 },
   })
 
-  const onSubmit = async (data: AccountForm) => {
+  const onSubmit: SubmitHandler<AccountForm> = async (data) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Non autenticato')
+
       const { error } = await supabase.from('accounts').insert({
         name: data.name,
-        type: data.type as AccountType,
+        type: data.type,
         balance: data.balance,
         currency: data.currency,
-        user_id: (await supabase.auth.getUser()).data.user!.id,
-        icon: null,
-        color: null,
+        user_id: user.id,
         is_active: true,
-      })
+        sort_order: 0,
+        color: null,
+        icon: null,
+      } as any)
       if (error) throw error
       toast.success('Conto creato')
       setDialogOpen(false)
       reset()
       refetch()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Errore nel salvataggio')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore nel salvataggio')
     }
   }
 
@@ -73,7 +91,7 @@ export default function AccountsPage() {
               <div className="space-y-2">
                 <Label>Nome</Label>
                 <Input {...register('name')} placeholder="Nome del conto" />
-                {errors.name && <p className="text-sm text-danger">{errors.name.message}</p>}
+                {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Tipo</Label>
@@ -118,7 +136,7 @@ export default function AccountsPage() {
             <Card key={account.id}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-base">{account.name}</CardTitle>
-                <Badge variant="secondary">{ACCOUNT_TYPE_LABELS[account.type]}</Badge>
+                <Badge variant="secondary">{ACCOUNT_TYPE_LABELS[account.type as typeof ACCOUNT_TYPES[number]] ?? account.type}</Badge>
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold tabular-nums">{formatCurrency(account.balance, account.currency)}</p>

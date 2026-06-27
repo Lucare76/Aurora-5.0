@@ -26,7 +26,7 @@ export default function SettingsPage() {
           <Separator />
           <div>
             <p className="text-sm text-muted-foreground">Valuta predefinita</p>
-            <p className="text-sm font-medium">{profile?.default_currency ?? 'EUR'}</p>
+            <p className="text-sm font-medium">{profile?.currency ?? 'EUR'}</p>
           </div>
         </CardContent>
       </Card>

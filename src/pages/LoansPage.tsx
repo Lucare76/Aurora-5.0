@@ -48,7 +48,7 @@ export default function LoansPage() {
           {loans.map((loan) => (
             <Card key={loan.id}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-base">{loan.person_name}</CardTitle>
+                <CardTitle className="text-base">{loan.counterpart}</CardTitle>
                 <div className="flex gap-2">
                   <Badge variant={loan.type === 'given' ? 'default' : 'secondary'}>
                     {LOAN_TYPE_LABELS[loan.type]}
@@ -60,13 +60,13 @@ export default function LoansPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground">
-                      {formatDate(loan.date)}
+                      {formatDate(loan.created_at)}
                       {loan.due_date && ` — Scadenza: ${formatDate(loan.due_date)}`}
                     </p>
                     {loan.description && <p className="text-xs text-muted-foreground mt-1">{loan.description}</p>}
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold tabular-nums">{formatCurrency(loan.remaining_amount)}</p>
+                    <p className="text-lg font-bold tabular-nums">{formatCurrency(loan.remaining)}</p>
                     <p className="text-xs text-muted-foreground">di {formatCurrency(loan.amount)}</p>
                   </div>
                 </div>
