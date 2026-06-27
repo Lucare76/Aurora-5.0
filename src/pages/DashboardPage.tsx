@@ -3,15 +3,19 @@ import { Link } from 'react-router-dom'
 import {
   Activity,
   ArrowRight,
+  CalendarDays,
+  Landmark,
   Plus,
+  Sparkles,
   TrendingDown,
   TrendingUp,
   Wallet,
 } from 'lucide-react'
 import {
+  Area,
   Bar,
-  BarChart,
   CartesianGrid,
+  ComposedChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -34,11 +38,13 @@ interface MonthlyData {
   month: string
   entrate: number
   uscite: number
+  netto: number
 }
 
 interface MetricCardProps {
   title: string
   value: string
+  detail: string
   icon: typeof Wallet
   tone?: 'default' | 'success' | 'danger' | 'primary'
 }
@@ -47,6 +53,7 @@ interface ChartTooltipPayload {
   dataKey?: string | number
   name?: string | number
   value?: number
+  color?: string
 }
 
 interface ChartTooltipProps {
@@ -56,10 +63,10 @@ interface ChartTooltipProps {
 }
 
 const metricToneClasses = {
-  default: 'text-muted-foreground bg-muted',
-  success: 'text-success bg-emerald-500/10',
-  danger: 'text-danger bg-red-500/10',
-  primary: 'text-primary bg-primary/10',
+  default: 'border-border bg-card text-muted-foreground',
+  success: 'border-emerald-500/20 bg-emerald-500/10 text-success',
+  danger: 'border-red-500/20 bg-red-500/10 text-danger',
+  primary: 'border-primary/25 bg-primary/10 text-primary',
 }
 
 function getMonthWindow(offset: number) {
@@ -75,17 +82,18 @@ function getMonthWindow(offset: number) {
   }
 }
 
-function MetricCard({ title, value, icon: Icon, tone = 'default' }: MetricCardProps) {
+function MetricCard({ title, value, detail, icon: Icon, tone = 'default' }: MetricCardProps) {
   return (
-    <Card className="overflow-hidden border-border bg-card">
+    <Card className="group overflow-hidden border-border/80 bg-card/90 shadow-xl shadow-black/10 transition-colors hover:border-primary/35">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        <div className={cn('rounded-md p-2', metricToneClasses[tone])}>
+        <div className={cn('rounded-lg border p-2', metricToneClasses[tone])}>
           <Icon className="h-4 w-4" />
         </div>
       </CardHeader>
       <CardContent>
         <p className="truncate text-2xl font-semibold tabular-nums text-foreground">{value}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{detail}</p>
       </CardContent>
     </Card>
   )
@@ -111,6 +119,35 @@ function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
   )
 }
 
+function FlowMeter({ income, expense }: { income: number; expense: number }) {
+  const total = income + expense
+  const incomeWidth = total > 0 ? Math.max((income / total) * 100, 4) : 50
+  const expenseWidth = total > 0 ? Math.max((expense / total) * 100, 4) : 50
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>Mix mensile</span>
+        <span className="tabular-nums">{total > 0 ? `${Math.round(incomeWidth)}% entrate` : 'nessun movimento'}</span>
+      </div>
+      <div className="flex h-3 overflow-hidden rounded-full bg-muted">
+        <div className="bg-emerald-400" style={{ width: `${incomeWidth}%` }} />
+        <div className="bg-red-400" style={{ width: `${expenseWidth}%` }} />
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-xs">
+        <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 p-3">
+          <p className="text-muted-foreground">Entrate</p>
+          <p className="mt-1 font-semibold tabular-nums text-success">{formatCurrency(income)}</p>
+        </div>
+        <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3">
+          <p className="text-muted-foreground">Uscite</p>
+          <p className="mt-1 font-semibold tabular-nums text-danger">{formatCurrency(expense)}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const now = new Date()
   const month = now.getMonth() + 1
@@ -118,15 +155,8 @@ export default function DashboardPage() {
 
   const { accounts, totalBalance, loading: accountsLoading } = useAccounts()
   const { categories, loading: categoriesLoading } = useCategories()
-  const {
-    transactions: recentTransactions,
-    loading: recentLoading,
-  } = useTransactions({ limit: 5 })
-  const {
-    totalIncome,
-    totalExpense,
-    loading: monthLoading,
-  } = useTransactions({ month, year })
+  const { transactions: recentTransactions, loading: recentLoading } = useTransactions({ limit: 5 })
+  const { totalIncome, totalExpense, loading: monthLoading } = useTransactions({ month, year })
 
   const [chartData, setChartData] = useState<MonthlyData[]>([])
   const [chartLoading, setChartLoading] = useState(true)
@@ -178,7 +208,10 @@ export default function DashboardPage() {
         }
       }
 
-      setChartData(months.map(({ startDate, endDate, ...item }) => item))
+      setChartData(months.map(({ startDate, endDate, ...item }) => ({
+        ...item,
+        netto: item.entrate - item.uscite,
+      })))
       setChartLoading(false)
     }
 
@@ -189,22 +222,23 @@ export default function DashboardPage() {
     }
   }, [])
 
-  const categoryById = useMemo(() => {
-    return new Map(categories.map((category) => [category.id, category]))
-  }, [categories])
-
+  const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
   const activeAccounts = useMemo(() => accounts.filter((account) => account.is_active), [accounts])
   const netSavings = totalIncome - totalExpense
+  const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0
+  const bestMonth = useMemo(() => {
+    return chartData.reduce<MonthlyData | null>((best, item) => {
+      if (!best || item.netto > best.netto) return item
+      return best
+    }, null)
+  }, [chartData])
   const hasNoData = !accountsLoading && !recentLoading && accounts.length === 0 && recentTransactions.length === 0
   const loading = accountsLoading || monthLoading || recentLoading || categoriesLoading
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <Skeleton className="h-9 w-44" />
-          <Skeleton className="mt-2 h-5 w-72" />
-        </div>
+        <Skeleton className="h-56 rounded-lg" />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
@@ -225,8 +259,8 @@ export default function DashboardPage() {
           description="Aggiungi il primo conto per vedere saldo, andamento mensile e ultime transazioni nella dashboard."
           action={
             <Link to="/accounts" className={cn(buttonVariants(), 'gap-2')}>
-                <Plus className="h-4 w-4" />
-                Aggiungi conto
+              <Plus className="h-4 w-4" />
+              Aggiungi conto
             </Link>
           }
         />
@@ -235,47 +269,132 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-normal text-foreground">Dashboard</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Una vista chiara su saldo, flussi e movimenti recenti.
-          </p>
+    <div className="space-y-7">
+      <section className="overflow-hidden rounded-lg border border-border bg-card shadow-2xl shadow-black/15">
+        <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,0.75fr)]">
+          <div className="relative p-6 sm:p-8">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-emerald-400 to-sky-400" />
+            <div className="mb-8 flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Aurora overview
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-muted-foreground">
+                <CalendarDays className="h-3.5 w-3.5" />
+                {getMonthName(month)} {year}
+              </span>
+            </div>
+
+            <div className="max-w-3xl">
+              <p className="text-sm font-medium text-muted-foreground">Patrimonio disponibile</p>
+              <h1 className="mt-3 text-4xl font-semibold tracking-normal text-foreground sm:text-5xl">
+                {formatCurrency(totalBalance)}
+              </h1>
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Dashboard piu ariosa, luminosa e orientata alle decisioni: saldo, risparmio e flusso
+                mensile restano leggibili a colpo d'occhio.
+              </p>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link to="/transactions" className={cn(buttonVariants(), 'gap-2')}>
+                Nuova transazione
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link to="/accounts" className={cn(buttonVariants({ variant: 'outline' }), 'gap-2')}>
+                Gestisci conti
+                <Wallet className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="border-t border-border bg-muted/45 p-6 sm:p-8 lg:border-l lg:border-t-0">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">Salute del mese</p>
+                <p className="mt-1 text-xs text-muted-foreground">Risparmio netto e pressione uscite</p>
+              </div>
+              <div className="rounded-lg border border-primary/25 bg-primary/10 p-2 text-primary">
+                <Activity className="h-5 w-5" />
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-5">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Risparmio netto</p>
+                  <AmountDisplay
+                    amount={netSavings}
+                    type={netSavings >= 0 ? 'income' : 'expense'}
+                    className="mt-1 block text-2xl font-semibold"
+                  />
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Tasso</p>
+                  <p className={cn('mt-1 text-2xl font-semibold tabular-nums', savingsRate >= 0 ? 'text-primary' : 'text-danger')}>
+                    {savingsRate}%
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5">
+                <FlowMeter income={totalIncome} expense={totalExpense} />
+              </div>
+            </div>
+          </div>
         </div>
-        <Link
-          to="/transactions"
-          className={cn(buttonVariants({ variant: 'outline' }), 'gap-2 self-start sm:self-auto')}
-        >
-            Nuova transazione
-            <ArrowRight className="h-4 w-4" />
-        </Link>
-      </div>
+      </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard title="Saldo totale" value={formatCurrency(totalBalance)} icon={Wallet} />
-        <MetricCard title="Entrate mese" value={formatCurrency(totalIncome)} icon={TrendingUp} tone="success" />
-        <MetricCard title="Uscite mese" value={formatCurrency(totalExpense)} icon={TrendingDown} tone="danger" />
         <MetricCard
-          title="Risparmio netto mese"
-          value={formatCurrency(netSavings)}
-          icon={Activity}
+          title="Saldo totale"
+          value={formatCurrency(totalBalance)}
+          detail={`${activeAccounts.length} conti attivi`}
+          icon={Wallet}
+        />
+        <MetricCard
+          title="Entrate mese"
+          value={formatCurrency(totalIncome)}
+          detail="Flussi positivi registrati"
+          icon={TrendingUp}
+          tone="success"
+        />
+        <MetricCard
+          title="Uscite mese"
+          value={formatCurrency(totalExpense)}
+          detail="Spesa consolidata del mese"
+          icon={TrendingDown}
+          tone="danger"
+        />
+        <MetricCard
+          title="Mese migliore"
+          value={bestMonth ? formatCurrency(bestMonth.netto) : formatCurrency(0)}
+          detail={bestMonth ? `Netto di ${bestMonth.month}` : 'In attesa di dati'}
+          icon={Landmark}
           tone="primary"
         />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.55fr)]">
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="text-lg">Entrate vs uscite</CardTitle>
+        <Card className="border-border/80 bg-card/90 shadow-xl shadow-black/10">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">Andamento finanziario</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">Ultimi 6 mesi, con netto in evidenza</p>
+            </div>
           </CardHeader>
           <CardContent>
             {chartLoading ? (
-              <Skeleton className="h-[320px]" />
+              <Skeleton className="h-[340px]" />
             ) : (
-              <div className="h-[320px]">
+              <div className="h-[340px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} barGap={8}>
+                  <ComposedChart data={chartData} barGap={8}>
+                    <defs>
+                      <linearGradient id="netGradient" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
                     <XAxis
                       axisLine={false}
@@ -292,16 +411,24 @@ export default function DashboardPage() {
                       tickFormatter={(value) => formatCurrency(Number(value)).replace(',00', '')}
                     />
                     <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--accent)' }} />
+                    <Area
+                      dataKey="netto"
+                      name="netto"
+                      fill="url(#netGradient)"
+                      stroke="#818cf8"
+                      strokeWidth={2}
+                      type="monotone"
+                    />
                     <Bar dataKey="entrate" name="entrate" fill="#10b981" radius={[6, 6, 0, 0]} />
                     <Bar dataKey="uscite" name="uscite" fill="#ef4444" radius={[6, 6, 0, 0]} />
-                  </BarChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card">
+        <Card className="border-border/80 bg-card/90 shadow-xl shadow-black/10">
           <CardHeader>
             <CardTitle className="text-lg">Conti attivi</CardTitle>
           </CardHeader>
@@ -311,7 +438,7 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {activeAccounts.slice(0, 5).map((account) => (
-                  <div key={account.id} className="flex items-center justify-between gap-4 rounded-lg bg-muted/50 p-3">
+                  <div key={account.id} className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/45 p-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-foreground">{account.name}</p>
                       <p className="text-xs capitalize text-muted-foreground">{account.type}</p>
@@ -327,7 +454,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <Card className="border-border bg-card">
+      <Card className="border-border/80 bg-card/90 shadow-xl shadow-black/10">
         <CardHeader>
           <CardTitle className="text-lg">Ultime transazioni</CardTitle>
         </CardHeader>

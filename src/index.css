@@ -5,24 +5,24 @@
 @layer base {
   :root,
   .dark {
-    --background: #0a0a0f;
-    --foreground: #f4f4f5;
-    --card: #111118;
+    --background: #10121a;
+    --foreground: #f7f7fb;
+    --card: #181b28;
     --card-foreground: #f4f4f5;
-    --popover: #111118;
+    --popover: #181b28;
     --popover-foreground: #f4f4f5;
     --primary: #6366f1;
     --primary-foreground: #ffffff;
-    --secondary: #181822;
+    --secondary: #202436;
     --secondary-foreground: #f4f4f5;
-    --muted: #1a1a24;
-    --muted-foreground: #71717a;
-    --accent: #1e1e2e;
+    --muted: #202436;
+    --muted-foreground: #9ca3af;
+    --accent: #252a40;
     --accent-foreground: #f4f4f5;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
-    --border: #1f1f2e;
-    --input: #1f1f2e;
+    --border: #2d3348;
+    --input: #2d3348;
     --ring: #6366f1;
     --radius: 0.5rem;
   }
@@ -64,6 +64,9 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    background:
+      linear-gradient(180deg, #171a27 0%, var(--background) 340px),
+      var(--background);
     min-width: 320px;
     min-height: 100vh;
     margin: 0;
