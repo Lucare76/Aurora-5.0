@@ -4,6 +4,29 @@
 
 @layer base {
   :root,
+  .light {
+    --background: #f3f5fb;
+    --foreground: #111118;
+    --card: #ffffff;
+    --card-foreground: #111118;
+    --popover: #ffffff;
+    --popover-foreground: #111118;
+    --primary: #6366f1;
+    --primary-foreground: #ffffff;
+    --secondary: #eef1f8;
+    --secondary-foreground: #111118;
+    --muted: #eef1f8;
+    --muted-foreground: #667085;
+    --accent: #e8ecf8;
+    --accent-foreground: #111118;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #d8deea;
+    --input: #d8deea;
+    --ring: #6366f1;
+    --radius: 0.5rem;
+  }
+
   .dark {
     --background: #10121a;
     --foreground: #f7f7fb;
@@ -27,45 +50,23 @@
     --radius: 0.5rem;
   }
 
-  .light {
-    --background: #fafafa;
-    --foreground: #09090b;
-    --card: #ffffff;
-    --card-foreground: #09090b;
-    --popover: #ffffff;
-    --popover-foreground: #09090b;
-    --primary: #6366f1;
-    --primary-foreground: #ffffff;
-    --secondary: #f4f4f5;
-    --secondary-foreground: #09090b;
-    --muted: #f4f4f5;
-    --muted-foreground: #71717a;
-    --accent: #f4f4f5;
-    --accent-foreground: #09090b;
-    --destructive: #ef4444;
-    --destructive-foreground: #ffffff;
-    --border: #e4e4e7;
-    --input: #e4e4e7;
-    --ring: #6366f1;
-  }
-
   * {
     @apply border-border;
   }
 
   html {
-    color-scheme: dark;
+    color-scheme: light;
     background: var(--background);
   }
 
-  html.light {
-    color-scheme: light;
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     background:
-      linear-gradient(180deg, #171a27 0%, var(--background) 340px),
+      linear-gradient(180deg, #ffffff 0%, #eef2ff 260px, var(--background) 520px),
       var(--background);
     min-width: 320px;
     min-height: 100vh;

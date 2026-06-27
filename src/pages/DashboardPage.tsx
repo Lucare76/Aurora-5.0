@@ -25,7 +25,6 @@ import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AmountDisplay } from '@/components/shared/AmountDisplay'
-import { EmptyState } from '@/components/shared/EmptyState'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useCategories } from '@/hooks/useCategories'
 import { useTransactions } from '@/hooks/useTransactions'
@@ -63,7 +62,7 @@ interface ChartTooltipProps {
 }
 
 const metricToneClasses = {
-  default: 'border-border bg-card text-muted-foreground',
+  default: 'border-slate-200 bg-white text-slate-500',
   success: 'border-emerald-500/20 bg-emerald-500/10 text-success',
   danger: 'border-red-500/20 bg-red-500/10 text-danger',
   primary: 'border-primary/25 bg-primary/10 text-primary',
@@ -84,7 +83,7 @@ function getMonthWindow(offset: number) {
 
 function MetricCard({ title, value, detail, icon: Icon, tone = 'default' }: MetricCardProps) {
   return (
-    <Card className="group overflow-hidden border-border/80 bg-card/90 shadow-xl shadow-black/10 transition-colors hover:border-primary/35">
+    <Card className="group overflow-hidden border-slate-200 bg-white shadow-xl shadow-slate-200/70 transition-colors hover:border-primary/35">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <div className={cn('rounded-lg border p-2', metricToneClasses[tone])}>
@@ -103,7 +102,7 @@ function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
   if (!active || !payload?.length) return null
 
   return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-xl">
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-xl">
       <p className="mb-2 font-medium text-foreground">{label}</p>
       <div className="space-y-1">
         {payload.map((item) => (
@@ -252,46 +251,91 @@ export default function DashboardPage() {
 
   if (hasNoData) {
     return (
-      <div className="flex min-h-[calc(100vh-10rem)] items-center justify-center">
-        <EmptyState
-          icon={Wallet}
-          title="Inizia dai tuoi conti"
-          description="Aggiungi il primo conto per vedere saldo, andamento mensile e ultime transazioni nella dashboard."
-          action={
-            <Link to="/accounts" className={cn(buttonVariants(), 'gap-2')}>
-              <Plus className="h-4 w-4" />
-              Aggiungi conto
-            </Link>
-          }
-        />
+      <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-white via-indigo-50 to-sky-100 p-6 shadow-2xl shadow-slate-200/80 sm:p-10">
+        <div className="grid min-h-[520px] items-center gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white/80 px-3 py-1 text-xs font-semibold text-primary shadow-sm">
+              <Sparkles className="h-3.5 w-3.5" />
+              Nuova dashboard Aurora
+            </span>
+            <h1 className="mt-6 max-w-2xl text-4xl font-semibold tracking-normal text-slate-950 sm:text-6xl">
+              Il tuo denaro, finalmente visibile.
+            </h1>
+            <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
+              Aggiungi un conto e Aurora costruira una vista completa con saldo, trend, risparmio
+              mensile e movimenti recenti.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link to="/accounts" className={cn(buttonVariants(), 'h-11 gap-2 shadow-lg shadow-indigo-200')}>
+                <Plus className="h-4 w-4" />
+                Aggiungi conto
+              </Link>
+              <Link to="/transactions" className={cn(buttonVariants({ variant: 'outline' }), 'h-11 gap-2 bg-white/70')}>
+                Nuova transazione
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-white/80 bg-white/75 p-5 shadow-2xl shadow-indigo-200/60 backdrop-blur">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Anteprima dashboard</p>
+                <p className="mt-1 text-xs text-slate-500">{getMonthName(month)} {year}</p>
+              </div>
+              <div className="rounded-lg bg-indigo-50 p-2 text-primary">
+                <Activity className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="rounded-lg bg-slate-950 p-5 text-white">
+              <p className="text-xs text-slate-400">Patrimonio disponibile</p>
+              <p className="mt-3 text-4xl font-semibold tabular-nums">€0,00</p>
+              <div className="mt-6 grid grid-cols-3 gap-2">
+                <div className="h-20 rounded-md bg-indigo-500/80" />
+                <div className="h-28 rounded-md bg-emerald-400/80" />
+                <div className="h-16 rounded-md bg-red-400/80" />
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-md border border-emerald-100 bg-emerald-50 p-4">
+                <p className="text-xs text-slate-500">Entrate</p>
+                <p className="mt-2 font-semibold text-success">+ €0,00</p>
+              </div>
+              <div className="rounded-md border border-red-100 bg-red-50 p-4">
+                <p className="text-xs text-slate-500">Uscite</p>
+                <p className="mt-2 font-semibold text-danger">- €0,00</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-7">
-      <section className="overflow-hidden rounded-lg border border-border bg-card shadow-2xl shadow-black/15">
+      <section className="overflow-hidden rounded-lg border border-slate-200 bg-gradient-to-br from-white via-indigo-50 to-sky-100 shadow-2xl shadow-slate-200/80">
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,0.75fr)]">
           <div className="relative p-6 sm:p-8">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-emerald-400 to-sky-400" />
             <div className="mb-8 flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white/80 px-3 py-1 text-xs font-semibold text-primary shadow-sm">
                 <Sparkles className="h-3.5 w-3.5" />
                 Aurora overview
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs text-slate-600 shadow-sm">
                 <CalendarDays className="h-3.5 w-3.5" />
                 {getMonthName(month)} {year}
               </span>
             </div>
 
             <div className="max-w-3xl">
-              <p className="text-sm font-medium text-muted-foreground">Patrimonio disponibile</p>
-              <h1 className="mt-3 text-4xl font-semibold tracking-normal text-foreground sm:text-5xl">
+              <p className="text-sm font-medium text-slate-600">Patrimonio disponibile</p>
+              <h1 className="mt-3 text-4xl font-semibold tracking-normal text-slate-950 sm:text-6xl">
                 {formatCurrency(totalBalance)}
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Dashboard piu ariosa, luminosa e orientata alle decisioni: saldo, risparmio e flusso
+              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
+                Dashboard piu chiara, ariosa e orientata alle decisioni: saldo, risparmio e flusso
                 mensile restano leggibili a colpo d'occhio.
               </p>
             </div>
@@ -308,18 +352,18 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="border-t border-border bg-muted/45 p-6 sm:p-8 lg:border-l lg:border-t-0">
+          <div className="border-t border-slate-200 bg-white/65 p-6 backdrop-blur sm:p-8 lg:border-l lg:border-t-0">
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-foreground">Salute del mese</p>
-                <p className="mt-1 text-xs text-muted-foreground">Risparmio netto e pressione uscite</p>
+                <p className="text-sm font-semibold text-slate-950">Salute del mese</p>
+                <p className="mt-1 text-xs text-slate-500">Risparmio netto e pressione uscite</p>
               </div>
               <div className="rounded-lg border border-primary/25 bg-primary/10 p-2 text-primary">
                 <Activity className="h-5 w-5" />
               </div>
             </div>
 
-            <div className="rounded-lg border border-border bg-card p-5">
+            <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60">
               <div className="flex items-end justify-between gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Risparmio netto</p>
@@ -375,7 +419,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.55fr)]">
-        <Card className="border-border/80 bg-card/90 shadow-xl shadow-black/10">
+        <Card className="border-slate-200 bg-white shadow-xl shadow-slate-200/70">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-lg">Andamento finanziario</CardTitle>
@@ -428,7 +472,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/80 bg-card/90 shadow-xl shadow-black/10">
+        <Card className="border-slate-200 bg-white shadow-xl shadow-slate-200/70">
           <CardHeader>
             <CardTitle className="text-lg">Conti attivi</CardTitle>
           </CardHeader>
@@ -438,7 +482,7 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {activeAccounts.slice(0, 5).map((account) => (
-                  <div key={account.id} className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/45 p-3">
+                  <div key={account.id} className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-foreground">{account.name}</p>
                       <p className="text-xs capitalize text-muted-foreground">{account.type}</p>
@@ -454,7 +498,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <Card className="border-border/80 bg-card/90 shadow-xl shadow-black/10">
+      <Card className="border-slate-200 bg-white shadow-xl shadow-slate-200/70">
         <CardHeader>
           <CardTitle className="text-lg">Ultime transazioni</CardTitle>
         </CardHeader>
