@@ -1,19 +1,19 @@
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Sparkles } from 'lucide-react'
+import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
+import { z } from 'zod'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { useAuth } from '@/hooks/useAuth'
 
 const loginSchema = z.object({
-  email: z.string().email('Email non valida'),
-  password: z.string().min(6, 'La password deve avere almeno 6 caratteri'),
+  email: z.string().trim().email('Inserisci un indirizzo email valido.'),
+  password: z.string().min(1, 'Inserisci la password.'),
 })
 
 type LoginForm = z.infer<typeof loginSchema>
@@ -22,60 +22,98 @@ export default function LoginPage() {
   const { user, loading, signIn } = useAuth()
   const navigate = useNavigate()
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   })
 
   useEffect(() => {
-    if (!loading && user) navigate('/')
-  }, [user, loading, navigate])
+    if (!loading && user) {
+      navigate('/', { replace: true })
+    }
+  }, [loading, navigate, user])
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (values: LoginForm) => {
     try {
-      await signIn(data.email, data.password)
-      navigate('/')
+      await signIn(values.email, values.password)
+      navigate('/', { replace: true })
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Errore durante il login'
+      const message = error instanceof Error ? error.message : 'Accesso non riuscito. Riprova.'
       toast.error(message)
     }
   }
 
-  if (loading) return null
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="h-10 w-10 animate-pulse rounded-lg bg-primary/25" />
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-2">
-            <Sparkles className="h-10 w-10 text-primary" />
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
+      <div className="w-full max-w-md">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary shadow-lg shadow-primary/10">
+            <Sparkles className="h-7 w-7" />
           </div>
-          <CardTitle className="text-2xl">Aurora</CardTitle>
-          <CardDescription>Accedi al tuo account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="nome@esempio.it" {...register('email')} />
-              {errors.email && <p className="text-sm text-danger">{errors.email.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="••••••••" {...register('password')} />
-              {errors.password && <p className="text-sm text-danger">{errors.password.message}</p>}
-            </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Accesso in corso...' : 'Accedi'}
-            </Button>
-          </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Non hai un account?{' '}
-            <Link to="/register" className="text-primary hover:underline">
-              Registrati
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+          <h1 className="text-3xl font-semibold tracking-normal text-foreground">Aurora</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Accedi al tuo spazio finanziario.</p>
+        </div>
+
+        <Card className="border-border bg-card shadow-2xl shadow-black/20">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-xl">Bentornato</CardTitle>
+            <CardDescription>Usa email e password per continuare.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="nome@esempio.it"
+                  {...register('email')}
+                />
+                {errors.email && <p className="text-sm text-danger">{errors.email.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="La tua password"
+                  {...register('password')}
+                />
+                {errors.password && <p className="text-sm text-danger">{errors.password.message}</p>}
+              </div>
+
+              <Button type="submit" className="h-11 w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Accesso in corso...' : 'Accedi'}
+              </Button>
+            </form>
+
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              Non hai ancora un account?{' '}
+              <Link className="font-medium text-primary hover:underline" to="/register">
+                Registrati
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </main>
   )
 }
