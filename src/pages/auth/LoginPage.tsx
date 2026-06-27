@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/useAuth'
@@ -52,67 +51,75 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <div className="h-10 w-10 animate-pulse rounded-lg bg-primary/25" />
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="relative h-12 w-12 animate-pulse rounded-xl bg-gradient-to-br from-aurora-purple to-aurora-emerald">
+          <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-aurora-purple to-aurora-emerald opacity-50 blur-xl" />
+        </div>
       </div>
     )
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary shadow-lg shadow-primary/10">
-            <Sparkles className="h-7 w-7" />
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
+      <div className="aurora-bg-intense" />
+
+      <div className="relative z-10 w-full max-w-md animate-scale-in">
+        <div className="mb-10 flex flex-col items-center text-center">
+          <div className="relative mb-5">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-aurora-purple via-aurora-violet to-aurora-emerald shadow-2xl shadow-aurora-purple/30">
+              <Sparkles className="h-8 w-8 text-white" />
+            </div>
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-aurora-purple to-aurora-emerald opacity-40 blur-2xl" />
           </div>
-          <h1 className="text-3xl font-semibold tracking-normal text-foreground">Aurora</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Accedi al tuo spazio finanziario.</p>
+          <h1 className="gradient-text text-4xl font-bold tracking-tight">Aurora</h1>
+          <p className="mt-3 text-sm text-white/50">Il tuo spazio finanziario personale</p>
         </div>
 
-        <Card className="border-border bg-card shadow-2xl shadow-black/20">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-xl">Bentornato</CardTitle>
-            <CardDescription>Usa email e password per continuare.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="nome@esempio.it"
-                  {...register('email')}
-                />
-                {errors.email && <p className="text-sm text-danger">{errors.email.message}</p>}
-              </div>
+        <div className="glass-card rounded-2xl p-8">
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-white">Bentornato</h2>
+            <p className="mt-1 text-sm text-white/40">Usa email e password per continuare.</p>
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="La tua password"
-                  {...register('password')}
-                />
-                {errors.password && <p className="text-sm text-danger">{errors.password.message}</p>}
-              </div>
+          <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-white/70">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="nome@esempio.it"
+                className="h-11 border-white/8 bg-white/5 text-white placeholder:text-white/25 focus:border-aurora-purple/50 focus:ring-aurora-purple/20"
+                {...register('email')}
+              />
+              {errors.email && <p className="text-sm text-danger">{errors.email.message}</p>}
+            </div>
 
-              <Button type="submit" className="h-11 w-full" disabled={isSubmitting}>
-                {isSubmitting ? 'Accesso in corso...' : 'Accedi'}
-              </Button>
-            </form>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-white/70">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="La tua password"
+                className="h-11 border-white/8 bg-white/5 text-white placeholder:text-white/25 focus:border-aurora-purple/50 focus:ring-aurora-purple/20"
+                {...register('password')}
+              />
+              {errors.password && <p className="text-sm text-danger">{errors.password.message}</p>}
+            </div>
 
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              Non hai ancora un account?{' '}
-              <Link className="font-medium text-primary hover:underline" to="/register">
-                Registrati
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
+            <Button type="submit" className="h-12 w-full text-base" disabled={isSubmitting}>
+              {isSubmitting ? 'Accesso in corso...' : 'Accedi'}
+            </Button>
+          </form>
+
+          <p className="mt-8 text-center text-sm text-white/40">
+            Non hai ancora un account?{' '}
+            <Link className="font-medium text-aurora-purple hover:text-aurora-violet transition-colors" to="/register">
+              Registrati
+            </Link>
+          </p>
+        </div>
       </div>
     </main>
   )

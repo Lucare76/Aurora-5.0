@@ -89,10 +89,12 @@ export default function TransactionsPage() {
     }
   }
 
+  const selectClasses = "flex h-11 w-full rounded-lg border border-white/8 bg-white/5 px-3 py-2 text-sm text-white focus:border-aurora-purple/50 focus:outline-none focus:ring-2 focus:ring-aurora-purple/20"
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Transazioni</h1>
+        <h1 className="text-2xl font-bold text-white">Transazioni</h1>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -100,46 +102,46 @@ export default function TransactionsPage() {
               Nuova
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="glass-strong rounded-2xl border-white/10 bg-[#12142a]/95 text-white">
             <DialogHeader>
-              <DialogTitle>Nuova transazione</DialogTitle>
+              <DialogTitle className="text-white">Nuova transazione</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label>Tipo</Label>
-                <select {...register('type')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <Label className="text-white/70">Tipo</Label>
+                <select {...register('type')} className={selectClasses}>
                   {Object.entries(TRANSACTION_TYPE_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>{label}</option>
                   ))}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Descrizione</Label>
-                <Input {...register('description')} placeholder="Descrizione" />
-                {errors.description && <p className="text-sm text-red-500">{errors.description.message}</p>}
+                <Label className="text-white/70">Descrizione</Label>
+                <Input {...register('description')} placeholder="Descrizione" className="h-11 border-white/8 bg-white/5 text-white placeholder:text-white/25" />
+                {errors.description && <p className="text-sm text-danger">{errors.description.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label>Importo</Label>
-                <Input type="number" step="0.01" {...register('amount')} placeholder="0.00" />
-                {errors.amount && <p className="text-sm text-red-500">{errors.amount.message}</p>}
+                <Label className="text-white/70">Importo</Label>
+                <Input type="number" step="0.01" {...register('amount')} placeholder="0.00" className="h-11 border-white/8 bg-white/5 text-white placeholder:text-white/25" />
+                {errors.amount && <p className="text-sm text-danger">{errors.amount.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label>Data</Label>
-                <Input type="date" {...register('date')} />
+                <Label className="text-white/70">Data</Label>
+                <Input type="date" {...register('date')} className="h-11 border-white/8 bg-white/5 text-white" />
               </div>
               <div className="space-y-2">
-                <Label>Conto</Label>
-                <select {...register('account_id')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <Label className="text-white/70">Conto</Label>
+                <select {...register('account_id')} className={selectClasses}>
                   <option value="">Seleziona conto</option>
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>{a.name}</option>
                   ))}
                 </select>
-                {errors.account_id && <p className="text-sm text-red-500">{errors.account_id.message}</p>}
+                {errors.account_id && <p className="text-sm text-danger">{errors.account_id.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label>Categoria</Label>
-                <select {...register('category_id')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <Label className="text-white/70">Categoria</Label>
+                <select {...register('category_id')} className={selectClasses}>
                   <option value="">Nessuna categoria</option>
                   {filteredCategories.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -147,10 +149,10 @@ export default function TransactionsPage() {
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Note</Label>
-                <Input {...register('notes')} placeholder="Note opzionali" />
+                <Label className="text-white/70">Note</Label>
+                <Input {...register('notes')} placeholder="Note opzionali" className="h-11 border-white/8 bg-white/5 text-white placeholder:text-white/25" />
               </div>
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button type="submit" className="w-full h-12" disabled={isSubmitting}>
                 {isSubmitting ? 'Salvataggio...' : 'Salva'}
               </Button>
             </form>
@@ -161,7 +163,7 @@ export default function TransactionsPage() {
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />
+            <div key={i} className="h-16 rounded-xl bg-white/3 animate-pulse" />
           ))}
         </div>
       ) : transactions.length === 0 ? (
@@ -173,15 +175,15 @@ export default function TransactionsPage() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Tutte le transazioni</CardTitle>
+            <CardTitle className="text-lg">Tutte le transazioni</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-1">
               {transactions.map((t) => (
-                <div key={t.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                <div key={t.id} className="flex items-center justify-between rounded-xl px-3 py-3 transition-colors hover:bg-white/[0.03]">
                   <div>
-                    <p className="text-sm font-medium">{t.description}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
+                    <p className="text-sm font-medium text-white">{t.description}</p>
+                    <p className="text-xs text-white/35">{formatDate(t.date)}</p>
                   </div>
                   <AmountDisplay
                     amount={t.amount}

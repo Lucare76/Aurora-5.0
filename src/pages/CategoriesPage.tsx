@@ -10,10 +10,10 @@ export default function CategoriesPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Categorie</h1>
+        <h1 className="text-2xl font-bold text-white">Categorie</h1>
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />
+            <div key={i} className="h-16 rounded-xl bg-white/3 animate-pulse" />
           ))}
         </div>
       </div>
@@ -23,24 +23,25 @@ export default function CategoriesPage() {
   const allEmpty = incomeCategories.length === 0 && expenseCategories.length === 0
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Categorie</h1>
+    <div className="space-y-6 animate-fade-in">
+      <h1 className="text-2xl font-bold text-white">Categorie</h1>
 
       {allEmpty ? (
         <EmptyState icon={Tags} title="Nessuna categoria" description="Le categorie verranno create automaticamente alla registrazione." />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
             <CardHeader>
-              <CardTitle className="text-success">Entrate</CardTitle>
+              <CardTitle className="text-emerald-400">Entrate</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {incomeCategories.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <span className="text-sm">{c.name}</span>
+                  <div key={c.id} className="flex items-center justify-between rounded-xl px-3 py-3 transition-colors hover:bg-white/[0.03]">
+                    <span className="text-sm text-white">{c.name}</span>
                     {c.color && (
-                      <Badge variant="secondary" style={{ backgroundColor: `${c.color}20`, color: c.color }}>
+                      <Badge variant="secondary" className="border-0" style={{ backgroundColor: `${c.color}15`, color: c.color }}>
                         {c.icon ?? ''}
                       </Badge>
                     )}
@@ -50,17 +51,18 @@ export default function CategoriesPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-red-500/30 to-transparent" />
             <CardHeader>
-              <CardTitle className="text-danger">Uscite</CardTitle>
+              <CardTitle className="text-red-400">Uscite</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {expenseCategories.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <span className="text-sm">{c.name}</span>
+                  <div key={c.id} className="flex items-center justify-between rounded-xl px-3 py-3 transition-colors hover:bg-white/[0.03]">
+                    <span className="text-sm text-white">{c.name}</span>
                     {c.color && (
-                      <Badge variant="secondary" style={{ backgroundColor: `${c.color}20`, color: c.color }}>
+                      <Badge variant="secondary" className="border-0" style={{ backgroundColor: `${c.color}15`, color: c.color }}>
                         {c.icon ?? ''}
                       </Badge>
                     )}

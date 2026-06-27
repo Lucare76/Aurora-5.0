@@ -11,10 +11,10 @@ export default function BudgetsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Budget</h1>
+        <h1 className="text-2xl font-bold text-white">Budget</h1>
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
+            <div key={i} className="h-20 rounded-xl bg-white/3 animate-pulse" />
           ))}
         </div>
       </div>
@@ -22,12 +22,12 @@ export default function BudgetsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Budget</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-2xl font-bold text-white">Budget</h1>
+        <span className="rounded-full border border-white/8 bg-white/5 px-3 py-1.5 text-xs text-white/50">
           {getMonthName(now.getMonth() + 1)} {now.getFullYear()}
-        </p>
+        </span>
       </div>
 
       {budgets.length === 0 ? (
@@ -37,12 +37,12 @@ export default function BudgetsPage() {
           {budgets.map((budget) => (
             <Card key={budget.id}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Budget</CardTitle>
+                <CardTitle className="text-base text-white">Budget</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Limite</span>
-                  <span className="text-lg font-bold tabular-nums">{formatCurrency(budget.amount)}</span>
+                  <span className="text-sm text-white/40">Limite</span>
+                  <span className="text-lg font-bold tabular-nums text-white">{formatCurrency(budget.amount)}</span>
                 </div>
               </CardContent>
             </Card>

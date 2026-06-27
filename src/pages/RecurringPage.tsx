@@ -28,10 +28,10 @@ export default function RecurringPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Ricorrenti</h1>
+        <h1 className="text-2xl font-bold text-white">Ricorrenti</h1>
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
+            <div key={i} className="h-20 rounded-xl bg-white/3 animate-pulse" />
           ))}
         </div>
       </div>
@@ -39,8 +39,8 @@ export default function RecurringPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Ricorrenti</h1>
+    <div className="space-y-6 animate-fade-in">
+      <h1 className="text-2xl font-bold text-white">Ricorrenti</h1>
 
       {rules.length === 0 ? (
         <EmptyState icon={Repeat} title="Nessuna regola ricorrente" description="Configura le tue entrate e uscite ricorrenti." />
@@ -49,15 +49,15 @@ export default function RecurringPage() {
           {rules.map((rule) => (
             <Card key={rule.id}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-base">{rule.description}</CardTitle>
+                <CardTitle className="text-base text-white">{rule.description}</CardTitle>
                 <div className="flex gap-2">
-                  <Badge variant="secondary">{FREQUENCY_LABELS[rule.frequency]}</Badge>
-                  {!rule.is_active && <Badge variant="outline">Inattiva</Badge>}
+                  <Badge variant="secondary" className="bg-white/5 text-white/50 border-white/8">{FREQUENCY_LABELS[rule.frequency]}</Badge>
+                  {!rule.is_active && <Badge variant="outline" className="border-white/10 text-white/30">Inattiva</Badge>}
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-white/35">
                     Prossima: {formatDate(rule.next_due_date)}
                   </p>
                   <AmountDisplay

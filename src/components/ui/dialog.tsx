@@ -46,14 +46,14 @@ function DialogContent({ children, className }: { children: React.ReactNode; cla
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/80" onClick={() => setOpen(false)} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setOpen(false)} />
       <div className={cn(
-        'relative z-50 w-full max-w-lg rounded-lg border bg-background p-6 shadow-lg',
+        'relative z-50 w-full max-w-lg glass-strong rounded-2xl border-white/10 bg-[#12142a]/95 p-6 shadow-2xl shadow-black/50 animate-scale-in',
         className
       )}>
         <button
-          className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100"
+          className="absolute right-4 top-4 rounded-lg p-1 text-white/30 hover:bg-white/5 hover:text-white/60 transition-colors"
           onClick={() => setOpen(false)}
         >
           <X className="h-4 w-4" />
@@ -69,7 +69,7 @@ function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
 }
 
 function DialogTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h2 className={cn('text-lg font-semibold leading-none tracking-tight', className)} {...props} />
+  return <h2 className={cn('text-lg font-semibold leading-none tracking-tight text-white', className)} {...props} />
 }
 
 export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle }

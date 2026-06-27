@@ -25,10 +25,10 @@ export default function BirthdaysPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Compleanni</h1>
+        <h1 className="text-2xl font-bold text-white">Compleanni</h1>
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />
+            <div key={i} className="h-16 rounded-xl bg-white/3 animate-pulse" />
           ))}
         </div>
       </div>
@@ -36,25 +36,25 @@ export default function BirthdaysPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Compleanni</h1>
+    <div className="space-y-6 animate-fade-in">
+      <h1 className="text-2xl font-bold text-white">Compleanni</h1>
 
       {birthdays.length === 0 ? (
         <EmptyState icon={Cake} title="Nessun compleanno" description="Aggiungi i compleanni delle persone importanti." />
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Lista compleanni</CardTitle>
+            <CardTitle className="text-lg">Lista compleanni</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-1">
               {birthdays.map((b) => (
-                <div key={b.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                <div key={b.id} className="flex items-center justify-between rounded-xl px-3 py-3 transition-colors hover:bg-white/[0.03]">
                   <div>
-                    <p className="text-sm font-medium">{b.name}</p>
-                    {b.notes && <p className="text-xs text-muted-foreground">{b.notes}</p>}
+                    <p className="text-sm font-medium text-white">{b.name}</p>
+                    {b.notes && <p className="text-xs text-white/30">{b.notes}</p>}
                   </div>
-                  <span className="text-sm tabular-nums text-muted-foreground">{formatDate(b.birth_date, 'dd MMMM')}</span>
+                  <span className="text-sm tabular-nums text-white/50">{formatDate(b.birth_date, 'dd MMMM')}</span>
                 </div>
               ))}
             </div>
