@@ -128,6 +128,18 @@ export interface Birthday {
   updated_at: string
 }
 
+export interface AuditLog {
+  id: string
+  user_id: string | null
+  action: string
+  table_name: string
+  record_id: string | null
+  old_data: Record<string, unknown> | null
+  new_data: Record<string, unknown> | null
+  ip_address: string | null
+  created_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -176,6 +188,11 @@ export interface Database {
         Insert: Omit<Birthday, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<Birthday, 'id' | 'user_id' | 'created_at' | 'updated_at'>>
       }
+      audit_logs: {
+        Row: AuditLog
+        Insert: Omit<AuditLog, 'id' | 'created_at'>
+        Update: never
+      }
     }
     Functions: {
       adjust_account_balance: {
@@ -185,6 +202,39 @@ export interface Database {
       create_default_categories: {
         Args: { p_user_id: string }
         Returns: void
+      }
+      create_transaction_atomic: {
+        Args: {
+          p_account_id: string
+          p_type: string
+          p_amount: number
+          p_date: string
+          p_description?: string | null
+          p_category_id?: string | null
+          p_notes?: string | null
+          p_destination_account_id?: string | null
+          p_recurring_id?: string | null
+        }
+        Returns: Transaction
+      }
+      delete_transaction_atomic: {
+        Args: { p_transaction_id: string }
+        Returns: void
+      }
+      update_transaction_atomic: {
+        Args: {
+          p_transaction_id: string
+          p_account_id?: string | null
+          p_type?: string | null
+          p_amount?: number | null
+          p_date?: string | null
+          p_description?: string | null
+          p_category_id?: string | null
+          p_notes?: string | null
+          p_destination_account_id?: string | null
+          p_clear_category?: boolean
+        }
+        Returns: Transaction
       }
     }
   }
