@@ -612,17 +612,19 @@ export default function TransactionsPage() {
             <SelectField {...targetForm.register('category_id')}>
               <option value="">Nessuna categoria</option>
               {categoryTree.map(({ category, children }) => (
-                <optgroup key={category.id} label={`${category.icon ?? '•'} ${category.name}`}>
-                  {children.length === 0 ? (
-                    <option value={category.id}>{category.name}</option>
-                  ) : (
-                    children.map((child) => (
+                children.length > 0 ? (
+                  <optgroup key={category.id} label={category.name}>
+                    {children.map((child) => (
                       <option key={child.id} value={child.id}>
-                        └ {child.name}
+                        {child.name}
                       </option>
-                    ))
-                  )}
-                </optgroup>
+                    ))}
+                  </optgroup>
+                ) : (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                )
               ))}
             </SelectField>
           </div>
