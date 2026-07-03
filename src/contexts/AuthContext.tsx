@@ -48,19 +48,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const supabase = createClient()
+  const db = supabase as any
 
   const fetchProfile = useCallback(
-    async (userId: string) => {
-      const { data } = await supabase
+    async (userId: string, fallbackName?: string | null) => {
+      const { data, error } = await db
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle()
 
-      setProfile(data ?? null)
-      return data ?? null
+      if (error) throw error
+      if (data) {
+        setProfile(data)
+        return data as Profile
+      }
+
+      const { data: created, error: createError } = await db
+        .from('profiles')
+        .insert({
+          id: userId,
+          display_name: fallbackName ?? null,
+          avatar_url: null,
+          currency: 'EUR',
+          locale: 'it-IT',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          onboarding_done: false,
+        })
+        .select('*')
+        .single()
+
+      if (createError) throw createError
+      setProfile(created)
+      return created as Profile
     },
-    [supabase],
+    [db],
   )
 
   useEffect(() => {
@@ -82,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(session.user)
       try {
-        await fetchProfile(session.user.id)
+        await fetchProfile(session.user.id, session.user.user_metadata?.display_name ?? session.user.email)
       } catch {
         // profile fetch failed, user still authenticated
       }
@@ -106,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        await fetchProfile(nextUser.id)
+        await fetchProfile(nextUser.id, nextUser.user_metadata?.display_name ?? nextUser.email)
       } catch {
         // profile fetch failed
       }
@@ -142,16 +164,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw toItalianAuthError(error)
 
       if (data.user) {
-        const { error: rpcError } = await supabase.rpc(
-          'create_default_categories' as never,
-          { p_user_id: data.user.id } as never,
-        )
+        await fetchProfile(data.user.id, displayName.trim())
+        const { error: rpcError } = await db.rpc('create_default_categories', {
+          p_user_id: data.user.id,
+        })
         if (rpcError) {
-          throw new Error('Account creato, ma non è stato possibile creare le categorie iniziali.')
+          console.error('Errore creazione categorie default', rpcError)
         }
       }
     },
-    [supabase],
+    [supabase, db, fetchProfile],
   )
 
   const signOut = useCallback(async () => {
