@@ -62,6 +62,7 @@ type TypeFilter = 'all' | 'income' | 'expense'
 
 interface TransactionWithPeer extends Transaction {
   destination_account_id?: string
+  peer?: Transaction | null
 }
 
 const defaultValues: TransactionForm = {
@@ -199,7 +200,17 @@ export default function TransactionsPage() {
       toast.error('Errore nel caricamento delle transazioni')
       setTransactions([])
     } else {
-      setTransactions((data ?? []) as TransactionWithPeer[])
+      const rows = (data ?? []) as TransactionWithPeer[]
+      const peerIds = rows.map((row) => row.transfer_peer_id).filter(Boolean) as string[]
+      const { data: peers } = peerIds.length > 0
+        ? await db.from('transactions').select('*').in('id', peerIds)
+        : { data: [] }
+      const peerRows = (peers ?? []) as Transaction[]
+      const peerById = new Map(peerRows.map((peer) => [peer.id, peer]))
+      setTransactions(rows.map((row): TransactionWithPeer => ({
+        ...row,
+        peer: row.transfer_peer_id ? peerById.get(row.transfer_peer_id) ?? null : null,
+      })))
     }
     setLoading(false)
   }
@@ -219,7 +230,7 @@ export default function TransactionsPage() {
   }
 
   const getTransferPeer = async (transaction: Transaction) => {
-    if (transaction.type !== 'transfer') return null
+    if (!transaction.transfer_peer_id) return null
 
     if (transaction.transfer_peer_id) {
       const { data } = await db
@@ -249,7 +260,7 @@ export default function TransactionsPage() {
     const basePayload = {
       user_id: user.id,
       category_id: null,
-      type: 'transfer' as TransactionType,
+      type: 'expense' as TransactionType,
       amount: values.amount,
       description: values.description,
       notes: values.notes || null,
@@ -274,6 +285,7 @@ export default function TransactionsPage() {
       .from('transactions')
       .insert({
         ...basePayload,
+        type: 'income' as TransactionType,
         account_id: values.destination_account_id,
         transfer_peer_id: sourceTransaction.id,
       })
@@ -337,14 +349,14 @@ export default function TransactionsPage() {
     setOpenMenuId(null)
     let destinationId = transaction.destination_account_id ?? ''
 
-    if (transaction.type === 'transfer') {
+    if (transaction.transfer_peer_id) {
       const peer = await getTransferPeer(transaction)
       destinationId = peer?.account_id ?? ''
     }
 
     setEditingTransaction({ ...transaction, destination_account_id: destinationId })
     editForm.reset({
-      type: transaction.type,
+      type: transaction.transfer_peer_id ? 'transfer' : transaction.type,
       amount: transaction.amount,
       description: transaction.description ?? '',
       date: transaction.date,
@@ -356,14 +368,19 @@ export default function TransactionsPage() {
   }
 
   const reverseTransactionBalance = async (transaction: Transaction) => {
-    if (transaction.type !== 'transfer') {
+    if (!transaction.transfer_peer_id) {
       await adjustBalance(transaction.account_id, -transactionDelta(transaction.type, transaction.amount))
       return
     }
 
     const peer = await getTransferPeer(transaction)
-    await adjustBalance(transaction.account_id, transaction.amount)
-    if (peer) await adjustBalance(peer.account_id, -transaction.amount)
+    if (transaction.type === 'expense') {
+      await adjustBalance(transaction.account_id, transaction.amount)
+      if (peer) await adjustBalance(peer.account_id, -transaction.amount)
+    } else {
+      await adjustBalance(transaction.account_id, -transaction.amount)
+      if (peer) await adjustBalance(peer.account_id, transaction.amount)
+    }
   }
 
   const deleteTransaction = async () => {
@@ -400,7 +417,7 @@ export default function TransactionsPage() {
       setBusy(true)
       await reverseTransactionBalance(editingTransaction)
 
-      if (editingTransaction.type === 'transfer') {
+      if (editingTransaction.transfer_peer_id) {
         const oldPeer = await getTransferPeer(editingTransaction)
         if (oldPeer) await db.from('transactions').delete().eq('id', oldPeer.id)
       }
@@ -447,15 +464,19 @@ export default function TransactionsPage() {
   }
 
   const monthTransactions = useMemo(() => {
-    return transactions.filter((transaction) => transaction.type !== 'transfer' || !transaction.transfer_peer_id)
+    return transactions.filter((transaction) => !(transaction.transfer_peer_id && transaction.type === 'income'))
   }, [transactions])
 
   const totalIncome = useMemo(
-    () => monthTransactions.filter((transaction) => transaction.type === 'income').reduce((sum, transaction) => sum + transaction.amount, 0),
+    () => monthTransactions
+      .filter((transaction) => transaction.type === 'income' && !transaction.transfer_peer_id)
+      .reduce((sum, transaction) => sum + transaction.amount, 0),
     [monthTransactions],
   )
   const totalExpense = useMemo(
-    () => monthTransactions.filter((transaction) => transaction.type === 'expense').reduce((sum, transaction) => sum + transaction.amount, 0),
+    () => monthTransactions
+      .filter((transaction) => transaction.type === 'expense' && !transaction.transfer_peer_id)
+      .reduce((sum, transaction) => sum + transaction.amount, 0),
     [monthTransactions],
   )
   const netTotal = totalIncome - totalExpense
@@ -713,9 +734,11 @@ export default function TransactionsPage() {
                   {items.map((transaction) => {
                     const account = accountById.get(transaction.account_id)
                     const category = transaction.category_id ? categoryById.get(transaction.category_id) : null
-                    const isIncome = transaction.type === 'income'
-                    const isExpense = transaction.type === 'expense'
-                    const Icon = isIncome ? ArrowDownLeft : isExpense ? ArrowUpRight : ArrowLeftRight
+                    const isTransfer = Boolean(transaction.transfer_peer_id)
+                    const isIncome = transaction.type === 'income' && !isTransfer
+                    const isExpense = transaction.type === 'expense' && !isTransfer
+                    const peerAccount = transaction.peer ? accountById.get(transaction.peer.account_id) : null
+                    const Icon = isTransfer ? ArrowLeftRight : isIncome ? ArrowDownLeft : ArrowUpRight
 
                     return (
                       <div key={transaction.id} className="relative flex items-center justify-between gap-4 border-b border-[#e5e7f0] px-4 py-4 last:border-b-0 hover:bg-slate-50/80">
@@ -731,10 +754,12 @@ export default function TransactionsPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold text-slate-950">
-                              {transaction.description || 'Transazione'}
+                              {transaction.description || (isTransfer ? 'Giroconto' : 'Transazione')}
                             </p>
                             <p className="mt-1 truncate text-xs text-slate-500">
-                              {category?.name ?? (transaction.type === 'transfer' ? 'Trasferimento' : 'Senza categoria')} · {account?.name ?? 'Conto'} · {format(parseISO(transaction.date), 'dd/MM/yyyy')}
+                              {isTransfer
+                                ? `${account?.name ?? 'Conto'} → ${peerAccount?.name ?? 'Conto destinazione'}`
+                                : `${category?.name ?? 'Senza categoria'} · ${account?.name ?? 'Conto'}`} · {format(parseISO(transaction.date), 'dd/MM/yyyy')}
                             </p>
                           </div>
                         </div>

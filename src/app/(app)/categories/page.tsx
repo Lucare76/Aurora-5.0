@@ -1,98 +1,345 @@
 'use client'
 
-import { Tags } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import type { SubmitHandler } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { MoreHorizontal, Pencil, Plus, Tags, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/shared/EmptyState'
-import { useCategories } from '@/hooks/use-categories'
+import { createClient } from '@/lib/supabase/client'
+import { cn } from '@/lib/utils'
+import type { Category, CategoryType, Transaction } from '@/types/database'
+
+const BORDER = '#e5e7f0'
+const COLORS = ['#6366f1', '#10b981', '#06b6d4', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#84cc16', '#f97316', '#0ea5e9', '#64748b']
+const ICONS = ['🏠', '🛒', '🍽️', '🚗', '💡', '🎁', '💼', '💰', '🎮', '✈️', '❤️', '📚']
+
+const categorySchema = z.object({
+  name: z.string().trim().min(1, 'Il nome è obbligatorio'),
+  type: z.enum(['income', 'expense', 'both']),
+  color: z.string().min(1),
+  icon: z.string().optional(),
+  parent_id: z.string().optional(),
+})
+
+type CategoryForm = z.infer<typeof categorySchema>
+
+function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      className={cn(
+        'h-11 w-full rounded-xl border bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100',
+        props.className,
+      )}
+      style={{ borderColor: BORDER }}
+    />
+  )
+}
+
+function typeLabel(type: CategoryType) {
+  if (type === 'income') return 'Entrata'
+  if (type === 'expense') return 'Uscita'
+  return 'Entrambe'
+}
 
 export default function CategoriesPage() {
-  const { incomeCategories, expenseCategories, loading } = useCategories()
+  const supabase = createClient()
+  const db = supabase as any
+  const [categories, setCategories] = useState<Category[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [loading, setLoading] = useState(true)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+
+  const form = useForm<CategoryForm>({
+    resolver: zodResolver(categorySchema) as any,
+    defaultValues: { name: '', type: 'expense', color: '#6366f1', icon: '🏠', parent_id: '' },
+  })
+
+  const fetchData = async () => {
+    setLoading(true)
+    const [{ data: categoryRows, error: categoryError }, { data: transactionRows, error: transactionError }] = await Promise.all([
+      db.from('categories').select('*').order('sort_order', { ascending: true }),
+      db.from('transactions').select('*'),
+    ])
+    if (categoryError || transactionError) toast.error('Errore nel caricamento delle categorie')
+    setCategories((categoryRows ?? []) as Category[])
+    setTransactions((transactionRows ?? []) as Transaction[])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const transactionCount = useMemo(() => {
+    return transactions.reduce<Record<string, number>>((counts, transaction) => {
+      if (!transaction.category_id) return counts
+      counts[transaction.category_id] = (counts[transaction.category_id] ?? 0) + 1
+      return counts
+    }, {})
+  }, [transactions])
+
+  const rootsByType = (type: 'income' | 'expense') => {
+    return categories.filter((category) => !category.parent_id && (category.type === type || category.type === 'both'))
+  }
+
+  const childrenOf = (parentId: string) => categories.filter((category) => category.parent_id === parentId)
+
+  const openCreate = () => {
+    setEditingCategory(null)
+    form.reset({ name: '', type: 'expense', color: '#6366f1', icon: '🏠', parent_id: '' })
+    setDialogOpen(true)
+  }
+
+  const openEdit = (category: Category) => {
+    setOpenMenuId(null)
+    setEditingCategory(category)
+    form.reset({
+      name: category.name,
+      type: category.type,
+      color: category.color ?? '#6366f1',
+      icon: category.icon ?? '🏠',
+      parent_id: category.parent_id ?? '',
+    })
+    setDialogOpen(true)
+  }
+
+  const onSubmit: SubmitHandler<CategoryForm> = async (values) => {
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+      if (userError || !user) throw new Error('Sessione scaduta. Accedi di nuovo.')
+
+      const payload = {
+        user_id: user.id,
+        name: values.name,
+        type: values.type,
+        color: values.color,
+        icon: values.icon || null,
+        parent_id: values.parent_id || null,
+        is_default: false,
+        sort_order: categories.length,
+      }
+
+      const { error } = editingCategory
+        ? await db.from('categories').update(payload).eq('id', editingCategory.id)
+        : await db.from('categories').insert(payload)
+
+      if (error) throw error
+      toast.success(editingCategory ? 'Categoria aggiornata' : 'Categoria creata')
+      setDialogOpen(false)
+      setEditingCategory(null)
+      await fetchData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Errore durante il salvataggio')
+    }
+  }
+
+  const deleteCategory = async (category: Category) => {
+    if ((transactionCount[category.id] ?? 0) > 0) {
+      toast.error('Non puoi eliminare una categoria con transazioni collegate')
+      return
+    }
+    if (childrenOf(category.id).length > 0) {
+      toast.error('Elimina prima le sottocategorie collegate')
+      return
+    }
+
+    try {
+      const { error } = await db.from('categories').delete().eq('id', category.id)
+      if (error) throw error
+      toast.success('Categoria eliminata')
+      setOpenMenuId(null)
+      await fetchData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Errore durante l’eliminazione')
+    }
+  }
+
+  const renderCategory = (category: Category, depth = 0) => (
+    <div key={category.id}>
+      <div
+        className="relative flex items-center justify-between gap-4 rounded-2xl border border-[#e5e7f0] bg-white px-4 py-3 shadow-sm hover:bg-slate-50/70"
+        style={{ marginLeft: depth * 24 }}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg"
+            style={{ backgroundColor: `${category.color ?? '#6366f1'}18`, color: category.color ?? '#6366f1' }}
+          >
+            {category.icon ?? '•'}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-slate-950">{category.name}</p>
+            <p className="mt-1 text-xs text-slate-500">{transactionCount[category.id] ?? 0} transazioni</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="rounded-full border border-[#e5e7f0] bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
+            {typeLabel(category.type)}
+          </span>
+          <div className="relative">
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setOpenMenuId(openMenuId === category.id ? null : category.id)}>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+            {openMenuId === category.id && (
+              <div className="absolute right-0 top-10 z-20 w-40 rounded-xl border border-[#e5e7f0] bg-white p-1 shadow-xl shadow-slate-200">
+                <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50" onClick={() => openEdit(category)}>
+                  <Pencil className="h-4 w-4" />
+                  Modifica
+                </button>
+                <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50" onClick={() => deleteCategory(category)}>
+                  <Trash2 className="h-4 w-4" />
+                  Elimina
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="mt-2 space-y-2">
+        {childrenOf(category.id).map((child) => renderCategory(child, depth + 1))}
+      </div>
+    </div>
+  )
+
+  const renderSection = (title: string, type: 'income' | 'expense') => {
+    const items = rootsByType(type)
+    return (
+      <Card className="border-[#e5e7f0] bg-white/70 shadow-sm">
+        <CardHeader>
+          <CardTitle className={cn('text-lg', type === 'income' ? 'text-emerald-600' : 'text-red-600')}>{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {items.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-[#e5e7f0] p-6 text-center text-sm text-slate-500">Nessuna categoria</p>
+          ) : (
+            <div className="space-y-2">{items.map((category) => renderCategory(category))}</div>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-slate-900">Categorie</h1>
-        <div className="space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-100" />
-          ))}
-        </div>
+      <div className="space-y-4">
+        <div className="h-10 w-56 animate-pulse rounded-xl bg-slate-100" />
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div key={index} className="h-16 animate-pulse rounded-2xl border border-[#e5e7f0] bg-white" />
+        ))}
       </div>
     )
   }
 
-  const allEmpty = incomeCategories.length === 0 && expenseCategories.length === 0
-
   return (
-    <div className="animate-fade-in space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">Categorie</h1>
+    <div className="min-h-screen bg-[#f8f9fc] text-slate-950">
+      <div className="mx-auto max-w-7xl space-y-7">
+        <header className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-indigo-600">Organizzazione</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight">Categorie</h1>
+          </div>
+          <Button onClick={openCreate} className="h-11 gap-2">
+            <Plus className="h-4 w-4" />
+            Nuova categoria
+          </Button>
+        </header>
 
-      {allEmpty ? (
-        <EmptyState
-          icon={Tags}
-          title="Nessuna categoria"
-          description="Le categorie verranno create automaticamente alla registrazione."
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card className="relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent" />
-            <CardHeader>
-              <CardTitle className="text-emerald-600">Entrate</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1">
-                {incomeCategories.map((c) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center justify-between rounded-xl px-3 py-3 transition-colors hover:bg-slate-50"
-                  >
-                    <span className="text-sm text-slate-900">{c.name}</span>
-                    {c.color && (
-                      <Badge
-                        variant="secondary"
-                        className="border-0"
-                        style={{ backgroundColor: `${c.color}15`, color: c.color }}
-                      >
-                        {c.icon ?? ''}
-                      </Badge>
-                    )}
-                  </div>
+        {categories.length === 0 ? (
+          <div className="rounded-3xl border border-[#e5e7f0] bg-white p-8 shadow-sm">
+            <EmptyState
+              icon={Tags}
+              title="Nessuna categoria"
+              description="Crea categorie personalizzate per leggere meglio entrate e uscite."
+              action={<Button onClick={openCreate}>Nuova categoria</Button>}
+            />
+          </div>
+        ) : (
+          <div className="grid gap-6 xl:grid-cols-2">
+            {renderSection('Uscite', 'expense')}
+            {renderSection('Entrate', 'income')}
+          </div>
+        )}
+      </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-xl border-[#e5e7f0] bg-white text-slate-950">
+          <DialogHeader>
+            <DialogTitle>{editingCategory ? 'Modifica categoria' : 'Nuova categoria'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-5">
+            <div className="space-y-2">
+              <Label className="text-slate-700">Nome</Label>
+              <Input {...form.register('name')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="text-slate-700">Tipo</Label>
+                <SelectField {...form.register('type')}>
+                  <option value="expense">Uscita</option>
+                  <option value="income">Entrata</option>
+                  <option value="both">Entrambe</option>
+                </SelectField>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-700">Categoria padre</Label>
+                <SelectField {...form.register('parent_id')}>
+                  <option value="">Nessuna</option>
+                  {categories
+                    .filter((category) => category.id !== editingCategory?.id && !category.parent_id)
+                    .map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                </SelectField>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700">Colore</Label>
+              <div className="flex flex-wrap gap-2">
+                {COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    className={cn('h-9 w-9 rounded-full border-4 border-white shadow ring-1 ring-slate-200', form.watch('color') === color && 'ring-2 ring-indigo-500')}
+                    style={{ backgroundColor: color }}
+                    onClick={() => form.setValue('color', color)}
+                    aria-label={`Colore ${color}`}
+                  />
                 ))}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-red-400/40 to-transparent" />
-            <CardHeader>
-              <CardTitle className="text-red-600">Uscite</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1">
-                {expenseCategories.map((c) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center justify-between rounded-xl px-3 py-3 transition-colors hover:bg-slate-50"
-                  >
-                    <span className="text-sm text-slate-900">{c.name}</span>
-                    {c.color && (
-                      <Badge
-                        variant="secondary"
-                        className="border-0"
-                        style={{ backgroundColor: `${c.color}15`, color: c.color }}
-                      >
-                        {c.icon ?? ''}
-                      </Badge>
-                    )}
-                  </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700">Icona</Label>
+              <SelectField {...form.register('icon')}>
+                {ICONS.map((icon) => (
+                  <option key={icon} value={icon}>
+                    {icon}
+                  </option>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              </SelectField>
+            </div>
+            <Button type="submit" className="h-12 w-full" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? 'Salvataggio...' : 'Salva categoria'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
