@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { useCategories } from '@/hooks/use-categories'
 import type { Category, CategoryType, Transaction } from '@/types/database'
 
 const BORDER = '#e5e7f0'
@@ -53,7 +54,7 @@ function typeLabel(type: CategoryType) {
 export default function CategoriesPage() {
   const supabase = createClient()
   const db = supabase as any
-  const [categories, setCategories] = useState<Category[]>([])
+  const { categories, loading: categoriesLoading, refetch: refetchCategories, getCategoryTree } = useCategories()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -64,15 +65,12 @@ export default function CategoriesPage() {
     resolver: zodResolver(categorySchema) as any,
     defaultValues: { name: '', type: 'expense', color: '#6366f1', icon: '🏠', parent_id: '' },
   })
+  const selectedType = form.watch('type')
 
   const fetchData = async () => {
     setLoading(true)
-    const [{ data: categoryRows, error: categoryError }, { data: transactionRows, error: transactionError }] = await Promise.all([
-      db.from('categories').select('*').order('sort_order', { ascending: true }),
-      db.from('transactions').select('*'),
-    ])
-    if (categoryError || transactionError) toast.error('Errore nel caricamento delle categorie')
-    setCategories((categoryRows ?? []) as Category[])
+    const { data: transactionRows, error: transactionError } = await db.from('transactions').select('*')
+    if (transactionError) toast.error('Errore nel caricamento delle categorie')
     setTransactions((transactionRows ?? []) as Transaction[])
     setLoading(false)
   }
@@ -90,11 +88,11 @@ export default function CategoriesPage() {
     }, {})
   }, [transactions])
 
-  const rootsByType = (type: 'income' | 'expense') => {
-    return categories.filter((category) => !category.parent_id && (category.type === type || category.type === 'both'))
-  }
-
   const childrenOf = (parentId: string) => categories.filter((category) => category.parent_id === parentId)
+  const parentOptions = categories.filter((category) => {
+    if (category.parent_id || category.id === editingCategory?.id) return false
+    return selectedType === 'both' || category.type === selectedType || category.type === 'both'
+  })
 
   const openCreate = () => {
     setEditingCategory(null)
@@ -111,6 +109,19 @@ export default function CategoriesPage() {
       color: category.color ?? '#6366f1',
       icon: category.icon ?? '🏠',
       parent_id: category.parent_id ?? '',
+    })
+    setDialogOpen(true)
+  }
+
+  const openCreateChild = (parent: Category) => {
+    setOpenMenuId(null)
+    setEditingCategory(null)
+    form.reset({
+      name: '',
+      type: parent.type,
+      color: parent.color ?? '#6366f1',
+      icon: parent.icon ?? '🏠',
+      parent_id: parent.id,
     })
     setDialogOpen(true)
   }
@@ -142,6 +153,7 @@ export default function CategoriesPage() {
       toast.success(editingCategory ? 'Categoria aggiornata' : 'Categoria creata')
       setDialogOpen(false)
       setEditingCategory(null)
+      await refetchCategories()
       await fetchData()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Errore durante il salvataggio')
@@ -154,7 +166,7 @@ export default function CategoriesPage() {
       return
     }
     if (childrenOf(category.id).length > 0) {
-      toast.error('Elimina prima le sottocategorie collegate')
+      toast.error('Elimina prima le sottocategorie')
       return
     }
 
@@ -163,6 +175,7 @@ export default function CategoriesPage() {
       if (error) throw error
       toast.success('Categoria eliminata')
       setOpenMenuId(null)
+      await refetchCategories()
       await fetchData()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Errore durante l’eliminazione')
@@ -172,12 +185,16 @@ export default function CategoriesPage() {
   const renderCategory = (category: Category, depth = 0) => (
     <div key={category.id}>
       <div
-        className="relative flex items-center justify-between gap-4 rounded-2xl border border-[#e5e7f0] bg-white px-4 py-3 shadow-sm hover:bg-slate-50/70"
+        className={cn(
+          'relative flex items-center justify-between gap-4 rounded-2xl border border-[#e5e7f0] bg-white px-4 py-3 shadow-sm hover:bg-slate-50/70',
+          depth > 0 && 'border-l-4 border-l-indigo-200',
+        )}
         style={{ marginLeft: depth * 24 }}
       >
+        {depth > 0 && <span className="absolute -left-4 top-1/2 h-px w-4 bg-indigo-200" />}
         <div className="flex min-w-0 items-center gap-3">
           <span
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg"
+            className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg', depth > 0 && 'h-8 w-8 text-sm')}
             style={{ backgroundColor: `${category.color ?? '#6366f1'}18`, color: category.color ?? '#6366f1' }}
           >
             {category.icon ?? '•'}
@@ -189,7 +206,7 @@ export default function CategoriesPage() {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span className="rounded-full border border-[#e5e7f0] bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
-            {typeLabel(category.type)}
+            {category.parent_id ? 'Sottocategoria' : typeLabel(category.type)}
           </span>
           <div className="relative">
             <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setOpenMenuId(openMenuId === category.id ? null : category.id)}>
@@ -201,6 +218,12 @@ export default function CategoriesPage() {
                   <Pencil className="h-4 w-4" />
                   Modifica
                 </button>
+                {!category.parent_id && (
+                  <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-indigo-600 hover:bg-indigo-50" onClick={() => openCreateChild(category)}>
+                    <Plus className="h-4 w-4" />
+                    Aggiungi sottocategoria
+                  </button>
+                )}
                 <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50" onClick={() => deleteCategory(category)}>
                   <Trash2 className="h-4 w-4" />
                   Elimina
@@ -217,7 +240,7 @@ export default function CategoriesPage() {
   )
 
   const renderSection = (title: string, type: 'income' | 'expense') => {
-    const items = rootsByType(type)
+    const items = getCategoryTree(type)
     return (
       <Card className="border-[#e5e7f0] bg-white/70 shadow-sm">
         <CardHeader>
@@ -227,14 +250,20 @@ export default function CategoriesPage() {
           {items.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-[#e5e7f0] p-6 text-center text-sm text-slate-500">Nessuna categoria</p>
           ) : (
-            <div className="space-y-2">{items.map((category) => renderCategory(category))}</div>
+            <div className="space-y-2">
+              {items.map((node) => (
+                <div key={node.category.id}>
+                  {renderCategory(node.category)}
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
     )
   }
 
-  if (loading) {
+  if (loading || categoriesLoading) {
     return (
       <div className="space-y-4">
         <div className="h-10 w-56 animate-pulse rounded-xl bg-slate-100" />
@@ -300,7 +329,7 @@ export default function CategoriesPage() {
                 <SelectField {...form.register('parent_id')}>
                   <option value="">Nessuna</option>
                   {categories
-                    .filter((category) => category.id !== editingCategory?.id && !category.parent_id)
+                    .filter((category) => parentOptions.some((parent) => parent.id === category.id))
                     .map((category) => (
                       <option key={category.id} value={category.id}>
                         {category.name}

@@ -31,6 +31,7 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { AmountDisplay } from '@/components/shared/AmountDisplay'
 import { useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
+import type { CategoryTreeNode } from '@/hooks/use-categories'
 import { createClient } from '@/lib/supabase/client'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { Account, Category, Transaction, TransactionType } from '@/types/database'
@@ -142,7 +143,7 @@ export default function TransactionsPage() {
   const supabase = createClient()
   const db = supabase as any
   const { accounts, refetch: refetchAccounts } = useAccounts()
-  const { categories } = useCategories()
+  const { categories, getCategoryTree } = useCategories()
   const [transactions, setTransactions] = useState<TransactionWithPeer[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedMonth, setSelectedMonth] = useState(new Date())
@@ -171,14 +172,22 @@ export default function TransactionsPage() {
 
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts])
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
+  const parentCategoryByChildId = useMemo(() => {
+    const byId = new Map(categories.map((category) => [category.id, category]))
+    return new Map(
+      categories
+        .filter((category) => category.parent_id)
+        .map((category) => [category.id, byId.get(category.parent_id ?? '') ?? null]),
+    )
+  }, [categories])
 
-  const filteredCreateCategories = useMemo(
-    () => categories.filter((category) => category.type === watchedType || category.type === 'both'),
-    [categories, watchedType],
+  const createCategoryTree = useMemo(
+    () => (watchedType === 'transfer' ? [] : getCategoryTree(watchedType)),
+    [getCategoryTree, watchedType],
   )
-  const filteredEditCategories = useMemo(
-    () => categories.filter((category) => category.type === watchedEditType || category.type === 'both'),
-    [categories, watchedEditType],
+  const editCategoryTree = useMemo(
+    () => (watchedEditType === 'transfer' ? [] : getCategoryTree(watchedEditType)),
+    [getCategoryTree, watchedEditType],
   )
 
   const fetchTransactions = async () => {
@@ -522,7 +531,7 @@ export default function TransactionsPage() {
     onSubmit: SubmitHandler<TransactionForm>,
     selectedType: TransactionType,
     selectedAccount: string,
-    filteredCategories: Category[],
+    categoryTree: CategoryTreeNode[],
   ) => (
     <form onSubmit={targetForm.handleSubmit(onSubmit)} className="mt-6 space-y-5">
       {renderTypeToggle(targetForm)}
@@ -602,10 +611,18 @@ export default function TransactionsPage() {
             <Label className="text-slate-700">Categoria</Label>
             <SelectField {...targetForm.register('category_id')}>
               <option value="">Nessuna categoria</option>
-              {filteredCategories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
+              {categoryTree.map(({ category, children }) => (
+                <optgroup key={category.id} label={`${category.icon ?? '•'} ${category.name}`}>
+                  {children.length === 0 ? (
+                    <option value={category.id}>{category.name}</option>
+                  ) : (
+                    children.map((child) => (
+                      <option key={child.id} value={child.id}>
+                        └ {child.name}
+                      </option>
+                    ))
+                  )}
+                </optgroup>
               ))}
             </SelectField>
           </div>
@@ -734,6 +751,7 @@ export default function TransactionsPage() {
                   {items.map((transaction) => {
                     const account = accountById.get(transaction.account_id)
                     const category = transaction.category_id ? categoryById.get(transaction.category_id) : null
+                    const parentCategory = category ? parentCategoryByChildId.get(category.id) : null
                     const isTransfer = Boolean(transaction.transfer_peer_id)
                     const isIncome = transaction.type === 'income' && !isTransfer
                     const isExpense = transaction.type === 'expense' && !isTransfer
@@ -761,6 +779,9 @@ export default function TransactionsPage() {
                                 ? `${account?.name ?? 'Conto'} → ${peerAccount?.name ?? 'Conto destinazione'}`
                                 : `${category?.name ?? 'Senza categoria'} · ${account?.name ?? 'Conto'}`} · {format(parseISO(transaction.date), 'dd/MM/yyyy')}
                             </p>
+                            {!isTransfer && parentCategory && (
+                              <p className="mt-0.5 truncate text-xs text-slate-400">{parentCategory.name}</p>
+                            )}
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-3">
@@ -816,7 +837,7 @@ export default function TransactionsPage() {
           <DialogHeader>
             <DialogTitle>Nuova transazione</DialogTitle>
           </DialogHeader>
-          {renderTransactionForm(form, 'Salva transazione', onCreate, watchedType, watchedAccount, filteredCreateCategories)}
+          {renderTransactionForm(form, 'Salva transazione', onCreate, watchedType, watchedAccount, createCategoryTree)}
         </DialogContent>
       </Dialog>
 
@@ -825,7 +846,7 @@ export default function TransactionsPage() {
           <DialogHeader>
             <DialogTitle>Modifica transazione</DialogTitle>
           </DialogHeader>
-          {renderTransactionForm(editForm, 'Salva modifiche', onEdit, watchedEditType, watchedEditAccount, filteredEditCategories)}
+          {renderTransactionForm(editForm, 'Salva modifiche', onEdit, watchedEditType, watchedEditAccount, editCategoryTree)}
         </DialogContent>
       </Dialog>
 
