@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MoreHorizontal,
   Repeat,
   Settings,
   Sparkles,
@@ -20,8 +21,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+import { cn } from '@/lib/utils'
 
 interface NavItem {
   path: string
@@ -46,17 +47,24 @@ const bottomNavItems: NavItem[] = [
   { path: '/transactions', label: 'Transazioni', icon: ArrowLeftRight },
   { path: '/accounts', label: 'Conti', icon: Wallet },
   { path: '/budgets', label: 'Budget', icon: Target },
-  { path: '/settings', label: 'Altro', icon: Settings },
 ]
 
-function Logo() {
+const moreItems: NavItem[] = [
+  { path: '/categories', label: 'Categorie', icon: Tag },
+  { path: '/recurring', label: 'Ricorrenti', icon: Repeat },
+  { path: '/loans', label: 'Prestiti', icon: HandCoins },
+  { path: '/birthdays', label: 'Compleanni', icon: Cake },
+  { path: '/settings', label: 'Impostazioni', icon: Settings },
+]
+
+function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-3 px-5">
-      <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-aurora-purple via-aurora-violet to-aurora-emerald shadow-lg shadow-aurora-purple/20">
-        <Sparkles className="h-5 w-5 text-white" />
+    <Link href="/dashboard" className={cn('flex items-center gap-3', compact ? '' : 'px-5')}>
+      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/25">
+        <Sparkles className="h-5 w-5" />
       </div>
-      <span className="gradient-text text-xl font-bold tracking-tight">Aurora</span>
-    </div>
+      <span className="text-xl font-bold tracking-tight text-slate-950">Aurora</span>
+    </Link>
   )
 }
 
@@ -66,7 +74,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav className="space-y-1 px-3">
       {navItems.map((item) => {
-        const isActive = pathname === item.path
+        const isActive = pathname === item.path || pathname.startsWith(`${item.path}/`)
 
         return (
           <Link
@@ -74,21 +82,14 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
             href={item.path}
             onClick={onNavigate}
             className={cn(
-              'group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-all duration-200',
+              'group relative flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all duration-200',
               isActive
-                ? 'bg-indigo-50 text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700',
+                ? 'bg-indigo-50 text-indigo-700'
+                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900',
             )}
           >
-            {isActive && (
-              <div className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-aurora-purple to-aurora-emerald" />
-            )}
-            <item.icon
-              className={cn(
-                'h-4 w-4 shrink-0 transition-colors',
-                isActive ? 'text-indigo-500' : 'text-slate-400',
-              )}
-            />
+            {isActive && <span className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r-full bg-indigo-600" />}
+            <item.icon className={cn('h-4.5 w-4.5 shrink-0', isActive ? 'text-indigo-600' : 'text-slate-400')} />
             <span className="truncate">{item.label}</span>
           </Link>
         )
@@ -114,20 +115,20 @@ function UserFooter({
     .toUpperCase()
 
   return (
-    <div className="border-t border-slate-200/60 p-3">
-      <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-aurora-purple to-aurora-violet text-sm font-bold text-white shadow-md shadow-aurora-purple/15">
+    <div className="border-t border-[#e5e7f0] p-3">
+      <div className="flex items-center gap-3 rounded-2xl bg-[#f8f9fc] p-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-sm font-bold text-white">
           {initials || 'AU'}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-slate-800">{displayName}</p>
+          <p className="truncate text-sm font-semibold text-slate-900">{displayName}</p>
           {email && <p className="truncate text-xs text-slate-400">{email}</p>}
         </div>
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="h-8 w-8 shrink-0 text-slate-400 hover:bg-slate-200/60 hover:text-slate-600"
+          className="h-9 w-9 shrink-0 text-slate-400 hover:bg-white hover:text-slate-700"
           onClick={onSignOut}
           aria-label="Esci"
         >
@@ -151,7 +152,7 @@ function SidebarContent({
 }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center border-b border-slate-200/60">
+      <div className="flex h-16 items-center border-b border-[#e5e7f0]">
         <Logo />
       </div>
       <div className="flex-1 overflow-y-auto py-4">
@@ -162,14 +163,61 @@ function SidebarContent({
   )
 }
 
+function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const pathname = usePathname()
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 md:hidden">
+      <button
+        type="button"
+        className="absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]"
+        onClick={onClose}
+        aria-label="Chiudi altro"
+      />
+      <div className="absolute inset-x-0 bottom-0 rounded-t-[2rem] border border-[#e5e7f0] bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-2xl">
+        <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200" />
+        <div className="mb-3 flex items-center justify-between px-1">
+          <p className="text-sm font-bold uppercase tracking-wide text-slate-400">Altro</p>
+          <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={onClose} aria-label="Chiudi">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="grid gap-2">
+          {moreItems.map((item) => {
+            const isActive = pathname === item.path || pathname.startsWith(`${item.path}/`)
+
+            return (
+              <Link
+                key={item.path}
+                href={item.path}
+                onClick={onClose}
+                className={cn(
+                  'flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold',
+                  isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50',
+                )}
+              >
+                <item.icon className={cn('h-5 w-5', isActive ? 'text-indigo-600' : 'text-slate-400')} />
+                {item.label}
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const { profile, user, signOut } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
-  const displayName =
-    profile?.display_name || user?.email?.split('@')[0] || 'Utente Aurora'
+  const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Utente Aurora'
+  const isMoreActive = moreItems.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
 
   const handleSignOut = async () => {
     await signOut()
@@ -177,26 +225,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="aurora-bg" />
-
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 lg:block">
-        <div className="flex h-full flex-col border-r border-slate-200/60 bg-white/80 backdrop-blur-xl">
-          <SidebarContent
-            displayName={displayName}
-            email={user?.email}
-            onSignOut={handleSignOut}
-          />
-        </div>
+    <div className="min-h-screen bg-[#f8f9fc] text-slate-950">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-[#e5e7f0] bg-white md:block">
+        <SidebarContent displayName={displayName} email={user?.email} onSignOut={handleSignOut} />
       </aside>
 
-      <header className="fixed inset-x-0 top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/60 bg-white/70 px-4 backdrop-blur-xl lg:hidden">
-        <Logo />
+      <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-[#e5e7f0] bg-white/90 px-4 backdrop-blur md:hidden">
+        <Logo compact />
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="text-slate-500 hover:text-slate-800"
+          className="h-10 w-10 text-slate-600 hover:bg-slate-100"
           onClick={() => setMobileMenuOpen(true)}
           aria-label="Apri menu"
         >
@@ -204,67 +244,87 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Button>
       </header>
 
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
+      <div
+        className={cn(
+          'fixed inset-0 z-50 transition md:hidden',
+          mobileMenuOpen ? 'pointer-events-auto' : 'pointer-events-none',
+        )}
+      >
+        <button
+          type="button"
+          className={cn(
+            'absolute inset-0 bg-slate-950/45 backdrop-blur-[2px] transition-opacity',
+            mobileMenuOpen ? 'opacity-100' : 'opacity-0',
+          )}
+          onClick={() => setMobileMenuOpen(false)}
+          aria-label="Chiudi menu"
+        />
+        <aside
+          className={cn(
+            'relative h-full w-72 max-w-[86vw] border-r border-[#e5e7f0] bg-white shadow-2xl transition-transform duration-300 ease-out',
+            mobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
+          )}
+        >
+          <Button
             type="button"
-            className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm"
+            variant="ghost"
+            size="icon"
+            className="absolute right-3 top-3 z-10 h-9 w-9 text-slate-400 hover:text-slate-700"
             onClick={() => setMobileMenuOpen(false)}
             aria-label="Chiudi menu"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+          <SidebarContent
+            displayName={displayName}
+            email={user?.email}
+            onSignOut={handleSignOut}
+            onNavigate={() => setMobileMenuOpen(false)}
           />
-          <aside className="relative h-full w-72 max-w-[86vw] border-r border-slate-200/60 bg-white/95 shadow-2xl shadow-slate-900/10 backdrop-blur-xl">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute right-3 top-3 z-10 text-slate-400 hover:text-slate-600"
-              onClick={() => setMobileMenuOpen(false)}
-              aria-label="Chiudi menu"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-            <SidebarContent
-              displayName={displayName}
-              email={user?.email}
-              onSignOut={handleSignOut}
-              onNavigate={() => setMobileMenuOpen(false)}
-            />
-          </aside>
-        </div>
-      )}
+        </aside>
+      </div>
 
-      <div className="relative min-h-screen pt-16 lg:ml-64 lg:pt-0">
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-8">
+      <div className="min-h-screen pt-16 md:ml-60 md:pt-0">
+        <main className="mx-auto w-full max-w-7xl px-4 py-6 pb-24 sm:px-6 md:px-8 md:py-8 md:pb-8">
           {children}
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/60 bg-white/85 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e7f0] bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_30px_rgba(15,23,42,0.06)] backdrop-blur md:hidden">
         <div className="grid h-16 grid-cols-5">
           {bottomNavItems.map((item) => {
-            const isActive = pathname === item.path
+            const isActive = pathname === item.path || pathname.startsWith(`${item.path}/`)
 
             return (
               <Link
                 key={item.path}
                 href={item.path}
                 className={cn(
-                  'flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium transition-all duration-200',
-                  isActive ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600',
+                  'flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-semibold transition-colors',
+                  isActive ? 'text-indigo-600' : 'text-slate-400',
                 )}
               >
-                <div className="relative">
-                  <item.icon className="h-5 w-5 shrink-0" />
-                  {isActive && (
-                    <div className="absolute -inset-1 rounded-full bg-indigo-500/12 blur-md" />
-                  )}
-                </div>
+                <item.icon className="h-5 w-5" />
                 <span className="w-full truncate text-center">{item.label}</span>
               </Link>
             )
           })}
+          <button
+            type="button"
+            className={cn(
+              'flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-semibold transition-colors',
+              isMoreActive || moreOpen ? 'text-indigo-600' : 'text-slate-400',
+            )}
+            onClick={() => setMoreOpen(true)}
+            aria-label="Apri altro"
+          >
+            <MoreHorizontal className="h-5 w-5" />
+            <span className="w-full truncate text-center">Altro</span>
+          </button>
         </div>
       </nav>
+
+      <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
     </div>
   )
 }

@@ -1,11 +1,12 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Sparkles } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
+import type { SubmitHandler } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,7 +28,8 @@ const registerSchema = z
 type RegisterForm = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
-  const { loading, signUp } = useAuth()
+  const { user, loading, signUp } = useAuth()
+  const [formError, setFormError] = useState('')
   const router = useRouter()
 
   const {
@@ -35,7 +37,7 @@ export default function RegisterPage() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<RegisterForm>({
-    resolver: zodResolver(registerSchema) as never,
+    resolver: zodResolver(registerSchema) as any,
     defaultValues: {
       displayName: '',
       email: '',
@@ -44,91 +46,104 @@ export default function RegisterPage() {
     },
   })
 
-  const onSubmit = async (values: RegisterForm) => {
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace('/dashboard')
+    }
+  }, [loading, router, user])
+
+  const onSubmit: SubmitHandler<RegisterForm> = async (values) => {
+    setFormError('')
     try {
       await signUp(values.email, values.password, values.displayName)
-      toast.success('Account creato. Benvenuto in Aurora.')
-      router.push('/dashboard')
+      router.replace('/dashboard')
       router.refresh()
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Registrazione non riuscita. Riprova.'
-      toast.error(message)
+      setFormError(error instanceof Error ? error.message : 'Registrazione non riuscita. Riprova.')
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="relative h-12 w-12 animate-pulse rounded-xl bg-gradient-to-br from-aurora-purple to-aurora-emerald">
-          <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-aurora-purple to-aurora-emerald opacity-30 blur-xl" />
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
-      <div className="aurora-bg-intense" />
-
-      <div className="relative z-10 w-full max-w-md animate-scale-in">
-        <div className="mb-10 flex flex-col items-center text-center">
-          <div className="relative mb-5">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-aurora-purple via-aurora-violet to-aurora-emerald shadow-xl shadow-aurora-purple/20">
-              <Sparkles className="h-8 w-8 text-white" />
-            </div>
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-aurora-purple to-aurora-emerald opacity-20 blur-2xl" />
+    <main className="flex min-h-screen items-center justify-center bg-[#f8f9fc] p-0 sm:p-6">
+      <section className="flex min-h-screen w-full max-w-[420px] flex-col justify-center bg-white p-8 shadow-lg sm:min-h-0 sm:rounded-2xl sm:p-10">
+        <div className="text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/25">
+            <Sparkles className="h-7 w-7" />
           </div>
-          <h1 className="gradient-text text-4xl font-bold tracking-tight">Aurora</h1>
-          <p className="mt-3 text-sm text-slate-500">Crea il tuo sistema personale</p>
+          <h1 className="mt-5 text-3xl font-bold tracking-tight text-slate-950">Aurora</h1>
+          <p className="mt-2 text-sm text-slate-500">Crea il tuo sistema finanziario personale.</p>
         </div>
 
-        <div className="glass-card rounded-2xl p-8">
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-slate-900">Crea account</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Prepareremo automaticamente le categorie iniziali.
+        <form className="mt-8 space-y-5" onSubmit={handleSubmit(onSubmit)}>
+          <div className="space-y-2">
+            <Label htmlFor="displayName" className="text-sm font-semibold text-slate-700">Nome</Label>
+            <Input
+              id="displayName"
+              autoComplete="name"
+              placeholder="Il tuo nome"
+              className="h-12 rounded-xl border-[#e5e7f0] bg-white text-slate-950 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-indigo-500/30"
+              {...register('displayName')}
+            />
+            {errors.displayName && <p className="text-sm text-red-500">{errors.displayName.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-sm font-semibold text-slate-700">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              placeholder="nome@esempio.it"
+              className="h-12 rounded-xl border-[#e5e7f0] bg-white text-slate-950 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-indigo-500/30"
+              {...register('email')}
+            />
+            {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-sm font-semibold text-slate-700">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Almeno 6 caratteri"
+              className="h-12 rounded-xl border-[#e5e7f0] bg-white text-slate-950 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-indigo-500/30"
+              {...register('password')}
+            />
+            {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword" className="text-sm font-semibold text-slate-700">Conferma password</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Ripeti la password"
+              className="h-12 rounded-xl border-[#e5e7f0] bg-white text-slate-950 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-indigo-500/30"
+              {...register('confirmPassword')}
+            />
+            {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>}
+          </div>
+
+          {formError && (
+            <p className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+              {formError}
             </p>
-          </div>
+          )}
 
-          <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-            <div className="space-y-2">
-              <Label htmlFor="displayName" className="text-slate-600">Nome</Label>
-              <Input id="displayName" autoComplete="name" placeholder="Il tuo nome" className="h-11 border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-indigo-200" {...register('displayName')} />
-              {errors.displayName && <p className="text-sm text-danger">{errors.displayName.message}</p>}
-            </div>
+          <Button type="submit" className="h-12 w-full rounded-xl bg-indigo-600 text-base font-semibold hover:bg-indigo-700" disabled={isSubmitting || loading}>
+            {isSubmitting ? 'Creazione in corso...' : 'Registrati'}
+          </Button>
+        </form>
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-600">Email</Label>
-              <Input id="email" type="email" autoComplete="email" placeholder="nome@esempio.it" className="h-11 border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-indigo-200" {...register('email')} />
-              {errors.email && <p className="text-sm text-danger">{errors.email.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-600">Password</Label>
-              <Input id="password" type="password" autoComplete="new-password" placeholder="Almeno 6 caratteri" className="h-11 border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-indigo-200" {...register('password')} />
-              {errors.password && <p className="text-sm text-danger">{errors.password.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-slate-600">Conferma password</Label>
-              <Input id="confirmPassword" type="password" autoComplete="new-password" placeholder="Ripeti la password" className="h-11 border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-indigo-200" {...register('confirmPassword')} />
-              {errors.confirmPassword && <p className="text-sm text-danger">{errors.confirmPassword.message}</p>}
-            </div>
-
-            <Button type="submit" className="h-12 w-full text-base" disabled={isSubmitting}>
-              {isSubmitting ? 'Creazione in corso...' : 'Registrati'}
-            </Button>
-          </form>
-
-          <p className="mt-8 text-center text-sm text-slate-500">
-            Hai già un account?{' '}
-            <Link className="font-medium text-indigo-600 transition-colors hover:text-indigo-500" href="/login">
-              Accedi
-            </Link>
-          </p>
-        </div>
-      </div>
+        <p className="mt-8 text-center text-sm text-slate-500">
+          Hai già un account?{' '}
+          <Link className="font-semibold text-indigo-600 hover:text-indigo-700" href="/login">
+            Accedi
+          </Link>
+        </p>
+      </section>
     </main>
   )
 }
