@@ -103,12 +103,6 @@ function TextareaField(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>)
   )
 }
 
-function transactionDelta(type: TransactionType, amount: number) {
-  if (type === 'income') return amount
-  if (type === 'expense') return -amount
-  return -amount
-}
-
 function dateLabel(date: string) {
   const parsed = parseISO(date)
   if (isToday(parsed)) return 'Oggi'
@@ -137,6 +131,21 @@ function TransactionSkeleton() {
       ))}
     </div>
   )
+}
+
+async function transactionRequest(method: 'POST' | 'PATCH' | 'DELETE', body: Record<string, unknown>) {
+  const response = await fetch('/api/transactions', {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const payload = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(typeof payload.error === 'string' ? payload.error : 'Errore durante il salvataggio')
+  }
+
+  return payload
 }
 
 export default function TransactionsPage() {
@@ -229,15 +238,6 @@ export default function TransactionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth, typeFilter, accountFilter])
 
-  const adjustBalance = async (accountId: string, delta: number) => {
-    if (delta === 0) return
-    const { error } = await db.rpc('adjust_account_balance', {
-      p_account_id: accountId,
-      p_amount: delta,
-    })
-    if (error) throw error
-  }
-
   const getTransferPeer = async (transaction: Transaction) => {
     if (!transaction.transfer_peer_id) return null
 
@@ -258,89 +258,19 @@ export default function TransactionsPage() {
     return data as Transaction | null
   }
 
-  const createTransfer = async (values: TransactionForm) => {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-    if (userError || !user) throw new Error('Sessione scaduta. Accedi di nuovo.')
-    if (!values.destination_account_id) throw new Error('Seleziona il conto di destinazione')
-
-    const basePayload = {
-      user_id: user.id,
-      category_id: null,
-      type: 'expense' as TransactionType,
-      amount: values.amount,
-      description: values.description,
-      notes: values.notes || null,
-      date: values.date,
-      recurring_id: null,
-      receipt_url: null,
-      receipt_data: null,
-    }
-
-    const { data: sourceTransaction, error: sourceError } = await db
-      .from('transactions')
-      .insert({
-        ...basePayload,
-        account_id: values.account_id,
-        transfer_peer_id: null,
-      })
-      .select('*')
-      .single()
-    if (sourceError) throw sourceError
-
-    const { data: destinationTransaction, error: destinationError } = await db
-      .from('transactions')
-      .insert({
-        ...basePayload,
-        type: 'income' as TransactionType,
-        account_id: values.destination_account_id,
-        transfer_peer_id: sourceTransaction.id,
-      })
-      .select('*')
-      .single()
-    if (destinationError) throw destinationError
-
-    const { error: peerError } = await db
-      .from('transactions')
-      .update({ transfer_peer_id: destinationTransaction.id })
-      .eq('id', sourceTransaction.id)
-    if (peerError) throw peerError
-
-    await adjustBalance(values.account_id, -values.amount)
-    await adjustBalance(values.destination_account_id, values.amount)
-  }
-
   const onCreate: SubmitHandler<TransactionForm> = async (values) => {
     try {
       setBusy(true)
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser()
-      if (userError || !user) throw new Error('Sessione scaduta. Accedi di nuovo.')
-
-      if (values.type === 'transfer') {
-        await createTransfer(values)
-      } else {
-        const { error } = await db.from('transactions').insert({
-          user_id: user.id,
-          account_id: values.account_id,
-          category_id: values.category_id || null,
-          type: values.type,
-          amount: values.amount,
-          description: values.description,
-          notes: values.notes || null,
-          date: values.date,
-          transfer_peer_id: null,
-          recurring_id: null,
-          receipt_url: null,
-          receipt_data: null,
-        })
-        if (error) throw error
-        await adjustBalance(values.account_id, transactionDelta(values.type, values.amount))
-      }
+      await transactionRequest('POST', {
+        account_id: values.account_id,
+        destination_account_id: values.type === 'transfer' ? values.destination_account_id : undefined,
+        category_id: values.type === 'transfer' || !values.category_id ? null : values.category_id,
+        type: values.type,
+        amount: values.amount,
+        description: values.description,
+        notes: values.notes || null,
+        date: values.date,
+      })
 
       toast.success('Transazione creata')
       form.reset(defaultValues)
@@ -376,37 +306,12 @@ export default function TransactionsPage() {
     })
   }
 
-  const reverseTransactionBalance = async (transaction: Transaction) => {
-    if (!transaction.transfer_peer_id) {
-      await adjustBalance(transaction.account_id, -transactionDelta(transaction.type, transaction.amount))
-      return
-    }
-
-    const peer = await getTransferPeer(transaction)
-    if (transaction.type === 'expense') {
-      await adjustBalance(transaction.account_id, transaction.amount)
-      if (peer) await adjustBalance(peer.account_id, -transaction.amount)
-    } else {
-      await adjustBalance(transaction.account_id, -transaction.amount)
-      if (peer) await adjustBalance(peer.account_id, transaction.amount)
-    }
-  }
-
   const deleteTransaction = async () => {
     if (!deletingTransaction) return
 
     try {
       setBusy(true)
-      const peer = await getTransferPeer(deletingTransaction)
-      await reverseTransactionBalance(deletingTransaction)
-
-      if (peer) {
-        const { error: peerError } = await db.from('transactions').delete().eq('id', peer.id)
-        if (peerError) throw peerError
-      }
-
-      const { error } = await db.from('transactions').delete().eq('id', deletingTransaction.id)
-      if (error) throw error
+      await transactionRequest('DELETE', { transaction_id: deletingTransaction.id })
 
       toast.success('Transazione eliminata')
       setDeletingTransaction(null)
@@ -424,42 +329,18 @@ export default function TransactionsPage() {
 
     try {
       setBusy(true)
-      await reverseTransactionBalance(editingTransaction)
-
-      if (editingTransaction.transfer_peer_id) {
-        const oldPeer = await getTransferPeer(editingTransaction)
-        if (oldPeer) await db.from('transactions').delete().eq('id', oldPeer.id)
-      }
-
-      const { error } = await db.from('transactions').delete().eq('id', editingTransaction.id)
-      if (error) throw error
-
-      if (values.type === 'transfer') {
-        await createTransfer(values)
-      } else {
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser()
-        if (userError || !user) throw new Error('Sessione scaduta. Accedi di nuovo.')
-
-        const { error: insertError } = await db.from('transactions').insert({
-          user_id: user.id,
-          account_id: values.account_id,
-          category_id: values.category_id || null,
-          type: values.type,
-          amount: values.amount,
-          description: values.description,
-          notes: values.notes || null,
-          date: values.date,
-          transfer_peer_id: null,
-          recurring_id: null,
-          receipt_url: null,
-          receipt_data: null,
-        })
-        if (insertError) throw insertError
-        await adjustBalance(values.account_id, transactionDelta(values.type, values.amount))
-      }
+      await transactionRequest('PATCH', {
+        transaction_id: editingTransaction.id,
+        account_id: values.account_id,
+        destination_account_id: values.type === 'transfer' ? values.destination_account_id : null,
+        category_id: values.type === 'transfer' || !values.category_id ? null : values.category_id,
+        clear_category: values.type === 'transfer' || !values.category_id,
+        type: values.type,
+        amount: values.amount,
+        description: values.description,
+        notes: values.notes || null,
+        date: values.date,
+      })
 
       toast.success('Transazione aggiornata')
       setEditingTransaction(null)

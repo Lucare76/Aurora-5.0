@@ -100,17 +100,6 @@ export default function AccountsPage() {
     defaultValues,
   })
 
-  const adjustBalance = async (accountId: string, delta: number) => {
-    if (delta === 0) return
-
-    const { error } = await db.rpc('adjust_account_balance', {
-      p_account_id: accountId,
-      p_amount: delta,
-    })
-
-    if (error) throw error
-  }
-
   const openEditDialog = (account: Account) => {
     setOpenMenuId(null)
     setEditingAccount(account)
@@ -132,8 +121,7 @@ export default function AccountsPage() {
 
       if (userError || !user) throw new Error('Sessione scaduta. Accedi di nuovo.')
 
-      const initialBalance = values.balance
-      const { data: account, error } = await db
+      const { error } = await db
         .from('accounts')
         .insert({
           user_id: user.id,
@@ -141,16 +129,13 @@ export default function AccountsPage() {
           type: values.type,
           color: values.color,
           icon: null,
-          balance: 0,
+          balance: values.balance,
           currency: values.currency.toUpperCase(),
           is_active: true,
           sort_order: accounts.length,
         })
-        .select('*')
-        .single()
 
       if (error) throw error
-      await adjustBalance(account.id, initialBalance)
 
       toast.success('Conto creato con successo')
       createForm.reset(defaultValues)
@@ -165,7 +150,6 @@ export default function AccountsPage() {
     if (!editingAccount) return
 
     try {
-      const balanceDelta = values.balance - editingAccount.balance
       const { error } = await db
         .from('accounts')
         .update({
@@ -173,11 +157,11 @@ export default function AccountsPage() {
           type: values.type,
           color: values.color,
           currency: values.currency.toUpperCase(),
+          balance: values.balance,
         })
         .eq('id', editingAccount.id)
 
       if (error) throw error
-      await adjustBalance(editingAccount.id, balanceDelta)
 
       toast.success('Conto aggiornato')
       setEditingAccount(null)
