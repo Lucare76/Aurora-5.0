@@ -630,7 +630,7 @@ export default function TransactionsPage() {
             {Object.entries(groupedTransactions).map(([label, items]) => (
               <section key={label} className="space-y-3">
                 <h2 className="text-sm font-semibold capitalize text-slate-500">{label}</h2>
-                <div className="overflow-hidden rounded-2xl border border-[#e5e7f0] bg-white shadow-sm">
+                <div className="rounded-2xl border border-[#e5e7f0] bg-white shadow-sm">
                   {items.map((transaction) => {
                     const account = accountById.get(transaction.account_id)
                     const category = transaction.category_id ? categoryById.get(transaction.category_id) : null
@@ -642,7 +642,7 @@ export default function TransactionsPage() {
                     const Icon = isTransfer ? ArrowLeftRight : isIncome ? ArrowDownLeft : ArrowUpRight
 
                     return (
-                      <div key={transaction.id} className="relative flex items-center justify-between gap-4 border-b border-[#e5e7f0] px-4 py-4 last:border-b-0 hover:bg-slate-50/80">
+                      <div key={transaction.id} className="relative flex items-center justify-between gap-4 border-b border-[#e5e7f0] px-4 py-4 last:border-b-0 first:rounded-t-2xl last:rounded-b-2xl hover:bg-slate-50/80">
                         <div className="flex min-w-0 items-center gap-4">
                           <div
                             className={cn(
