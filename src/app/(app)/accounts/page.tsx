@@ -157,7 +157,6 @@ export default function AccountsPage() {
           type: values.type,
           color: values.color,
           currency: values.currency.toUpperCase(),
-          balance: values.balance,
         })
         .eq('id', editingAccount.id)
 
@@ -212,6 +211,7 @@ export default function AccountsPage() {
     form: typeof createForm,
     submitLabel: string,
     onSubmit: SubmitHandler<AccountForm>,
+    isEdit = false,
   ) => (
     <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-5">
       <div className="space-y-2">
@@ -249,19 +249,21 @@ export default function AccountsPage() {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label className="text-slate-700">Saldo iniziale</Label>
-        <Input
-          type="number"
-          step="0.01"
-          inputMode="decimal"
-          {...form.register('balance')}
-          className="h-14 border-[#e5e7f0] bg-white text-2xl font-semibold tabular-nums text-slate-950 placeholder:text-slate-300"
-        />
-        {form.formState.errors.balance && (
-          <p className="text-sm text-red-600">{form.formState.errors.balance.message}</p>
-        )}
-      </div>
+      {!isEdit && (
+        <div className="space-y-2">
+          <Label className="text-slate-700">Saldo iniziale</Label>
+          <Input
+            type="number"
+            step="0.01"
+            inputMode="decimal"
+            {...form.register('balance')}
+            className="h-14 border-[#e5e7f0] bg-white text-2xl font-semibold tabular-nums text-slate-950 placeholder:text-slate-300"
+          />
+          {form.formState.errors.balance && (
+            <p className="text-sm text-red-600">{form.formState.errors.balance.message}</p>
+          )}
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label className="text-slate-700">Colore</Label>
@@ -435,7 +437,7 @@ export default function AccountsPage() {
           <DialogHeader>
             <DialogTitle>Modifica conto</DialogTitle>
           </DialogHeader>
-          {renderAccountForm(editForm, 'Salva modifiche', onEdit)}
+          {renderAccountForm(editForm, 'Salva modifiche', onEdit, true)}
         </DialogContent>
       </Dialog>
 
