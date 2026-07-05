@@ -105,7 +105,7 @@ export default function AccountsPage() {
 
     const { error } = await db.rpc('adjust_account_balance', {
       p_account_id: accountId,
-      p_delta: delta,
+      p_amount: delta,
     })
 
     if (error) throw error
