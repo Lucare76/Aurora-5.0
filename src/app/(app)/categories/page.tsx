@@ -53,7 +53,7 @@ function typeLabel(type: CategoryType) {
 
 export default function CategoriesPage() {
   const supabase = createClient()
-  const db = supabase as any
+  const db = supabase
   const { categories, loading: categoriesLoading, refetch: refetchCategories, getCategoryTree } = useCategories()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)

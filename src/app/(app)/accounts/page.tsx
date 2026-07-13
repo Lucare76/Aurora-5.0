@@ -80,7 +80,7 @@ function AccountSkeleton() {
 
 export default function AccountsPage() {
   const supabase = createClient()
-  const db = supabase as any
+  const db = supabase
   const { accounts, totalBalance, loading, refetch } = useAccounts()
   const [createOpen, setCreateOpen] = useState(false)
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)

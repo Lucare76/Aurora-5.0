@@ -67,7 +67,7 @@ function SectionCard({
 
 export default function SettingsPage() {
   const supabase = createClient()
-  const db = supabase as any
+  const db = supabase
   const { user, profile, signOut } = useAuth()
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)

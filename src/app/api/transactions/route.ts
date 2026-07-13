@@ -84,20 +84,17 @@ export async function POST(request: Request) {
 
     const d = parsed.data
 
-    const { data, error } = await supabase.rpc(
-      'create_transaction_atomic' as never,
-      {
-        p_account_id: d.account_id,
-        p_type: d.type,
-        p_amount: d.amount,
-        p_date: d.date,
-        p_description: d.description,
-        p_category_id: d.category_id ?? null,
-        p_notes: d.notes ?? null,
-        p_destination_account_id: d.destination_account_id ?? null,
-        p_recurring_id: d.recurring_id ?? null,
-      } as never,
-    )
+    const { data, error } = await supabase.rpc('create_transaction_atomic', {
+      p_account_id: d.account_id,
+      p_type: d.type,
+      p_amount: d.amount,
+      p_date: d.date,
+      p_description: d.description,
+      p_category_id: d.category_id ?? null,
+      p_notes: d.notes ?? null,
+      p_destination_account_id: d.destination_account_id ?? null,
+      p_recurring_id: d.recurring_id ?? null,
+    })
 
     if (error) {
       const msg = sanitizeError(error.message, 'Errore nella creazione della transazione')
@@ -134,21 +131,18 @@ export async function PATCH(request: Request) {
 
     const d = parsed.data
 
-    const { data, error } = await supabase.rpc(
-      'update_transaction_atomic' as never,
-      {
-        p_transaction_id: d.transaction_id,
-        p_account_id: d.account_id ?? null,
-        p_type: d.type ?? null,
-        p_amount: d.amount ?? null,
-        p_date: d.date ?? null,
-        p_description: d.description ?? null,
-        p_category_id: d.category_id ?? null,
-        p_notes: d.notes ?? null,
-        p_destination_account_id: d.destination_account_id ?? null,
-        p_clear_category: d.clear_category ?? false,
-      } as never,
-    )
+    const { data, error } = await supabase.rpc('update_transaction_atomic', {
+      p_transaction_id: d.transaction_id,
+      p_account_id: d.account_id ?? null,
+      p_type: d.type ?? null,
+      p_amount: d.amount ?? null,
+      p_date: d.date ?? null,
+      p_description: d.description ?? null,
+      p_category_id: d.category_id ?? null,
+      p_notes: d.notes ?? null,
+      p_destination_account_id: d.destination_account_id ?? null,
+      p_clear_category: d.clear_category ?? false,
+    })
 
     if (error) {
       const msg = sanitizeError(error.message, 'Errore nella modifica della transazione')
@@ -183,10 +177,9 @@ export async function DELETE(request: Request) {
       )
     }
 
-    const { error } = await supabase.rpc(
-      'delete_transaction_atomic' as never,
-      { p_transaction_id: parsed.data.transaction_id } as never,
-    )
+    const { error } = await supabase.rpc('delete_transaction_atomic', {
+      p_transaction_id: parsed.data.transaction_id,
+    })
 
     if (error) {
       const msg = sanitizeError(error.message, 'Errore nella cancellazione della transazione')

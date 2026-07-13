@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { Resend } from 'resend'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
+const supabase = createAdminClient()
 const resend = new Resend(process.env.RESEND_API_KEY!)
 
 function escapeHtml(str: string): string {
@@ -58,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     for (const r of autoRules ?? []) {
       // Crea transazione e aggiorna saldo in modo atomico
-      const { error: rpcError } = await supabase.rpc('create_recurring_transaction' as never, {
+      const { error: rpcError } = await supabase.rpc('create_recurring_transaction', {
         p_user_id:      r.user_id,
         p_account_id:   r.account_id,
         p_category_id:  r.category_id ?? null,
@@ -67,7 +64,7 @@ export async function GET(request: NextRequest) {
         p_description:  r.description,
         p_date:         r.next_due_date,
         p_recurring_id: r.id,
-      } as never)
+      })
 
       if (rpcError) {
         results.errors.push(`AutoCreate ${r.id}: ${rpcError.message}`)

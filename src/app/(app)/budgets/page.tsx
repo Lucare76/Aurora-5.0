@@ -63,7 +63,7 @@ function progressTone(percent: number) {
 
 export default function BudgetsPage() {
   const supabase = createClient()
-  const db = supabase as any
+  const db = supabase
   const { categories } = useCategories()
   const [selectedMonth, setSelectedMonth] = useState(new Date())
   const [budgets, setBudgets] = useState<Budget[]>([])

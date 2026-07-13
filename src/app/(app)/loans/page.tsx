@@ -50,7 +50,7 @@ function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 
 export default function LoansPage() {
   const supabase = createClient()
-  const db = supabase as any
+  const db = supabase
   const [loans, setLoans] = useState<Loan[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<LoanTab>('given')

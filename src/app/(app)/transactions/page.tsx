@@ -189,7 +189,7 @@ async function transactionRequest(method: 'POST' | 'PATCH' | 'DELETE', body: Rec
 
 export default function TransactionsPage() {
   const supabase = createClient()
-  const db = supabase as any
+  const db = supabase
   const { accounts, refetch: refetchAccounts } = useAccounts()
   const { categories, getCategoryTree } = useCategories()
   const [transactions, setTransactions] = useState<TransactionWithPeer[]>([])

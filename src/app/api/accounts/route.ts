@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
     const { data: account, error } = await supabase
       .from('accounts')
-      .insert(payload as never)
+      .insert(payload)
       .select()
       .single()
 

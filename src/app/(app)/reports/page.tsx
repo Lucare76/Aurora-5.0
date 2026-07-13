@@ -166,7 +166,7 @@ export default function ReportsPage() {
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('transactions')
       .select('*')
       .gte('date', dateRange.from)

@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const supabase = createClient()
-  const db = supabase as any
+  const db = supabase
 
   const fetchProfile = useCallback(
     async (userId: string, fallbackName?: string | null) => {

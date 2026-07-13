@@ -47,7 +47,7 @@ function badgeClass(days: number) {
 
 export default function BirthdaysPage() {
   const supabase = createClient()
-  const db = supabase as any
+  const db = supabase
   const [birthdays, setBirthdays] = useState<Birthday[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)

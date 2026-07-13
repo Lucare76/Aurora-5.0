@@ -69,7 +69,7 @@ function nextDueFrom(startDate: string) {
 
 export default function RecurringPage() {
   const supabase = createClient()
-  const db = supabase as any
+  const db = supabase
   const { accounts } = useAccounts()
   const { categories } = useCategories()
   const [rules, setRules] = useState<RecurringRule[]>([])
