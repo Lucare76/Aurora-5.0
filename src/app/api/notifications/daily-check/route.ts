@@ -21,6 +21,19 @@ function formatAmount(amount: number): string {
   return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(amount)
 }
 
+function advanceDate(dateStr: string, frequency: string): string {
+  const d = new Date(`${dateStr}T00:00:00`)
+  switch (frequency) {
+    case 'daily':     d.setDate(d.getDate() + 1); break
+    case 'weekly':    d.setDate(d.getDate() + 7); break
+    case 'biweekly':  d.setDate(d.getDate() + 14); break
+    case 'monthly':   d.setMonth(d.getMonth() + 1); break
+    case 'quarterly': d.setMonth(d.getMonth() + 3); break
+    case 'yearly':    d.setFullYear(d.getFullYear() + 1); break
+  }
+  return d.toISOString().split('T')[0]
+}
+
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -29,7 +42,82 @@ export async function GET(request: NextRequest) {
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const results = { birthdays: 0, recurring: 0, errors: [] as string[] }
+  const todayStr = today.toISOString().split('T')[0]
+  const results = { birthdays: 0, auto_created: 0, recurring: 0, errors: [] as string[] }
+
+  // ---- AUTO-CREATE TRANSAZIONI RICORRENTI ----
+  try {
+    const { data: autoRules, error } = await supabase
+      .from('recurring_rules')
+      .select('*')
+      .eq('is_active', true)
+      .eq('auto_create', true)
+      .lte('next_due_date', todayStr)
+
+    if (error) throw error
+
+    for (const r of autoRules ?? []) {
+      // Crea transazione e aggiorna saldo in modo atomico
+      const { error: rpcError } = await supabase.rpc('create_recurring_transaction' as never, {
+        p_user_id:      r.user_id,
+        p_account_id:   r.account_id,
+        p_category_id:  r.category_id ?? null,
+        p_type:         r.type,
+        p_amount:       r.amount,
+        p_description:  r.description,
+        p_date:         r.next_due_date,
+        p_recurring_id: r.id,
+      } as never)
+
+      if (rpcError) {
+        results.errors.push(`AutoCreate ${r.id}: ${rpcError.message}`)
+        continue
+      }
+
+      // Avanza next_due_date e aggiorna last_run_date
+      const nextDue = advanceDate(r.next_due_date, r.frequency)
+      const isExpired = r.end_date && nextDue > r.end_date
+
+      await supabase
+        .from('recurring_rules')
+        .update({
+          next_due_date: nextDue,
+          last_run_date: todayStr,
+          is_active: !isExpired,
+        })
+        .eq('id', r.id)
+
+      // Notifica email: transazione creata automaticamente
+      const { data: userData } = await supabase.auth.admin.getUserById(r.user_id)
+      const userEmail = userData?.user?.email
+      if (userEmail) {
+        const typeLabel = r.type === 'expense' ? 'uscita' : 'entrata'
+        await resend.emails.send({
+          from: 'Aurora <onboarding@resend.dev>',
+          to: userEmail,
+          subject: `✅ ${escapeHtml(r.description)} registrato automaticamente`,
+          html: `
+            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#0f172a">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+                <div style="background:#6366f1;border-radius:12px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px">✨</div>
+                <span style="font-size:20px;font-weight:700">Aurora</span>
+              </div>
+              <h2 style="margin:0 0 8px;font-size:22px">Transazione registrata</h2>
+              <p style="margin:0 0 20px;color:#475569">
+                Aurora ha registrato automaticamente un'<strong>${typeLabel}</strong> di
+                <strong>${formatAmount(Number(r.amount))}</strong> per
+                <strong>${escapeHtml(r.description)}</strong>.
+              </p>
+              <p style="color:#94a3b8;font-size:13px;margin:0">Prossima scadenza: ${nextDue}</p>
+            </div>`,
+        })
+      }
+
+      results.auto_created++
+    }
+  } catch (err) {
+    results.errors.push(`AutoCreate: ${err instanceof Error ? err.message : String(err)}`)
+  }
 
   // ---- COMPLEANNI ----
   try {
@@ -44,7 +132,6 @@ export async function GET(request: NextRequest) {
 
       if (!(b.reminder_days as number[]).includes(daysUntil)) continue
 
-      // Controlla se già inviato quest'anno per questo giorno-soglia
       const { data: existing } = await supabase
         .from('birthday_reminder_log')
         .select('id')
@@ -98,17 +185,17 @@ export async function GET(request: NextRequest) {
     results.errors.push(`Birthdays: ${err instanceof Error ? err.message : String(err)}`)
   }
 
-  // ---- RICORRENTI IN SCADENZA (entro 3 giorni) ----
+  // ---- REMINDER RICORRENTI (solo auto_create = false, entro 3 giorni) ----
   try {
     const in3Days = new Date(today)
     in3Days.setDate(today.getDate() + 3)
-    const todayStr = today.toISOString().split('T')[0]
     const in3DaysStr = in3Days.toISOString().split('T')[0]
 
     const { data: recurring, error } = await supabase
       .from('recurring_rules')
       .select('*')
       .eq('is_active', true)
+      .eq('auto_create', false)
       .gte('next_due_date', todayStr)
       .lte('next_due_date', in3DaysStr)
 
