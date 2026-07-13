@@ -202,10 +202,12 @@ export default function BirthdaysPage() {
                 {todayBirthdays.map((item) => renderRow(item.birthday, item.days, item.age))}
               </section>
             )}
-            <section className="space-y-3">
-              <h2 className="text-sm font-semibold text-slate-500">Prossimi compleanni</h2>
-              {upcomingBirthdays.map((item) => renderRow(item.birthday, item.days, item.age))}
-            </section>
+            {upcomingBirthdays.length > 0 && (
+              <section className="space-y-3">
+                <h2 className="text-sm font-semibold text-slate-500">Prossimi compleanni</h2>
+                {upcomingBirthdays.map((item) => renderRow(item.birthday, item.days, item.age))}
+              </section>
+            )}
           </div>
         )}
       </div>

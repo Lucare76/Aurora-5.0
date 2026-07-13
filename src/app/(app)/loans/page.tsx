@@ -274,9 +274,9 @@ export default function LoansPage() {
                           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setOpenMenuId(openMenuId === loan.id ? null : loan.id)}><MoreHorizontal className="h-4 w-4" /></Button>
                           {openMenuId === loan.id && (
                             <div className="absolute right-0 top-10 z-20 w-48 rounded-xl border border-[#e5e7f0] bg-white p-1 shadow-xl shadow-slate-200">
-                              <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-slate-50" onClick={() => { setPaymentLoan(loan); setOpenMenuId(null) }}><ReceiptText className="h-4 w-4" />Registra pagamento</button>
+                              {!loan.is_settled && <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-slate-50" onClick={() => { setPaymentLoan(loan); paymentForm.reset({ amount: loan.remaining, paid_at: new Date().toISOString().split('T')[0], notes: '' }); setOpenMenuId(null) }}><ReceiptText className="h-4 w-4" />Registra pagamento</button>}
                               <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-slate-50" onClick={() => openEdit(loan)}><Pencil className="h-4 w-4" />Modifica</button>
-                              <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-slate-50" onClick={() => settleLoan(loan)}><ShieldCheck className="h-4 w-4" />Segna saldato</button>
+                              {!loan.is_settled && <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-slate-50" onClick={() => settleLoan(loan)}><ShieldCheck className="h-4 w-4" />Segna saldato</button>}
                               <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50" onClick={() => deleteLoan(loan)}><Trash2 className="h-4 w-4" />Elimina</button>
                             </div>
                           )}

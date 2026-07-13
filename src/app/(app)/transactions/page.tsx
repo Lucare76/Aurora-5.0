@@ -289,20 +289,10 @@ export default function TransactionsPage() {
 
   const getTransferPeer = async (transaction: Transaction) => {
     if (!transaction.transfer_peer_id) return null
-
-    if (transaction.transfer_peer_id) {
-      const { data } = await db
-        .from('transactions')
-        .select('*')
-        .eq('id', transaction.transfer_peer_id)
-        .maybeSingle()
-      return data as Transaction | null
-    }
-
     const { data } = await db
       .from('transactions')
       .select('*')
-      .eq('transfer_peer_id', transaction.id)
+      .eq('id', transaction.transfer_peer_id)
       .maybeSingle()
     return data as Transaction | null
   }
