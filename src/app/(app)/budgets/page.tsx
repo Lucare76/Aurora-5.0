@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import type { SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { CalendarDays, ChevronLeft, ChevronRight, PiggyBank, Plus } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, PiggyBank, Plus, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -70,6 +70,8 @@ export default function BudgetsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
 
   const range = useMemo(() => monthRange(selectedMonth), [selectedMonth])
   const expenseCategories = useMemo(
@@ -150,6 +152,25 @@ export default function BudgetsPage() {
     }
   }
 
+  const openEdit = (budget: Budget) => {
+    setOpenMenuId(null)
+    setEditingBudget(budget)
+    form.reset({ category_id: budget.category_id, amount: budget.amount, month: budget.month, year: budget.year })
+    setDialogOpen(true)
+  }
+
+  const deleteBudget = async (budget: Budget) => {
+    try {
+      const { error } = await db.from('budgets').delete().eq('id', budget.id)
+      if (error) throw error
+      toast.success('Budget eliminato')
+      setOpenMenuId(null)
+      await fetchData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Errore durante l\'eliminazione')
+    }
+  }
+
   const shiftMonth = (delta: number) => {
     setSelectedMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1))
   }
@@ -175,7 +196,7 @@ export default function BudgetsPage() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            <Button onClick={() => setDialogOpen(true)} className="h-11 gap-2">
+            <Button onClick={() => { setEditingBudget(null); form.reset({ category_id: '', amount: 0, month: range.month, year: range.year }); setDialogOpen(true) }} className="h-11 gap-2">
               <Plus className="h-4 w-4" />
               Nuovo budget
             </Button>
@@ -218,7 +239,7 @@ export default function BudgetsPage() {
               title="Nessun budget"
               description="Imposta il primo limite mensile per controllare le spese per categoria."
               action={
-                <Button onClick={() => setDialogOpen(true)} className="gap-2">
+                <Button onClick={() => { setEditingBudget(null); setDialogOpen(true) }} className="gap-2">
                   <Plus className="h-4 w-4" />
                   Crea budget
                 </Button>
@@ -237,10 +258,10 @@ export default function BudgetsPage() {
                 <Card key={budget.id} className="border-[#e5e7f0] bg-white shadow-sm">
                   <CardContent className="p-5">
                     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-3">
                           <span
-                            className="h-3 w-3 rounded-full"
+                            className="h-3 w-3 shrink-0 rounded-full"
                             style={{ backgroundColor: category?.color ?? '#6366f1' }}
                           />
                           <h2 className="font-semibold text-slate-950">{category?.name ?? 'Categoria'}</h2>
@@ -249,9 +270,28 @@ export default function BudgetsPage() {
                           {formatCurrency(spent)} spesi su {formatCurrency(budget.amount)}
                         </p>
                       </div>
-                      <span className={cn('rounded-full px-3 py-1 text-sm font-semibold tabular-nums', tone.bg, tone.text)}>
-                        {percent}%
-                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className={cn('rounded-full px-3 py-1 text-sm font-semibold tabular-nums', tone.bg, tone.text)}>
+                          {percent}%
+                        </span>
+                        <div className="relative">
+                          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setOpenMenuId(openMenuId === budget.id ? null : budget.id)}>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                          {openMenuId === budget.id && (
+                            <div className="absolute right-0 top-10 z-20 w-40 rounded-xl border border-[#e5e7f0] bg-white p-1 shadow-xl shadow-slate-200">
+                              <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50" onClick={() => openEdit(budget)}>
+                                <Pencil className="h-4 w-4" />
+                                Modifica
+                              </button>
+                              <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50" onClick={() => deleteBudget(budget)}>
+                                <Trash2 className="h-4 w-4" />
+                                Elimina
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100">
                       <div
@@ -267,15 +307,15 @@ export default function BudgetsPage() {
         )}
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingBudget(null) }}>
         <DialogContent className="max-w-xl border-[#e5e7f0] bg-white text-slate-950">
           <DialogHeader>
-            <DialogTitle>Nuovo budget</DialogTitle>
+            <DialogTitle>{editingBudget ? 'Modifica budget' : 'Nuovo budget'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-5">
             <div className="space-y-2">
               <Label className="text-slate-700">Categoria</Label>
-              <SelectField {...form.register('category_id')}>
+              <SelectField {...form.register('category_id')} disabled={Boolean(editingBudget)}>
                 <option value="">Seleziona categoria</option>
                 {expenseCategories.map((category) => (
                   <option key={category.id} value={category.id}>
@@ -296,18 +336,20 @@ export default function BudgetsPage() {
                 className="h-14 border-[#e5e7f0] bg-white text-2xl font-semibold tabular-nums text-slate-950"
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="text-slate-700">Mese</Label>
-                <Input type="number" min={1} max={12} {...form.register('month')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" />
+            {!editingBudget && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-slate-700">Mese</Label>
+                  <Input type="number" min={1} max={12} {...form.register('month')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-slate-700">Anno</Label>
+                  <Input type="number" {...form.register('year')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-slate-700">Anno</Label>
-                <Input type="number" {...form.register('year')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" />
-              </div>
-            </div>
+            )}
             <Button type="submit" className="h-12 w-full" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Salvataggio...' : 'Salva budget'}
+              {form.formState.isSubmitting ? 'Salvataggio...' : editingBudget ? 'Salva modifiche' : 'Salva budget'}
             </Button>
           </form>
         </DialogContent>
