@@ -7,6 +7,7 @@ import {
   ArrowLeftRight,
   ArrowRight,
   ArrowUpRight,
+  Cake,
   PiggyBank,
   Plus,
   TrendingDown,
@@ -42,6 +43,23 @@ interface StatCardProps {
   icon: LucideIcon
   tone: 'indigo' | 'green' | 'red' | 'violet'
   detail: string
+}
+
+interface UpcomingRule {
+  id: string
+  description: string
+  amount: number
+  type: string
+  next_due_date: string
+  auto_create: boolean
+}
+
+interface UpcomingBirthday {
+  id: string
+  name: string
+  birth_date: string
+  daysUntil: number
+  age: number
 }
 
 const monthLabels = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic']
@@ -170,6 +188,9 @@ export default function DashboardPage() {
   const { totalIncome: previousIncome, totalExpense: previousExpense } = useTransactions(previous)
   const [chartData, setChartData] = useState<MonthlyChartRow[]>([])
   const [chartLoading, setChartLoading] = useState(true)
+  const [upcomingRules, setUpcomingRules] = useState<UpcomingRule[]>([])
+  const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingBirthday[]>([])
+  const [upcomingLoading, setUpcomingLoading] = useState(true)
 
   useEffect(() => {
     let mounted = true
@@ -215,6 +236,57 @@ export default function DashboardPage() {
     }
 
     fetchChartData()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    const supabase = createClient()
+
+    async function fetchUpcoming() {
+      const todayDate = new Date()
+      todayDate.setHours(0, 0, 0, 0)
+      const todayStr = todayDate.toISOString().split('T')[0]
+      const in7 = new Date(todayDate)
+      in7.setDate(todayDate.getDate() + 7)
+      const in7Str = in7.toISOString().split('T')[0]
+
+      const [rulesRes, bdRes] = await Promise.all([
+        supabase
+          .from('recurring_rules')
+          .select('id, description, amount, type, next_due_date, auto_create')
+          .eq('is_active', true)
+          .gte('next_due_date', todayStr)
+          .lte('next_due_date', in7Str)
+          .order('next_due_date', { ascending: true })
+          .limit(5),
+        supabase.from('birthdays').select('id, name, birth_date'),
+      ])
+
+      if (!mounted) return
+
+      setUpcomingRules((rulesRes.data ?? []) as UpcomingRule[])
+
+      const bds = ((bdRes.data ?? []) as { id: string; name: string; birth_date: string }[])
+        .map((b) => {
+          const born = new Date(`${b.birth_date}T00:00:00`)
+          let next = new Date(todayDate.getFullYear(), born.getMonth(), born.getDate())
+          if (next < todayDate) next = new Date(todayDate.getFullYear() + 1, born.getMonth(), born.getDate())
+          const daysUntil = Math.round((next.getTime() - todayDate.getTime()) / 86400000)
+          const age = next.getFullYear() - born.getFullYear()
+          return { ...b, daysUntil, age }
+        })
+        .filter((b) => b.daysUntil <= 30)
+        .sort((a, b) => a.daysUntil - b.daysUntil)
+        .slice(0, 5)
+
+      setUpcomingBirthdays(bds)
+      setUpcomingLoading(false)
+    }
+
+    fetchUpcoming()
     return () => {
       mounted = false
     }
@@ -363,6 +435,95 @@ export default function DashboardPage() {
             {activeAccounts.map((account) => (
               <AccountRow key={account.id} account={account} total={absoluteAssets} />
             ))}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-2">
+        <Card className="border-[#e5e7f0] bg-white shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg text-slate-950">Prossime scadenze</CardTitle>
+            <p className="text-sm text-slate-500">Ricorrenti in scadenza entro 7 giorni.</p>
+          </CardHeader>
+          <CardContent>
+            {upcomingLoading ? (
+              <Skeleton className="h-32 rounded-2xl" />
+            ) : upcomingRules.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#e5e7f0] bg-[#f8f9fc] p-6 text-center">
+                <p className="text-sm font-semibold text-slate-700">Nessuna scadenza nei prossimi 7 giorni</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {upcomingRules.map((rule) => {
+                  const isExpense = rule.type === 'expense'
+                  const daysUntil = Math.round(
+                    (new Date(`${rule.next_due_date}T00:00:00`).getTime() - new Date().setHours(0, 0, 0, 0)) /
+                      86400000,
+                  )
+                  return (
+                    <div key={rule.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                      <div
+                        className={cn(
+                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl',
+                          isExpense ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600',
+                        )}
+                      >
+                        {isExpense ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-slate-900">{rule.description}</p>
+                        <p className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                          <span>{daysUntil === 0 ? 'Oggi' : `Tra ${daysUntil} ${daysUntil === 1 ? 'giorno' : 'giorni'}`}</span>
+                          {rule.auto_create && (
+                            <span className="rounded-full bg-indigo-50 px-1.5 py-0.5 font-medium text-indigo-600">
+                              Auto
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <AmountDisplay
+                        amount={rule.amount}
+                        type={isExpense ? 'expense' : 'income'}
+                        className="shrink-0 text-sm font-bold"
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-[#e5e7f0] bg-white shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg text-slate-950">Compleanni imminenti</CardTitle>
+            <p className="text-sm text-slate-500">Nei prossimi 30 giorni.</p>
+          </CardHeader>
+          <CardContent>
+            {upcomingLoading ? (
+              <Skeleton className="h-32 rounded-2xl" />
+            ) : upcomingBirthdays.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[#e5e7f0] bg-[#f8f9fc] p-6 text-center">
+                <p className="text-sm font-semibold text-slate-700">Nessun compleanno nei prossimi 30 giorni</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {upcomingBirthdays.map((b) => (
+                  <div key={b.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
+                      <Cake className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-slate-900">{b.name}</p>
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        {b.daysUntil === 0 ? 'Oggi!' : `Tra ${b.daysUntil} ${b.daysUntil === 1 ? 'giorno' : 'giorni'}`}
+                        {' · '}compie {b.age} anni
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>
