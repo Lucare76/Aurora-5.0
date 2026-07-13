@@ -16,7 +16,7 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { useCategories } from '@/hooks/use-categories'
-import type { Category, CategoryType, Transaction } from '@/types/database'
+import type { Category, CategoryType } from '@/types/database'
 
 const BORDER = '#e5e7f0'
 const COLORS = ['#6366f1', '#10b981', '#06b6d4', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#84cc16', '#f97316', '#0ea5e9', '#64748b']
@@ -55,7 +55,7 @@ export default function CategoriesPage() {
   const supabase = createClient()
   const db = supabase
   const { categories, loading: categoriesLoading, refetch: refetchCategories, getCategoryTree } = useCategories()
-  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [txCategoryIds, setTxCategoryIds] = useState<Array<{ category_id: string | null }>>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
@@ -69,9 +69,9 @@ export default function CategoriesPage() {
 
   const fetchData = async () => {
     setLoading(true)
-    const { data: transactionRows, error: transactionError } = await db.from('transactions').select('*')
+    const { data: transactionRows, error: transactionError } = await db.from('transactions').select('category_id')
     if (transactionError) toast.error('Errore nel caricamento delle categorie')
-    setTransactions((transactionRows ?? []) as Transaction[])
+    setTxCategoryIds(transactionRows ?? [])
     setLoading(false)
   }
 
@@ -81,12 +81,12 @@ export default function CategoriesPage() {
   }, [])
 
   const transactionCount = useMemo(() => {
-    return transactions.reduce<Record<string, number>>((counts, transaction) => {
-      if (!transaction.category_id) return counts
-      counts[transaction.category_id] = (counts[transaction.category_id] ?? 0) + 1
+    return txCategoryIds.reduce<Record<string, number>>((counts, row) => {
+      if (!row.category_id) return counts
+      counts[row.category_id] = (counts[row.category_id] ?? 0) + 1
       return counts
     }, {})
-  }, [transactions])
+  }, [txCategoryIds])
 
   const childrenOf = (parentId: string) => categories.filter((category) => category.parent_id === parentId)
   const parentOptions = categories.filter((category) => {
