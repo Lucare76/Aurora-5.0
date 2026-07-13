@@ -19,6 +19,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react'
 import { format, isToday, isYesterday, parseISO } from 'date-fns'
@@ -39,6 +40,42 @@ import { cn, formatCurrency } from '@/lib/utils'
 import type { Account, Category, Transaction, TransactionType } from '@/types/database'
 
 const BORDER = '#e5e7f0'
+
+interface ImportRow {
+  date: string
+  type: 'income' | 'expense'
+  description: string
+  categoryName: string
+  amount: number
+  categoryId: string | null
+  valid: boolean
+  error?: string
+}
+
+function parseCSV(text: string): string[][] {
+  const cleaned = text.replace(/^﻿/, '')
+  const rows: string[][] = []
+  for (const line of cleaned.split('\n')) {
+    if (!line.trim()) continue
+    const cells: string[] = []
+    let current = ''
+    let inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { current += '"'; i++ }
+        else inQuotes = !inQuotes
+      } else if (ch === ',' && !inQuotes) {
+        cells.push(current); current = ''
+      } else {
+        current += ch
+      }
+    }
+    cells.push(current)
+    rows.push(cells)
+  }
+  return rows
+}
 
 const transactionSchema = z
   .object({
@@ -167,6 +204,12 @@ export default function TransactionsPage() {
   const [busy, setBusy] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [importOpen, setImportOpen] = useState(false)
+  const [importStep, setImportStep] = useState<'upload' | 'preview'>('upload')
+  const [importAccount, setImportAccount] = useState('')
+  const [importRows, setImportRows] = useState<ImportRow[]>([])
+  const [importBusy, setImportBusy] = useState(false)
+  const [importProgress, setImportProgress] = useState(0)
 
   const form = useForm<TransactionForm>({
     resolver: zodResolver(transactionSchema) as any,
@@ -547,6 +590,76 @@ export default function TransactionsPage() {
     </form>
   )
 
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      const allRows = parseCSV(text)
+      if (allRows.length < 2) { toast.error('File CSV vuoto o non valido'); return }
+      const [header, ...dataRows] = allRows
+      const expected = ['Data', 'Tipo', 'Descrizione', 'Categoria', 'Importo (EUR)']
+      if (!expected.every((h, i) => header[i]?.trim() === h)) {
+        toast.error('Formato non riconosciuto. Usa il CSV esportato da Aurora.')
+        return
+      }
+      const catByName = new Map(categories.map((c) => [c.name.toLowerCase(), c]))
+      const parsed: ImportRow[] = dataRows.map((row) => {
+        const [dateStr, tipoStr, desc, catName, amtStr] = row
+        const date = dateStr?.trim() ?? ''
+        const typeRaw = tipoStr?.trim().toLowerCase() ?? ''
+        const type: 'income' | 'expense' = typeRaw === 'entrata' ? 'income' : 'expense'
+        const description = desc?.trim() ?? ''
+        const categoryName = catName?.trim() ?? ''
+        const amount = parseFloat((amtStr?.trim() ?? '').replace(',', '.'))
+        const isValidDate = /^\d{4}-\d{2}-\d{2}$/.test(date)
+        const isValidType = typeRaw === 'entrata' || typeRaw === 'uscita'
+        const isValidAmount = !isNaN(amount) && amount > 0
+        const valid = isValidDate && isValidType && isValidAmount && description.length > 0
+        const cat = catByName.get(categoryName.toLowerCase()) ?? null
+        let error: string | undefined
+        if (!isValidDate) error = 'Data non valida'
+        else if (!isValidType) error = 'Tipo non valido'
+        else if (!isValidAmount) error = 'Importo non valido'
+        else if (!description) error = 'Descrizione mancante'
+        return { date, type, description, categoryName, amount, categoryId: cat?.id ?? null, valid, error }
+      })
+      setImportRows(parsed)
+      setImportStep('preview')
+    }
+    reader.readAsText(file, 'utf-8')
+  }
+
+  const doImport = async () => {
+    if (!importAccount) { toast.error('Seleziona un conto'); return }
+    const validRows = importRows.filter((r) => r.valid)
+    if (validRows.length === 0) { toast.error('Nessuna riga valida da importare'); return }
+    setImportBusy(true)
+    setImportProgress(0)
+    let success = 0; let errors = 0
+    for (let i = 0; i < validRows.length; i++) {
+      const row = validRows[i]
+      try {
+        await transactionRequest('POST', {
+          account_id: importAccount,
+          category_id: row.categoryId,
+          type: row.type,
+          amount: row.amount,
+          description: row.description,
+          date: row.date,
+        })
+        success++
+      } catch { errors++ }
+      setImportProgress(Math.round(((i + 1) / validRows.length) * 100))
+    }
+    setImportBusy(false)
+    if (errors === 0) toast.success(`${success} transazioni importate`)
+    else toast.warning(`${success} importate, ${errors} errori`)
+    setImportOpen(false); setImportStep('upload'); setImportRows([]); setImportAccount('')
+    await fetchTransactions(); await refetchAccounts()
+  }
+
   const shiftMonth = (delta: number) => {
     setSelectedMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1))
   }
@@ -572,6 +685,10 @@ export default function TransactionsPage() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
+            <Button variant="outline" onClick={() => { setImportOpen(true); setImportStep('upload'); setImportRows([]) }} className="h-11 gap-2">
+              <Upload className="h-4 w-4" />
+              Importa CSV
+            </Button>
             <Button onClick={() => setCreateOpen(true)} className="h-11 gap-2">
               <Plus className="h-4 w-4" />
               Nuova transazione
@@ -810,6 +927,113 @@ export default function TransactionsPage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={importOpen} onOpenChange={(open) => { if (!importBusy) setImportOpen(open) }}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border-[#e5e7f0] bg-white text-slate-950">
+          <DialogHeader>
+            <DialogTitle>Importa transazioni da CSV</DialogTitle>
+          </DialogHeader>
+
+          {importStep === 'upload' && (
+            <div className="mt-4 space-y-5">
+              <div className="rounded-2xl border border-dashed border-[#e5e7f0] bg-[#f8f9fc] p-6 text-center">
+                <Upload className="mx-auto mb-3 h-8 w-8 text-indigo-400" />
+                <p className="text-sm font-medium text-slate-700">Seleziona un file CSV</p>
+                <p className="mt-1 text-xs text-slate-400">Usa il formato esportato da Aurora (Report → Esporta CSV)</p>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="mt-4 block w-full cursor-pointer text-sm text-slate-500 file:mr-4 file:cursor-pointer file:rounded-xl file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-indigo-600 hover:file:bg-indigo-100"
+                  onChange={handleImportFile}
+                />
+              </div>
+              <div className="rounded-2xl border border-[#e5e7f0] bg-white p-4 text-xs text-slate-500 space-y-1">
+                <p className="font-medium text-slate-700">Formato atteso:</p>
+                <p className="font-mono">Data,Tipo,Descrizione,Categoria,Importo (EUR)</p>
+                <p className="font-mono text-slate-400">2024-01-15,Uscita,"Spesa supermercato","Alimentari",45.80</p>
+              </div>
+            </div>
+          )}
+
+          {importStep === 'preview' && (
+            <div className="mt-4 space-y-5">
+              <div className="space-y-2">
+                <Label className="text-slate-700">Conto di destinazione</Label>
+                <SelectField value={importAccount} onChange={(e) => setImportAccount(e.target.value)}>
+                  <option value="">Seleziona un conto...</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </SelectField>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-slate-700">
+                  Anteprima — {importRows.filter((r) => r.valid).length} righe valide
+                  {importRows.some((r) => !r.valid) && (
+                    <span className="ml-2 text-red-500">· {importRows.filter((r) => !r.valid).length} non valide (saltate)</span>
+                  )}
+                </p>
+                <div className="max-h-72 overflow-y-auto rounded-2xl border border-[#e5e7f0]">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-slate-50">
+                      <tr className="border-b border-[#e5e7f0] text-left">
+                        <th className="px-3 py-2 font-medium text-slate-500">Data</th>
+                        <th className="px-3 py-2 font-medium text-slate-500">Tipo</th>
+                        <th className="px-3 py-2 font-medium text-slate-500">Descrizione</th>
+                        <th className="px-3 py-2 font-medium text-slate-500 text-right">Importo</th>
+                        <th className="px-3 py-2 font-medium text-slate-500">Stato</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importRows.map((row, i) => (
+                        <tr key={i} className={cn('border-b border-[#e5e7f0] last:border-0', !row.valid && 'bg-red-50/50')}>
+                          <td className="px-3 py-2 tabular-nums text-slate-700">{row.date}</td>
+                          <td className="px-3 py-2">
+                            <span className={cn('rounded-full px-2 py-0.5 font-medium', row.type === 'income' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700')}>
+                              {row.type === 'income' ? 'Entrata' : 'Uscita'}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-slate-700">
+                            <p className="max-w-36 truncate">{row.description}</p>
+                            {row.categoryName && <p className="text-slate-400">{row.categoryName}{!row.categoryId && ' ⚠ non trovata'}</p>}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums text-right font-medium text-slate-900">{row.amount.toFixed(2)}</td>
+                          <td className="px-3 py-2">
+                            {row.valid
+                              ? <span className="text-emerald-600">✓</span>
+                              : <span className="text-red-500" title={row.error}>✗ {row.error}</span>
+                            }
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {importBusy && (
+                <div className="space-y-1.5">
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-indigo-500 transition-all duration-300" style={{ width: `${importProgress}%` }} />
+                  </div>
+                  <p className="text-center text-xs text-slate-400">{importProgress}%</p>
+                </div>
+              )}
+
+              <div className="flex justify-between gap-3">
+                <Button variant="outline" onClick={() => setImportStep('upload')} disabled={importBusy}>
+                  Indietro
+                </Button>
+                <Button onClick={doImport} disabled={importBusy || !importAccount || importRows.filter((r) => r.valid).length === 0} className="gap-2">
+                  <Upload className="h-4 w-4" />
+                  {importBusy ? `Importazione... ${importProgress}%` : `Importa ${importRows.filter((r) => r.valid).length} transazioni`}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
