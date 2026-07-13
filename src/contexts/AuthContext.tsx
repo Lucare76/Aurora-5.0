@@ -89,26 +89,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true
 
     async function loadSession() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!mounted) return
-
-      if (!session?.user) {
-        setUser(null)
-        setProfile(null)
-        setLoading(false)
-        return
-      }
-
-      setUser(session.user)
       try {
-        await fetchProfile(session.user.id, session.user.user_metadata?.display_name ?? session.user.email)
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        if (!mounted) return
+
+        if (!session?.user) {
+          setUser(null)
+          setProfile(null)
+          setLoading(false)
+          return
+        }
+
+        setUser(session.user)
+        try {
+          await fetchProfile(session.user.id, session.user.user_metadata?.display_name ?? session.user.email)
+        } catch {
+          // profile fetch failed, user still authenticated
+        }
+        if (mounted) setLoading(false)
       } catch {
-        // profile fetch failed, user still authenticated
+        // network error or Supabase unavailable — don't leave app stuck in loading
+        if (mounted) {
+          setUser(null)
+          setProfile(null)
+          setLoading(false)
+        }
       }
-      if (mounted) setLoading(false)
     }
 
     loadSession()
