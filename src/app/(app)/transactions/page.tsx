@@ -17,7 +17,9 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  Search,
   Trash2,
+  X,
 } from 'lucide-react'
 import { format, isToday, isYesterday, parseISO } from 'date-fns'
 import { it } from 'date-fns/locale'
@@ -163,6 +165,8 @@ export default function TransactionsPage() {
   const [deletingTransaction, setDeletingTransaction] = useState<TransactionWithPeer | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('all')
 
   const form = useForm<TransactionForm>({
     resolver: zodResolver(transactionSchema) as any,
@@ -371,8 +375,28 @@ export default function TransactionsPage() {
   )
   const netTotal = totalIncome - totalExpense
 
+  const filteredTransactions = useMemo(() => {
+    let list = monthTransactions
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      list = list.filter(
+        (t) =>
+          t.description?.toLowerCase().includes(q) ||
+          t.notes?.toLowerCase().includes(q),
+      )
+    }
+    if (categoryFilter !== 'all') {
+      list = list.filter((t) => {
+        if (categoryFilter === 'none') return !t.category_id
+        return t.category_id === categoryFilter ||
+          (t.category_id ? (categoryById.get(t.category_id)?.parent_id === categoryFilter) : false)
+      })
+    }
+    return list
+  }, [monthTransactions, searchQuery, categoryFilter, categoryById])
+
   const groupedTransactions = useMemo(() => {
-    return monthTransactions.reduce<Record<string, TransactionWithPeer[]>>((groups, transaction) => {
+    return filteredTransactions.reduce<Record<string, TransactionWithPeer[]>>((groups, transaction) => {
       const label = dateLabel(transaction.date)
       groups[label] ??= []
       groups[label].push(transaction)
@@ -555,35 +579,60 @@ export default function TransactionsPage() {
           </div>
         </header>
 
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
-          <div className="rounded-2xl border border-[#e5e7f0] bg-white p-2 shadow-sm">
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { value: 'all', label: 'Tutte' },
-                { value: 'income', label: 'Entrate' },
-                { value: 'expense', label: 'Uscite' },
-              ].map((item) => (
-                <button
-                  key={item.value}
-                  className={cn(
-                    'h-10 rounded-xl text-sm font-medium transition',
-                    typeFilter === item.value ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
-                  )}
-                  onClick={() => setTypeFilter(item.value as TypeFilter)}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
+        <section className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cerca per descrizione o nota..."
+              className="h-11 w-full rounded-xl border border-[#e5e7f0] bg-white pl-10 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-          <SelectField value={accountFilter} onChange={(event) => setAccountFilter(event.target.value)} className="min-w-56">
-            <option value="all">Tutti i conti</option>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </SelectField>
+          <div className="flex flex-wrap gap-3">
+            <div className="rounded-2xl border border-[#e5e7f0] bg-white p-2 shadow-sm">
+              <div className="flex gap-1">
+                {[
+                  { value: 'all', label: 'Tutte' },
+                  { value: 'income', label: 'Entrate' },
+                  { value: 'expense', label: 'Uscite' },
+                ].map((item) => (
+                  <button
+                    key={item.value}
+                    className={cn(
+                      'h-9 rounded-xl px-4 text-sm font-medium transition',
+                      typeFilter === item.value ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
+                    )}
+                    onClick={() => setTypeFilter(item.value as TypeFilter)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <SelectField value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} className="min-w-48">
+              <option value="all">Tutti i conti</option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>{account.name}</option>
+              ))}
+            </SelectField>
+            <SelectField value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="min-w-48">
+              <option value="all">Tutte le categorie</option>
+              <option value="none">Senza categoria</option>
+              {categories.filter((c) => !c.parent_id).map((cat) => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </SelectField>
+          </div>
         </section>
 
         <section className="grid gap-4 md:grid-cols-3">
@@ -611,17 +660,27 @@ export default function TransactionsPage() {
 
         {loading ? (
           <TransactionSkeleton />
-        ) : monthTransactions.length === 0 ? (
+        ) : filteredTransactions.length === 0 ? (
           <div className="rounded-3xl border border-[#e5e7f0] bg-white p-8 shadow-sm">
             <EmptyState
-              icon={ArrowLeftRight}
-              title="Nessuna transazione"
-              description="Aggiungi entrate, uscite o trasferimenti per iniziare a tracciare il mese."
+              icon={searchQuery || categoryFilter !== 'all' ? Search : ArrowLeftRight}
+              title={searchQuery || categoryFilter !== 'all' ? 'Nessun risultato' : 'Nessuna transazione'}
+              description={
+                searchQuery || categoryFilter !== 'all'
+                  ? 'Prova a modificare i filtri o la ricerca.'
+                  : 'Aggiungi entrate, uscite o trasferimenti per iniziare a tracciare il mese.'
+              }
               action={
-                <Button onClick={() => setCreateOpen(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Nuova transazione
-                </Button>
+                searchQuery || categoryFilter !== 'all' ? (
+                  <Button variant="outline" onClick={() => { setSearchQuery(''); setCategoryFilter('all') }}>
+                    Rimuovi filtri
+                  </Button>
+                ) : (
+                  <Button onClick={() => setCreateOpen(true)} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Nuova transazione
+                  </Button>
+                )
               }
             />
           </div>
