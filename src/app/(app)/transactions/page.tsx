@@ -204,6 +204,8 @@ export default function TransactionsPage() {
   const [busy, setBusy] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [amountMin, setAmountMin] = useState('')
+  const [amountMax, setAmountMax] = useState('')
   const [importOpen, setImportOpen] = useState(false)
   const [importStep, setImportStep] = useState<'upload' | 'preview'>('upload')
   const [importAccount, setImportAccount] = useState('')
@@ -435,8 +437,32 @@ export default function TransactionsPage() {
           (t.category_id ? (categoryById.get(t.category_id)?.parent_id === categoryFilter) : false)
       })
     }
+    const min = parseFloat(amountMin)
+    const max = parseFloat(amountMax)
+    if (!isNaN(min) && amountMin !== '') list = list.filter((t) => t.amount >= min)
+    if (!isNaN(max) && amountMax !== '') list = list.filter((t) => t.amount <= max)
     return list
-  }, [monthTransactions, searchQuery, categoryFilter, categoryById])
+  }, [monthTransactions, searchQuery, categoryFilter, categoryById, amountMin, amountMax])
+
+  const activeFilterCount = useMemo(() => {
+    let n = 0
+    if (searchQuery.trim()) n++
+    if (typeFilter !== 'all') n++
+    if (accountFilter !== 'all') n++
+    if (categoryFilter !== 'all') n++
+    if (amountMin !== '') n++
+    if (amountMax !== '') n++
+    return n
+  }, [searchQuery, typeFilter, accountFilter, categoryFilter, amountMin, amountMax])
+
+  const clearAllFilters = () => {
+    setSearchQuery('')
+    setTypeFilter('all')
+    setAccountFilter('all')
+    setCategoryFilter('all')
+    setAmountMin('')
+    setAmountMax('')
+  }
 
   const groupedTransactions = useMemo(() => {
     return filteredTransactions.reduce<Record<string, TransactionWithPeer[]>>((groups, transaction) => {
@@ -445,7 +471,7 @@ export default function TransactionsPage() {
       groups[label].push(transaction)
       return groups
     }, {})
-  }, [monthTransactions])
+  }, [filteredTransactions])
 
   const renderTypeToggle = (targetForm: typeof form) => {
     const currentType = targetForm.watch('type')
@@ -740,19 +766,55 @@ export default function TransactionsPage() {
                 ))}
               </div>
             </div>
-            <SelectField value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} className="min-w-48">
+            <SelectField value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} className="min-w-44">
               <option value="all">Tutti i conti</option>
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>{account.name}</option>
               ))}
             </SelectField>
-            <SelectField value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="min-w-48">
+            <SelectField value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="min-w-44">
               <option value="all">Tutte le categorie</option>
               <option value="none">Senza categoria</option>
               {categories.filter((c) => !c.parent_id).map((cat) => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </SelectField>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">€</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amountMin}
+                  onChange={(e) => setAmountMin(e.target.value)}
+                  placeholder="Min"
+                  className="h-11 w-28 rounded-xl border border-[#e5e7f0] bg-white pl-7 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                />
+              </div>
+              <span className="text-sm text-slate-400">—</span>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">€</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amountMax}
+                  onChange={(e) => setAmountMax(e.target.value)}
+                  placeholder="Max"
+                  className="h-11 w-28 rounded-xl border border-[#e5e7f0] bg-white pl-7 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                />
+              </div>
+            </div>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearAllFilters}
+                className="flex h-11 items-center gap-2 rounded-xl bg-indigo-50 px-4 text-sm font-medium text-indigo-600 transition hover:bg-indigo-100"
+              >
+                <X className="h-4 w-4" />
+                Pulisci filtri ({activeFilterCount})
+              </button>
+            )}
           </div>
         </section>
 
@@ -784,17 +846,18 @@ export default function TransactionsPage() {
         ) : filteredTransactions.length === 0 ? (
           <div className="rounded-3xl border border-[#e5e7f0] bg-white p-8 shadow-sm">
             <EmptyState
-              icon={searchQuery || categoryFilter !== 'all' ? Search : ArrowLeftRight}
-              title={searchQuery || categoryFilter !== 'all' ? 'Nessun risultato' : 'Nessuna transazione'}
+              icon={activeFilterCount > 0 ? Search : ArrowLeftRight}
+              title={activeFilterCount > 0 ? 'Nessun risultato' : 'Nessuna transazione'}
               description={
-                searchQuery || categoryFilter !== 'all'
-                  ? 'Prova a modificare i filtri o la ricerca.'
+                activeFilterCount > 0
+                  ? `${activeFilterCount} ${activeFilterCount === 1 ? 'filtro attivo' : 'filtri attivi'} — prova a modificarli o rimuoverli.`
                   : 'Aggiungi entrate, uscite o trasferimenti per iniziare a tracciare il mese.'
               }
               action={
-                searchQuery || categoryFilter !== 'all' ? (
-                  <Button variant="outline" onClick={() => { setSearchQuery(''); setCategoryFilter('all') }}>
-                    Rimuovi filtri
+                activeFilterCount > 0 ? (
+                  <Button variant="outline" onClick={clearAllFilters} className="gap-2">
+                    <X className="h-4 w-4" />
+                    Rimuovi tutti i filtri
                   </Button>
                 ) : (
                   <Button onClick={() => setCreateOpen(true)} className="gap-2">

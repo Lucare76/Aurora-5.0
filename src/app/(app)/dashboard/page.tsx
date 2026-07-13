@@ -27,8 +27,9 @@ import { useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
 import { useTransactions } from '@/hooks/use-transactions'
 import { createClient } from '@/lib/supabase/client'
+import { ACCOUNT_TYPE_LABELS } from '@/lib/constants'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
-import type { Account, Transaction } from '@/types/database'
+import type { Account, AccountType, Transaction } from '@/types/database'
 
 interface MonthlyChartRow {
   key: string
@@ -164,7 +165,7 @@ function AccountRow({ account, total }: { account: Account; total: number }) {
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <p className="truncate font-semibold text-slate-900">{account.name}</p>
-          <p className="mt-1 text-xs capitalize text-slate-400">{account.type}</p>
+          <p className="mt-1 text-xs text-slate-400">{ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type}</p>
         </div>
         <p className="shrink-0 font-bold tabular-nums text-slate-950">
           {formatCurrency(account.balance, account.currency)}
