@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { format as fnsFormat } from 'date-fns'
+import { format as fnsFormat, parseISO } from 'date-fns'
 import { it } from 'date-fns/locale'
 
 export function cn(...inputs: ClassValue[]) {
@@ -19,7 +19,7 @@ export function formatCurrency(
 }
 
 export function formatDate(date: string | Date, formatStr = 'dd/MM/yyyy'): string {
-  const d = typeof date === 'string' ? new Date(date) : date
+  const d = typeof date === 'string' ? parseISO(date) : date
   return fnsFormat(d, formatStr, { locale: it })
 }
 
