@@ -124,22 +124,30 @@ export default function SettingsPage() {
 
   const exportTransactions = async () => {
     try {
-      const { data, error } = await db
-        .from('transactions')
-        .select('date,type,description,amount,notes,account_id,category_id')
-        .order('date', { ascending: false })
-      if (error) throw error
+      const [txRes, catRes, accRes] = await Promise.all([
+        db.from('transactions').select('date,type,description,amount,category_id,account_id,transfer_peer_id').order('date', { ascending: false }),
+        db.from('categories').select('id,name'),
+        db.from('accounts').select('id,name'),
+      ])
+      if (txRes.error) throw txRes.error
 
-      const rows = data ?? []
-      const header = ['data', 'tipo', 'descrizione', 'importo', 'note', 'conto_id', 'categoria_id']
-      const csv = [
-        header.join(','),
-        ...rows.map((row: Record<string, unknown>) =>
-          header.map((key) => `"${String(row[key] ?? '').replaceAll('"', '""')}"`).join(','),
-        ),
-      ].join('\n')
+      const catById = new Map((catRes.data ?? []).map((c: { id: string; name: string }) => [c.id, c.name]))
+      const accById = new Map((accRes.data ?? []).map((a: { id: string; name: string }) => [a.id, a.name]))
 
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+      const header = ['Data', 'Tipo', 'Descrizione', 'Categoria', 'Conto', 'Importo (EUR)']
+      const rows = (txRes.data ?? [])
+        .filter((t: Record<string, unknown>) => !t.transfer_peer_id)
+        .map((t: Record<string, unknown>) => [
+          t.date,
+          t.type === 'income' ? 'Entrata' : 'Uscita',
+          `"${String(t.description ?? '').replace(/"/g, '""')}"`,
+          `"${String(catById.get(t.category_id as string) ?? 'Senza categoria').replace(/"/g, '""')}"`,
+          `"${String(accById.get(t.account_id as string) ?? '').replace(/"/g, '""')}"`,
+          Number(t.amount).toFixed(2),
+        ])
+
+      const csv = [header, ...rows].map((row) => (row as unknown[]).join(',')).join('\n')
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -148,7 +156,7 @@ export default function SettingsPage() {
       URL.revokeObjectURL(url)
       toast.success('CSV esportato')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Errore durante l’esportazione')
+      toast.error(error instanceof Error ? error.message : 'Errore durante l\'esportazione')
     }
   }
 

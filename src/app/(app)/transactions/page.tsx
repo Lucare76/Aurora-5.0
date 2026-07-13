@@ -599,14 +599,18 @@ export default function TransactionsPage() {
       const allRows = parseCSV(text)
       if (allRows.length < 2) { toast.error('File CSV vuoto o non valido'); return }
       const [header, ...dataRows] = allRows
-      const expected = ['Data', 'Tipo', 'Descrizione', 'Categoria', 'Importo (EUR)']
-      if (!expected.every((h, i) => header[i]?.trim() === h)) {
+      const isSixCol = header[4]?.trim() === 'Conto' && header[5]?.trim() === 'Importo (EUR)'
+      const isFiveCol = header[4]?.trim() === 'Importo (EUR)'
+      const baseMatch = ['Data', 'Tipo', 'Descrizione', 'Categoria'].every((h, i) => header[i]?.trim() === h)
+      if (!baseMatch || (!isFiveCol && !isSixCol)) {
         toast.error('Formato non riconosciuto. Usa il CSV esportato da Aurora.')
         return
       }
+      const amtCol = isSixCol ? 5 : 4
       const catByName = new Map(categories.map((c) => [c.name.toLowerCase(), c]))
       const parsed: ImportRow[] = dataRows.map((row) => {
-        const [dateStr, tipoStr, desc, catName, amtStr] = row
+        const [dateStr, tipoStr, desc, catName] = row
+        const amtStr = row[amtCol]
         const date = dateStr?.trim() ?? ''
         const typeRaw = tipoStr?.trim().toLowerCase() ?? ''
         const type: 'income' | 'expense' = typeRaw === 'entrata' ? 'income' : 'expense'
