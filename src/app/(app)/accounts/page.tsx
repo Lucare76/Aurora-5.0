@@ -374,6 +374,15 @@ export default function AccountsPage() {
           </div>
         </section>
 
+        {/* backdrop click-fuori per chiudere menu ⋯ */}
+        {openMenuId && (
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setOpenMenuId(null)}
+            aria-hidden
+          />
+        )}
+
         {/* Account list */}
         {loading ? (
           <AccountSkeleton />
