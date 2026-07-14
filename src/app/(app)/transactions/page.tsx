@@ -109,7 +109,7 @@ const defaultValues: TransactionForm = {
   type: 'expense',
   amount: 0,
   description: '',
-  date: new Date().toISOString().split('T')[0],
+  date: new Date().toLocaleDateString('en-CA'),
   account_id: '',
   destination_account_id: '',
   category_id: '',

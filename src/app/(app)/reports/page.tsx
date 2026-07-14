@@ -153,7 +153,7 @@ export default function ReportsPage() {
     d.setDate(d.getDate() - 30)
     return d.toISOString().split('T')[0]
   })
-  const [customTo, setCustomTo] = useState(() => new Date().toISOString().split('T')[0])
+  const [customTo, setCustomTo] = useState(() => new Date().toLocaleDateString('en-CA'))
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = useMemo(() => createClient(), [])

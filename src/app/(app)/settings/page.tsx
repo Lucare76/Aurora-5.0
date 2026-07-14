@@ -151,7 +151,7 @@ export default function SettingsPage() {
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `aurora-transazioni-${new Date().toISOString().split('T')[0]}.csv`
+      link.download = `aurora-transazioni-${new Date().toLocaleDateString('en-CA')}.csv`
       link.click()
       URL.revokeObjectURL(url)
       toast.success('CSV esportato')
