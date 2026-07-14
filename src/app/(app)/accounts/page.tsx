@@ -9,6 +9,8 @@ import {
   ArrowUpDown,
   ChevronDown,
   ChevronUp,
+  Eye,
+  EyeOff,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -119,24 +121,41 @@ export default function AccountsPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const [hideZero, setHideZero] = useState(false)
+  const [showHidden, setShowHidden] = useState(false)
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('aurora-hidden-accounts')
+      return new Set(stored ? (JSON.parse(stored) as string[]) : [])
+    } catch { return new Set<string>() }
+  })
 
   const activeCount = useMemo(() => accounts.filter((a) => a.is_active).length, [accounts])
-  const zeroCount = useMemo(() => accounts.filter((a) => a.balance === 0).length, [accounts])
+  const hiddenCount = useMemo(() => accounts.filter((a) => hiddenIds.has(a.id)).length, [accounts, hiddenIds])
 
   const sorted = useMemo(() => {
-    const base = hideZero ? accounts.filter((a) => a.balance !== 0) : accounts
+    const base = showHidden ? accounts : accounts.filter((a) => !hiddenIds.has(a.id))
     return [...base].sort((a, b) => {
       const cmp = sortField === 'balance'
         ? a.balance - b.balance
         : a.name.localeCompare(b.name, 'it')
       return sortDir === 'asc' ? cmp : -cmp
     })
-  }, [accounts, sortField, sortDir, hideZero])
+  }, [accounts, sortField, sortDir, hiddenIds, showHidden])
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     else { setSortField(field); setSortDir('desc') }
+  }
+
+  const toggleHide = (id: string) => {
+    setHiddenIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      try { localStorage.setItem('aurora-hidden-accounts', JSON.stringify([...next])) } catch { /* noop */ }
+      return next
+    })
+    setOpenMenuId(null)
   }
 
   const createForm = useForm<AccountForm>({
@@ -376,16 +395,17 @@ export default function AccountsPage() {
           </Card>
         ) : (
           <>
-            {zeroCount > 0 && (
+            {hiddenCount > 0 && (
               <div className="flex justify-end">
                 <button
                   type="button"
-                  onClick={() => setHideZero((v) => !v)}
+                  onClick={() => setShowHidden((v) => !v)}
                   className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7f0] bg-white px-3 py-1.5 text-xs font-medium text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-700"
                 >
-                  {hideZero
-                    ? `Mostra tutti (${zeroCount} a zero nascosti)`
-                    : `Nascondi conti a zero (${zeroCount})`}
+                  {showHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  {showHidden
+                    ? `Nascondi (${hiddenCount} nascosti)`
+                    : `Mostra nascosti (${hiddenCount})`}
                 </button>
               </div>
             )}
@@ -420,12 +440,14 @@ export default function AccountsPage() {
                 <tbody className="divide-y divide-[#f0f1f5]">
                   {sorted.map((account) => {
                     const canImport = account.name === 'Bancoposta' || account.name === 'Carta di Credito'
+                    const isHidden = hiddenIds.has(account.id)
                     return (
                       <tr
                         key={account.id}
                         className={cn(
                           'group text-sm transition-colors hover:bg-slate-50/60',
                           !account.is_active && 'opacity-50',
+                          isHidden && 'opacity-40 italic',
                         )}
                       >
                         {/* Nome */}
@@ -508,6 +530,14 @@ export default function AccountsPage() {
                                   >
                                     <Power className="h-3.5 w-3.5" />
                                     {account.is_active ? 'Disattiva' : 'Riattiva'}
+                                  </button>
+                                  <button
+                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                                    onClick={() => toggleHide(account.id)}
+                                  >
+                                    {hiddenIds.has(account.id)
+                                      ? <><Eye className="h-3.5 w-3.5" />Mostra</>
+                                      : <><EyeOff className="h-3.5 w-3.5" />Nascondi</>}
                                   </button>
                                   <button
                                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
