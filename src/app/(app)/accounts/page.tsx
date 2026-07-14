@@ -447,9 +447,10 @@ export default function AccountsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f0f1f5]">
-                  {sorted.map((account) => {
+                  {sorted.map((account, idx) => {
                     const canImport = account.name === 'Bancoposta' || account.name === 'Carta di Credito'
                     const isHidden = hiddenIds.has(account.id)
+                    const menuOpensUp = idx >= sorted.length - 3
                     return (
                       <tr
                         key={account.id}
@@ -534,7 +535,7 @@ export default function AccountsPage() {
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                               {openMenuId === account.id && (
-                                <div className="absolute right-0 bottom-full mb-1 z-20 w-40 rounded-xl border border-[#e5e7f0] bg-white p-1 shadow-xl shadow-slate-200">
+                                <div className={cn('absolute right-0 z-20 w-40 rounded-xl border border-[#e5e7f0] bg-white p-1 shadow-xl shadow-slate-200', menuOpensUp ? 'bottom-full mb-1' : 'top-8')}>
                                   <button
                                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                                     onClick={() => openEditDialog(account)}
