@@ -301,7 +301,7 @@ export default function DashboardPage() {
     [activeAccounts],
   )
   const netSavings = totalIncome - totalExpense
-  const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Aurora'
+  const displayName = profile?.display_name?.trim() || null
   const today = format(new Date(), 'EEEE d MMMM yyyy', { locale: it })
   const loading = accountsLoading || categoriesLoading || recentLoading || monthLoading
 
@@ -351,7 +351,7 @@ export default function DashboardPage() {
           <div>
             <p className="text-sm font-medium capitalize text-slate-500">{today}</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-              {getGreeting()}, {displayName}!
+              {getGreeting()}{displayName ? `, ${displayName}` : ''}!
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
               Una vista chiara sui tuoi movimenti reali: patrimonio, flussi mensili e conti attivi.
