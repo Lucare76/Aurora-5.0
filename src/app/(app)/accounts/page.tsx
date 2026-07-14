@@ -117,8 +117,8 @@ export default function AccountsPage() {
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
-  const [sortField, setSortField] = useState<SortField>('balance')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [sortField, setSortField] = useState<SortField>('name')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
 
   const activeCount = useMemo(() => accounts.filter((a) => a.is_active).length, [accounts])
 
