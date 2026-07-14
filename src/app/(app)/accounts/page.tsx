@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -146,6 +146,19 @@ export default function AccountsPage() {
     if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     else { setSortField(field); setSortDir('desc') }
   }
+
+  // chiudi menu cliccando fuori — useEffect evita conflitti di z-index con opacity su TR
+  const menuButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
+  useEffect(() => {
+    if (!openMenuId) return
+    const close = (e: MouseEvent) => {
+      const btn = menuButtonRefs.current.get(openMenuId)
+      if (btn && btn.contains(e.target as Node)) return // il toggle sul bottone ⋯ gestisce il click
+      setOpenMenuId(null)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [openMenuId])
 
   const toggleHide = (id: string) => {
     setHiddenIds((prev) => {
@@ -374,15 +387,6 @@ export default function AccountsPage() {
           </div>
         </section>
 
-        {/* backdrop click-fuori per chiudere menu ⋯ */}
-        {openMenuId && (
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setOpenMenuId(null)}
-            aria-hidden
-          />
-        )}
-
         {/* Account list */}
         {loading ? (
           <AccountSkeleton />
@@ -527,6 +531,10 @@ export default function AccountsPage() {
                             </Button>
                             <div className="relative">
                               <Button
+                                ref={(el) => {
+                                  if (el) menuButtonRefs.current.set(account.id, el)
+                                  else menuButtonRefs.current.delete(account.id)
+                                }}
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7 text-slate-400 hover:text-slate-700"
@@ -535,7 +543,7 @@ export default function AccountsPage() {
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                               {openMenuId === account.id && (
-                                <div className={cn('absolute right-0 z-20 w-40 rounded-xl border border-[#e5e7f0] bg-white p-1 shadow-xl shadow-slate-200', menuOpensUp ? 'bottom-full mb-1' : 'top-8')}>
+                                <div className={cn('absolute right-0 w-40 rounded-xl border border-[#e5e7f0] bg-white p-1 shadow-xl shadow-slate-200', menuOpensUp ? 'bottom-full mb-1' : 'top-8')} style={{ zIndex: 50 }}>
                                   <button
                                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                                     onClick={() => openEditDialog(account)}
