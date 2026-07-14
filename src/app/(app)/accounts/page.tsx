@@ -119,17 +119,20 @@ export default function AccountsPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [hideZero, setHideZero] = useState(false)
 
   const activeCount = useMemo(() => accounts.filter((a) => a.is_active).length, [accounts])
+  const zeroCount = useMemo(() => accounts.filter((a) => a.balance === 0).length, [accounts])
 
   const sorted = useMemo(() => {
-    return [...accounts].sort((a, b) => {
+    const base = hideZero ? accounts.filter((a) => a.balance !== 0) : accounts
+    return [...base].sort((a, b) => {
       const cmp = sortField === 'balance'
         ? a.balance - b.balance
         : a.name.localeCompare(b.name, 'it')
       return sortDir === 'asc' ? cmp : -cmp
     })
-  }, [accounts, sortField, sortDir])
+  }, [accounts, sortField, sortDir, hideZero])
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -372,6 +375,20 @@ export default function AccountsPage() {
             </CardContent>
           </Card>
         ) : (
+          <>
+            {zeroCount > 0 && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setHideZero((v) => !v)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7f0] bg-white px-3 py-1.5 text-xs font-medium text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-700"
+                >
+                  {hideZero
+                    ? `Mostra tutti (${zeroCount} a zero nascosti)`
+                    : `Nascondi conti a zero (${zeroCount})`}
+                </button>
+              </div>
+            )}
           <Card className="overflow-hidden border-[#e5e7f0] bg-white shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px]">
@@ -511,6 +528,7 @@ export default function AccountsPage() {
               </table>
             </div>
           </Card>
+          </>
         )}
       </div>
 
