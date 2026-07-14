@@ -206,7 +206,7 @@ export default function DashboardPage() {
       const { data } = await supabase
         .from('transactions')
         .select('amount, type, date')
-        .gte('date', sixMonthsAgo.toISOString().split('T')[0])
+        .gte('date', sixMonthsAgo.toLocaleDateString('en-CA'))
         .order('date', { ascending: true })
 
       if (!mounted) return
@@ -249,10 +249,10 @@ export default function DashboardPage() {
     async function fetchUpcoming() {
       const todayDate = new Date()
       todayDate.setHours(0, 0, 0, 0)
-      const todayStr = todayDate.toISOString().split('T')[0]
+      const todayStr = todayDate.toLocaleDateString('en-CA')
       const in7 = new Date(todayDate)
       in7.setDate(todayDate.getDate() + 7)
-      const in7Str = in7.toISOString().split('T')[0]
+      const in7Str = in7.toLocaleDateString('en-CA')
 
       const [rulesRes, bdRes] = await Promise.all([
         supabase

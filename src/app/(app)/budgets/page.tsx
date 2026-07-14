@@ -50,8 +50,8 @@ function monthRange(date: Date) {
   return {
     month: date.getMonth() + 1,
     year: date.getFullYear(),
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0],
+    start: start.toLocaleDateString('en-CA'),
+    end: end.toLocaleDateString('en-CA'),
   }
 }
 

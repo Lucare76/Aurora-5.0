@@ -53,22 +53,22 @@ function getDateRange(
     case 'this-month': {
       const start = new Date(now.getFullYear(), now.getMonth(), 1)
       const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-      return { from: start.toISOString().split('T')[0], to: end.toISOString().split('T')[0] }
+      return { from: start.toLocaleDateString('en-CA'), to: end.toLocaleDateString('en-CA') }
     }
     case 'last-month': {
       const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
       const end = new Date(now.getFullYear(), now.getMonth(), 0)
-      return { from: start.toISOString().split('T')[0], to: end.toISOString().split('T')[0] }
+      return { from: start.toLocaleDateString('en-CA'), to: end.toLocaleDateString('en-CA') }
     }
     case 'last-3-months': {
       const start = new Date(now.getFullYear(), now.getMonth() - 2, 1)
       const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-      return { from: start.toISOString().split('T')[0], to: end.toISOString().split('T')[0] }
+      return { from: start.toLocaleDateString('en-CA'), to: end.toLocaleDateString('en-CA') }
     }
     case 'last-year': {
       const start = new Date(now.getFullYear() - 1, now.getMonth() + 1, 1)
       const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-      return { from: start.toISOString().split('T')[0], to: end.toISOString().split('T')[0] }
+      return { from: start.toLocaleDateString('en-CA'), to: end.toLocaleDateString('en-CA') }
     }
     case 'custom':
       return { from: customFrom, to: customTo }
@@ -151,7 +151,7 @@ export default function ReportsPage() {
   const [customFrom, setCustomFrom] = useState(() => {
     const d = new Date()
     d.setDate(d.getDate() - 30)
-    return d.toISOString().split('T')[0]
+    return d.toLocaleDateString('en-CA')
   })
   const [customTo, setCustomTo] = useState(() => new Date().toLocaleDateString('en-CA'))
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -257,7 +257,7 @@ export default function ReportsPage() {
         const dayOfWeek = d.getDay()
         const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
         weekStart.setDate(d.getDate() + diff)
-        const k = weekStart.toISOString().split('T')[0]
+        const k = weekStart.toLocaleDateString('en-CA')
         return { key: k, label: format(weekStart, 'd MMM', { locale: it }) }
       }
       const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`

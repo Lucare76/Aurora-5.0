@@ -157,8 +157,8 @@ function getMonthRange(date: Date) {
   const start = new Date(date.getFullYear(), date.getMonth(), 1)
   const end = new Date(date.getFullYear(), date.getMonth() + 1, 0)
   return {
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0],
+    start: start.toLocaleDateString('en-CA'),
+    end: end.toLocaleDateString('en-CA'),
   }
 }
 
