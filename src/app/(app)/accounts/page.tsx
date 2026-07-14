@@ -502,19 +502,7 @@ export default function AccountsPage() {
                         {/* Azioni */}
                         <td className="px-3 py-2.5">
                           <div className="flex items-center justify-end gap-1">
-                            {isHidden ? (
-                              <button
-                                type="button"
-                                onClick={() => toggleHide(account.id)}
-                                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
-                                title="Rendi visibile"
-                              >
-                                <Eye className="h-3 w-3" />
-                                Rendi visibile
-                              </button>
-                            ) : (
-                              <>
-                            {canImport && (
+                            {canImport && !isHidden && (
                               <Link href="/import-estratti">
                                 <Button
                                   variant="ghost"
@@ -526,8 +514,16 @@ export default function AccountsPage() {
                                 </Button>
                               </Link>
                             )}
-                            </>
-                            )}
+                            {/* occhio diretto: nasconde o rende visibile senza aprire il menu */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={cn('h-7 w-7', isHidden ? 'text-indigo-400 hover:text-indigo-600' : 'text-slate-300 hover:text-slate-500')}
+                              title={isHidden ? 'Rendi visibile' : 'Nascondi'}
+                              onClick={() => toggleHide(account.id)}
+                            >
+                              {isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                            </Button>
                             <div className="relative">
                               <Button
                                 variant="ghost"
@@ -553,14 +549,6 @@ export default function AccountsPage() {
                                   >
                                     <Power className="h-3.5 w-3.5" />
                                     {account.is_active ? 'Disattiva' : 'Riattiva'}
-                                  </button>
-                                  <button
-                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                                    onClick={() => toggleHide(account.id)}
-                                  >
-                                    {hiddenIds.has(account.id)
-                                      ? <><Eye className="h-3.5 w-3.5" />Mostra</>
-                                      : <><EyeOff className="h-3.5 w-3.5" />Nascondi</>}
                                   </button>
                                   <button
                                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
