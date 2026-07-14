@@ -147,17 +147,13 @@ export default function AccountsPage() {
     else { setSortField(field); setSortDir('desc') }
   }
 
-  // chiudi menu cliccando fuori — useEffect evita conflitti di z-index con opacity su TR
-  const menuButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
+  // chiudi menu cliccando fuori — usa 'click' così gli onClick dei bottoni nel menu sparano prima
+  const menuRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     if (!openMenuId) return
-    const close = (e: MouseEvent) => {
-      const btn = menuButtonRefs.current.get(openMenuId)
-      if (btn && btn.contains(e.target as Node)) return // il toggle sul bottone ⋯ gestisce il click
-      setOpenMenuId(null)
-    }
-    document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
+    const close = () => setOpenMenuId(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
   }, [openMenuId])
 
   const toggleHide = (id: string) => {
@@ -529,16 +525,15 @@ export default function AccountsPage() {
                             >
                               {isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                             </Button>
-                            <div className="relative">
+                            <div className="relative" ref={openMenuId === account.id ? menuRef : null}>
                               <Button
-                                ref={(el) => {
-                                  if (el) menuButtonRefs.current.set(account.id, el)
-                                  else menuButtonRefs.current.delete(account.id)
-                                }}
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7 text-slate-400 hover:text-slate-700"
-                                onClick={() => setOpenMenuId(openMenuId === account.id ? null : account.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setOpenMenuId(openMenuId === account.id ? null : account.id)
+                                }}
                               >
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
