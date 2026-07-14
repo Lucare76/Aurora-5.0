@@ -502,6 +502,18 @@ export default function AccountsPage() {
                         {/* Azioni */}
                         <td className="px-3 py-2.5">
                           <div className="flex items-center justify-end gap-1">
+                            {isHidden ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleHide(account.id)}
+                                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+                                title="Rendi visibile"
+                              >
+                                <Eye className="h-3 w-3" />
+                                Rendi visibile
+                              </button>
+                            ) : (
+                              <>
                             {canImport && (
                               <Link href="/import-estratti">
                                 <Button
@@ -513,6 +525,8 @@ export default function AccountsPage() {
                                   <Upload className="h-3.5 w-3.5" />
                                 </Button>
                               </Link>
+                            )}
+                            </>
                             )}
                             <div className="relative">
                               <Button
