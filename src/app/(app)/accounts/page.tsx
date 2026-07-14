@@ -12,10 +12,12 @@ import {
   Plus,
   Power,
   Trash2,
+  Upload,
   Wallet,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -416,6 +418,14 @@ export default function AccountsPage() {
                     {formatCurrency(account.balance, account.currency)}
                   </p>
                   <p className="mt-3 text-xs text-slate-500">Valuta {account.currency}</p>
+                  {(account.name === 'Bancoposta' || account.name === 'Carta di Credito') && (
+                    <Link href="/import-estratti">
+                      <Button variant="outline" size="sm" className="mt-4 w-full gap-2 text-xs">
+                        <Upload className="h-3.5 w-3.5" />
+                        Importa estratto conto
+                      </Button>
+                    </Link>
+                  )}
                 </CardContent>
               </Card>
             ))}
