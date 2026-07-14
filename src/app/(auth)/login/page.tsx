@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Sparkles } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import type { SubmitHandler } from 'react-hook-form'
+import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,7 +30,7 @@ export default function LoginPage() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema) as any,
+    resolver: zodResolver(loginSchema) as Resolver<LoginForm>,
     defaultValues: { email: '', password: '' },
   })
 

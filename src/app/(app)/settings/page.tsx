@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import type { SubmitHandler } from 'react-hook-form'
+import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Download, LogOut, RefreshCcw, Save, Settings, Trash2, User } from 'lucide-react'
@@ -76,7 +76,7 @@ export default function SettingsPage() {
 
   const defaultTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
   const form = useForm<ProfileForm>({
-    resolver: zodResolver(profileSchema) as any,
+    resolver: zodResolver(profileSchema) as Resolver<ProfileForm>,
     values: {
       display_name: profile?.display_name ?? user?.email?.split('@')[0] ?? '',
       currency: (profile?.currency as ProfileForm['currency']) ?? 'EUR',

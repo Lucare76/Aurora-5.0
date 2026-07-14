@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import type { SubmitHandler } from 'react-hook-form'
+import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
@@ -82,7 +82,7 @@ export default function RecurringPage() {
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts])
 
   const form = useForm<RecurringForm>({
-    resolver: zodResolver(recurringSchema) as any,
+    resolver: zodResolver(recurringSchema) as Resolver<RecurringForm>,
     defaultValues: {
       description: '',
       amount: 0,

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import type { SubmitHandler } from 'react-hook-form'
+import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
@@ -214,12 +214,12 @@ export default function TransactionsPage() {
   const [importProgress, setImportProgress] = useState(0)
 
   const form = useForm<TransactionForm>({
-    resolver: zodResolver(transactionSchema) as any,
+    resolver: zodResolver(transactionSchema) as Resolver<TransactionForm>,
     defaultValues,
   })
 
   const editForm = useForm<TransactionForm>({
-    resolver: zodResolver(transactionSchema) as any,
+    resolver: zodResolver(transactionSchema) as Resolver<TransactionForm>,
     defaultValues,
   })
 

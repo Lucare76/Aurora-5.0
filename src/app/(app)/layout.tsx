@@ -92,7 +92,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
             )}
           >
             {isActive && <span className="absolute left-0 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-r-full bg-indigo-600" />}
-            <item.icon className={cn('h-4.5 w-4.5 shrink-0', isActive ? 'text-indigo-600' : 'text-slate-400')} />
+            <item.icon className={cn('h-5 w-5 shrink-0', isActive ? 'text-indigo-600' : 'text-slate-400')} />
             <span className="truncate">{item.label}</span>
           </Link>
         )

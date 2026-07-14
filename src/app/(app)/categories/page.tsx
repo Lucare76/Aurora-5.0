@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import type { SubmitHandler } from 'react-hook-form'
+import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { MoreHorizontal, Pencil, Plus, Tags, Trash2 } from 'lucide-react'
@@ -62,7 +62,7 @@ export default function CategoriesPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
 
   const form = useForm<CategoryForm>({
-    resolver: zodResolver(categorySchema) as any,
+    resolver: zodResolver(categorySchema) as Resolver<CategoryForm>,
     defaultValues: { name: '', type: 'expense', color: '#6366f1', icon: '🏠', parent_id: '' },
   })
   const selectedType = form.watch('type')

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import type { SubmitHandler } from 'react-hook-form'
+import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { CalendarDays, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, PiggyBank, Plus, Trash2 } from 'lucide-react'
@@ -81,7 +81,7 @@ export default function BudgetsPage() {
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
 
   const form = useForm<BudgetForm>({
-    resolver: zodResolver(budgetSchema) as any,
+    resolver: zodResolver(budgetSchema) as Resolver<BudgetForm>,
     defaultValues: { category_id: '', amount: 0, month: range.month, year: range.year },
   })
 

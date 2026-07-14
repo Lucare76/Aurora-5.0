@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import type { SubmitHandler } from 'react-hook-form'
+import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Cake, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -55,7 +55,7 @@ export default function BirthdaysPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
 
   const form = useForm<BirthdayForm>({
-    resolver: zodResolver(birthdaySchema) as any,
+    resolver: zodResolver(birthdaySchema) as Resolver<BirthdayForm>,
     defaultValues: { name: '', birth_date: '', reminder_days: [7], notes: '' },
   })
 

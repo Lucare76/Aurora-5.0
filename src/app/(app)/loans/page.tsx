@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import type { SubmitHandler } from 'react-hook-form'
+import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { HandCoins, MoreHorizontal, Pencil, Plus, ReceiptText, ShieldCheck, Trash2 } from 'lucide-react'
@@ -61,11 +61,11 @@ export default function LoansPage() {
   const [busy, setBusy] = useState(false)
 
   const loanForm = useForm<LoanForm>({
-    resolver: zodResolver(loanSchema) as any,
+    resolver: zodResolver(loanSchema) as Resolver<LoanForm>,
     defaultValues: { type: 'given', counterpart: '', amount: 0, description: '', due_date: '' },
   })
   const paymentForm = useForm<PaymentForm>({
-    resolver: zodResolver(paymentSchema) as any,
+    resolver: zodResolver(paymentSchema) as Resolver<PaymentForm>,
     defaultValues: { amount: 0, paid_at: new Date().toISOString().split('T')[0], notes: '' },
   })
 
