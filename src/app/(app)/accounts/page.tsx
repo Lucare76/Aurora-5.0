@@ -122,25 +122,19 @@ export default function AccountsPage() {
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [showHidden, setShowHidden] = useState(false)
-  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem('aurora-hidden-accounts')
-      return new Set(stored ? (JSON.parse(stored) as string[]) : [])
-    } catch { return new Set<string>() }
-  })
 
   const activeCount = useMemo(() => accounts.filter((a) => a.is_active).length, [accounts])
-  const hiddenCount = useMemo(() => accounts.filter((a) => hiddenIds.has(a.id)).length, [accounts, hiddenIds])
+  const hiddenCount = useMemo(() => accounts.filter((a) => a.is_hidden).length, [accounts])
 
   const sorted = useMemo(() => {
-    const base = showHidden ? accounts : accounts.filter((a) => !hiddenIds.has(a.id))
+    const base = showHidden ? accounts : accounts.filter((a) => !a.is_hidden)
     return [...base].sort((a, b) => {
       const cmp = sortField === 'balance'
         ? a.balance - b.balance
         : a.name.localeCompare(b.name, 'it')
       return sortDir === 'asc' ? cmp : -cmp
     })
-  }, [accounts, sortField, sortDir, hiddenIds, showHidden])
+  }, [accounts, sortField, sortDir, showHidden])
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -156,14 +150,14 @@ export default function AccountsPage() {
     return () => document.removeEventListener('click', close)
   }, [openMenuId])
 
-  const toggleHide = (id: string) => {
-    setHiddenIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      try { localStorage.setItem('aurora-hidden-accounts', JSON.stringify([...next])) } catch { /* noop */ }
-      return next
-    })
+  const toggleHide = async (account: Account) => {
+    try {
+      const { error } = await db.from('accounts').update({ is_hidden: !account.is_hidden }).eq('id', account.id)
+      if (error) throw error
+      await refetch()
+    } catch {
+      toast.error('Errore durante l\'aggiornamento della visibilità')
+    }
     setOpenMenuId(null)
   }
 
@@ -450,7 +444,7 @@ export default function AccountsPage() {
                 <tbody className="divide-y divide-[#f0f1f5]">
                   {sorted.map((account, idx) => {
                     const canImport = account.name === 'Bancoposta' || account.name === 'Carta di Credito'
-                    const isHidden = hiddenIds.has(account.id)
+                    const isHidden = account.is_hidden
                     const menuOpensUp = idx >= sorted.length - 3
                     return (
                       <tr
@@ -522,7 +516,7 @@ export default function AccountsPage() {
                               size="icon"
                               className={cn('h-7 w-7', isHidden ? 'text-indigo-400 hover:text-indigo-600' : 'text-slate-300 hover:text-slate-500')}
                               title={isHidden ? 'Rendi visibile' : 'Nascondi'}
-                              onClick={() => toggleHide(account.id)}
+                              onClick={() => toggleHide(account)}
                             >
                               {isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                             </Button>

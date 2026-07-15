@@ -454,11 +454,14 @@ export default function ImportEstratti() {
       }
     }
 
+    const failedIds = new Set<string>()
+
     for (const row of toSave) {
       try {
         if (row.type === 'transfer') {
           if (!row.destination_account_id) {
             failedRows.push({ desc: row.description || 'Giroconto', error: 'Conto destinazione mancante' })
+            failedIds.add(row.id)
           } else {
             await post({
               account_id: row.account_id,
@@ -481,10 +484,12 @@ export default function ImportEstratti() {
         }
       } catch (e) {
         failedRows.push({ desc: row.description || '—', error: e instanceof Error ? e.message : 'Errore sconosciuto' })
+        failedIds.add(row.id)
       }
       setProgress(Math.round((++done / total) * 100))
     }
 
+    const failedPairIds = new Set<string>()
     for (const pair of transferPairs) {
       try {
         await post({
@@ -497,9 +502,17 @@ export default function ImportEstratti() {
         })
       } catch (e) {
         failedRows.push({ desc: pair.bancRow.description || 'Coppia BP↔Amex', error: e instanceof Error ? e.message : 'Errore sconosciuto' })
+        failedPairIds.add(pair.id)
       }
       setProgress(Math.round((++done / total) * 100))
     }
+
+    // Marca le righe andate a buon fine come non re-importabili (isDuplicate)
+    // per evitare duplicati se l'utente clicca di nuovo Importa
+    setRows((prev) => prev.map((r) =>
+      r.included && !failedIds.has(r.id) ? { ...r, included: false, isDuplicate: true } : r,
+    ))
+    setTransferPairs((prev) => prev.filter((p) => failedPairIds.has(p.id)))
 
     setSaving(false)
     const imported = total - failedRows.length
@@ -511,7 +524,6 @@ export default function ImportEstratti() {
         toast.error(`"${desc.slice(0, 40)}" — ${error}`, { duration: 8000 }),
       )
       if (imported > 0) toast.success(`${imported} operazioni importate con successo`)
-      // non reindirizza: l'utente vede gli errori e può riprovare
     }
   }, [rows, transferPairs, router])
 

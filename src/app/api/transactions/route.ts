@@ -52,6 +52,7 @@ const SAFE_PG_ERRORS = [
 function sanitizeError(pgMessage: string | undefined, fallback: string): string {
   if (!pgMessage) return fallback
   const isSafe = SAFE_PG_ERRORS.some((e) => pgMessage.includes(e))
+  if (!isSafe) console.error('[aurora] RPC error raw:', pgMessage)
   return isSafe ? pgMessage : fallback
 }
 

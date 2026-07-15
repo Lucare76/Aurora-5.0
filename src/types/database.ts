@@ -26,6 +26,7 @@ export interface Account {
   balance: number
   currency: string
   is_active: boolean
+  is_hidden: boolean
   sort_order: number
   created_at: string
   updated_at: string
@@ -199,6 +200,7 @@ export type Database = {
           balance: number
           currency: string
           is_active: boolean
+          is_hidden: boolean
           sort_order: number
           created_at: string
           updated_at: string
@@ -213,6 +215,7 @@ export type Database = {
           balance?: number
           currency?: string
           is_active?: boolean
+          is_hidden?: boolean
           sort_order?: number
           created_at?: string
           updated_at?: string
@@ -227,6 +230,7 @@ export type Database = {
           balance?: number
           currency?: string
           is_active?: boolean
+          is_hidden?: boolean
           sort_order?: number
           created_at?: string
           updated_at?: string
