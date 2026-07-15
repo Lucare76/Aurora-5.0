@@ -414,9 +414,11 @@ export default function ImportEstratti() {
           .from('transactions')
           .select('date, amount, account_id')
           .in('account_id', accountIds)
-        const existSet = new Set((existing ?? []).map((t) => `${t.account_id}|${t.date}|${t.amount}`))
+        // Supabase returns numeric columns as strings (e.g. "2446.00"), so
+        // normalise with Number() on both sides to avoid key mismatches.
+        const existSet = new Set((existing ?? []).map((t) => `${t.account_id}|${t.date}|${Number(t.amount)}`))
         for (const row of normalRows) {
-          if (existSet.has(`${row.account_id}|${row.date}|${row.amount}`)) {
+          if (existSet.has(`${row.account_id}|${row.date}|${Number(row.amount)}`)) {
             row.isDuplicate = true
             row.included = false
           }

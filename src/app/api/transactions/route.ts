@@ -53,6 +53,8 @@ function sanitizeError(pgMessage: string | undefined, fallback: string): string 
   if (!pgMessage) return fallback
   const isSafe = SAFE_PG_ERRORS.some((e) => pgMessage.includes(e))
   if (!isSafe) console.error('[aurora] RPC error raw:', pgMessage)
+  // In dev, return the raw message so it appears in the UI toast.
+  if (process.env.NODE_ENV === 'development') return pgMessage
   return isSafe ? pgMessage : fallback
 }
 
