@@ -47,11 +47,11 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
   }, [fetchTransactions])
 
   const totalIncome = transactions
-    .filter((t) => t.type === 'income')
+    .filter((t) => t.type === 'income' && !t.transfer_peer_id)
     .reduce((sum, t) => sum + t.amount, 0)
 
   const totalExpense = transactions
-    .filter((t) => t.type === 'expense')
+    .filter((t) => t.type === 'expense' && !t.transfer_peer_id)
     .reduce((sum, t) => sum + t.amount, 0)
 
   return { transactions, loading, totalIncome, totalExpense, refetch: fetchTransactions }
