@@ -28,12 +28,8 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
     }
 
     if (options.month !== undefined && options.year !== undefined) {
-      const startDate = new Date(options.year, options.month - 1, 1)
-        .toISOString()
-        .split('T')[0]
-      const endDate = new Date(options.year, options.month, 0)
-        .toISOString()
-        .split('T')[0]
+      const startDate = new Date(options.year, options.month - 1, 1).toLocaleDateString('en-CA')
+      const endDate = new Date(options.year, options.month, 0).toLocaleDateString('en-CA')
       query = query.gte('date', startDate).lte('date', endDate)
     }
 
