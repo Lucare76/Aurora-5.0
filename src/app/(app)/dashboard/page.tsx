@@ -19,7 +19,7 @@ import {
   Wallet,
   type LucideIcon,
 } from 'lucide-react'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { AmountDisplay } from '@/components/shared/AmountDisplay'
@@ -74,6 +74,12 @@ interface UpcomingLoan {
   remaining: number
   due_date: string
   type: 'given' | 'received'
+}
+
+interface CashFlowDay {
+  day: string
+  dayIndex: number
+  balance: number
 }
 
 const monthLabels = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic']
@@ -151,6 +157,19 @@ function ChartTooltip({ active, payload, label }: any) {
   )
 }
 
+function CashFlowTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  const balance = payload[0]?.value as number
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-xl">
+      <p className="mb-1 font-semibold text-slate-900">{label}</p>
+      <p className={cn('font-bold tabular-nums', balance < 0 ? 'text-red-600' : 'text-emerald-600')}>
+        {formatCurrency(balance)}
+      </p>
+    </div>
+  )
+}
+
 function TransactionIcon({ transaction }: { transaction: Transaction }) {
   const isIncome = transaction.type === 'income'
   const isTransfer = transaction.transfer_peer_id || transaction.type === 'transfer'
@@ -210,6 +229,8 @@ export default function DashboardPage() {
   const [upcoming30Loading, setUpcoming30Loading] = useState(true)
   const [dashBudgets, setDashBudgets] = useState<{ category_id: string; amount: number }[]>([])
   const [dashBudgetSpent, setDashBudgetSpent] = useState<Record<string, number>>({})
+  const [cashFlowData, setCashFlowData] = useState<CashFlowDay[]>([])
+  const [cashFlowLoading, setCashFlowLoading] = useState(true)
 
   useEffect(() => {
     let mounted = true
@@ -386,6 +407,96 @@ export default function DashboardPage() {
     }
 
     fetchDashBudgets()
+    return () => { mounted = false }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    const supabase = createClient()
+
+    async function fetchCashFlow() {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const todayStr = today.toLocaleDateString('en-CA')
+      const in30 = new Date(today)
+      in30.setDate(today.getDate() + 30)
+      const in30Str = in30.toLocaleDateString('en-CA')
+
+      const [accountsRes, rulesRes, loansRes] = await Promise.all([
+        supabase
+          .from('accounts')
+          .select('balance, type')
+          .eq('is_active', true)
+          .in('type', ['checking', 'cash']),
+        supabase
+          .from('recurring_rules')
+          .select('id, amount, type, next_due_date, frequency')
+          .eq('is_active', true)
+          .lte('next_due_date', in30Str),
+        supabase
+          .from('loans')
+          .select('remaining, due_date, type')
+          .eq('is_settled', false)
+          .not('due_date', 'is', null)
+          .gte('due_date', todayStr)
+          .lte('due_date', in30Str),
+      ])
+
+      if (!mounted) return
+
+      const liquidBalance = ((accountsRes.data ?? []) as { balance: number | string; type: string }[])
+        .reduce((sum, a) => sum + Number(a.balance), 0)
+
+      const dailyDelta = new Map<string, number>()
+
+      type RuleRow = { amount: number; type: string; next_due_date: string; frequency: string }
+      for (const rule of (rulesRes.data ?? []) as RuleRow[]) {
+        const sign = rule.type === 'income' ? 1 : -1
+        let cur = new Date(`${rule.next_due_date}T00:00:00`)
+        while (cur <= in30) {
+          if (cur >= today) {
+            const key = cur.toLocaleDateString('en-CA')
+            dailyDelta.set(key, (dailyDelta.get(key) ?? 0) + sign * Number(rule.amount))
+          }
+          const before = cur.getTime()
+          switch (rule.frequency) {
+            case 'daily':     cur.setDate(cur.getDate() + 1); break
+            case 'weekly':    cur.setDate(cur.getDate() + 7); break
+            case 'biweekly':  cur.setDate(cur.getDate() + 14); break
+            case 'monthly':   cur.setMonth(cur.getMonth() + 1); break
+            case 'quarterly': cur.setMonth(cur.getMonth() + 3); break
+            case 'yearly':    cur.setFullYear(cur.getFullYear() + 1); break
+            default: break
+          }
+          if (cur.getTime() === before) break
+        }
+      }
+
+      type LoanRow = { remaining: number; due_date: string; type: string }
+      for (const loan of (loansRes.data ?? []) as LoanRow[]) {
+        const sign = loan.type === 'given' ? 1 : -1
+        const key = loan.due_date
+        dailyDelta.set(key, (dailyDelta.get(key) ?? 0) + sign * Number(loan.remaining))
+      }
+
+      let running = liquidBalance
+      const series: CashFlowDay[] = []
+      for (let i = 0; i <= 30; i++) {
+        const d = new Date(today)
+        d.setDate(today.getDate() + i)
+        if (i > 0) running += dailyDelta.get(d.toLocaleDateString('en-CA')) ?? 0
+        series.push({
+          day: d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }),
+          dayIndex: i,
+          balance: Math.round(running * 100) / 100,
+        })
+      }
+
+      setCashFlowData(series)
+      setCashFlowLoading(false)
+    }
+
+    fetchCashFlow()
     return () => { mounted = false }
   }, [])
 
@@ -655,6 +766,86 @@ export default function DashboardPage() {
           </Card>
         </section>
       )}
+
+      <section>
+        <Card className="border-[#e5e7f0] bg-white shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg text-slate-950">Proiezione cash flow — prossimi 30 giorni</CardTitle>
+            <p className="text-sm text-slate-500">Andamento della liquidità disponibile (conti correnti e contanti).</p>
+          </CardHeader>
+          <CardContent>
+            {cashFlowLoading ? (
+              <Skeleton className="h-[240px] rounded-2xl" />
+            ) : (
+              <>
+                <div className="h-[240px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={cashFlowData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid stroke="#e5e7f0" strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="day"
+                        axisLine={false}
+                        tickLine={false}
+                        stroke="#94a3b8"
+                        fontSize={11}
+                        interval={4}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        stroke="#94a3b8"
+                        fontSize={11}
+                        tickFormatter={(v) => formatCurrency(Number(v)).replace(',00', '')}
+                        width={90}
+                      />
+                      <Tooltip content={<CashFlowTooltip />} cursor={{ stroke: '#e5e7f0' }} />
+                      <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="4 4" />
+                      <Line
+                        type="monotone"
+                        dataKey="balance"
+                        stroke="#6366f1"
+                        strokeWidth={2}
+                        dot={(props: any) => {
+                          const { cx, cy, payload } = props
+                          const neg = payload.balance < 0
+                          return (
+                            <circle
+                              key={`cf-${payload.dayIndex}`}
+                              cx={cx}
+                              cy={cy}
+                              r={neg ? 4 : 2.5}
+                              fill={neg ? '#ef4444' : '#6366f1'}
+                              stroke="white"
+                              strokeWidth={1}
+                            />
+                          )
+                        }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                {cashFlowData.length > 0 && (
+                  <div className="mt-4 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                    {cashFlowData.every((d) => d.balance === cashFlowData[0].balance) ? (
+                      <p className="text-sm text-slate-500">
+                        Nessun movimento futuro previsto — aggiungi regole ricorrenti per una proiezione più accurata.
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-slate-500">Saldo previsto tra 30 giorni</p>
+                        <p className={cn('text-lg font-bold tabular-nums', cashFlowData[cashFlowData.length - 1].balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                          {formatCurrency(cashFlowData[cashFlowData.length - 1].balance)}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
         <Card className="border-[#e5e7f0] bg-white shadow-sm">
