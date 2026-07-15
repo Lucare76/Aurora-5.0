@@ -14,7 +14,7 @@ export function useAccounts() {
     const { data, error } = await supabase
       .from('accounts')
       .select('*')
-      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true })
 
     if (!error && data) setAccounts(data)
     setLoading(false)
