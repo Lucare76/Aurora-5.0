@@ -21,6 +21,7 @@ import { useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
 import { createClient } from '@/lib/supabase/client'
 import { cn, formatCurrency } from '@/lib/utils'
+import { suggestCategory } from '@/lib/categorize'
 import type { Account, Category } from '@/types/database'
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ interface ParsedRow {
   isDuplicate: boolean
   warning: string | null
   autoDetectedTransfer: boolean   // true when matched by KNOWN_TRANSFER_PATTERNS
+  autoSuggestedCategory: boolean  // true when category was pre-filled by keyword rules
 }
 
 interface TransferPair {
@@ -102,6 +104,14 @@ function daysDiff(a: string, b: string): number {
   return Math.abs(new Date(`${a}T00:00:00`).getTime() - new Date(`${b}T00:00:00`).getTime()) / 86400000
 }
 
+function findCategoryId(categoryName: string, subcategoryName: string | null, cats: Category[]): string {
+  const parent = cats.find((c) => !c.parent_id && c.name === categoryName)
+  if (!parent) return ''
+  if (!subcategoryName) return parent.id
+  const child = cats.find((c) => c.parent_id === parent.id && c.name === subcategoryName)
+  return child?.id ?? ''
+}
+
 function makeRow(
   source: RowSource,
   date: string,
@@ -124,6 +134,7 @@ function makeRow(
     isDuplicate: false,
     warning: null,
     autoDetectedTransfer: false,
+    autoSuggestedCategory: false,
   }
 }
 
@@ -407,6 +418,19 @@ export default function ImportEstratti() {
         }
       }
 
+      // — Auto-categorization based on keyword rules —
+      for (const row of normalRows) {
+        if (row.type === 'transfer' || row.category_id) continue
+        const suggestion = suggestCategory(row.description)
+        if (suggestion) {
+          const catId = findCategoryId(suggestion.category, suggestion.subcategory, categories)
+          if (catId) {
+            row.category_id = catId
+            row.autoSuggestedCategory = true
+          }
+        }
+      }
+
       // — Duplicate detection —
       const accountIds = [...new Set(normalRows.map((r) => r.account_id))]
       if (accountIds.length > 0) {
@@ -433,7 +457,7 @@ export default function ImportEstratti() {
     } finally {
       setParsing(false)
     }
-  }, [bpFile, amexFile, bpAccount, amexAccount, commissionCat, accounts, supabase])
+  }, [bpFile, amexFile, bpAccount, amexAccount, commissionCat, accounts, categories, supabase])
 
   const handleSave = useCallback(async () => {
     setSaving(true)
@@ -787,13 +811,18 @@ export default function ImportEstratti() {
                                     ))}
                                   </Sel>
                                 ) : (
-                                  <CategorySelect
-                                    value={row.category_id}
-                                    type={row.type}
-                                    expenseCats={expenseCats}
-                                    incomeCats={incomeCats}
-                                    onChange={(id) => updateRow(row.id, { category_id: id })}
-                                  />
+                                  <div className="flex items-center gap-1">
+                                    <CategorySelect
+                                      value={row.category_id}
+                                      type={row.type}
+                                      expenseCats={expenseCats}
+                                      incomeCats={incomeCats}
+                                      onChange={(id) => updateRow(row.id, { category_id: id, autoSuggestedCategory: false })}
+                                    />
+                                    {row.autoSuggestedCategory && (
+                                      <span className="shrink-0 rounded bg-violet-50 px-1 py-0.5 text-[9px] font-bold text-violet-600">🔮 Suggerita</span>
+                                    )}
+                                  </div>
                                 )}
                               </td>
 
