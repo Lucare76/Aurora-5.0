@@ -139,7 +139,7 @@ create table if not exists public.transactions (
   description     text,
   notes           text,
   date            date not null,
-  transfer_peer_id uuid references public.accounts(id) on delete set null,
+  transfer_peer_id uuid references public.transactions(id) on delete set null,
   recurring_id    uuid,
   receipt_url     text,
   receipt_data    jsonb,
