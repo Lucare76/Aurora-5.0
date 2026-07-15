@@ -219,7 +219,7 @@ export default function AccountsPage() {
     try {
       const { error } = await db
         .from('accounts')
-        .update({ name: values.name, type: values.type, color: values.color, currency: values.currency.toUpperCase() })
+        .update({ name: values.name, type: values.type, color: values.color, currency: values.currency.toUpperCase(), balance: values.balance })
         .eq('id', editingAccount.id)
       if (error) throw error
       toast.success('Conto aggiornato')
@@ -301,9 +301,8 @@ export default function AccountsPage() {
         </div>
       </div>
 
-      {!isEdit && (
-        <div className="space-y-2">
-          <Label className="text-slate-700">Saldo iniziale</Label>
+      <div className="space-y-2">
+          <Label className="text-slate-700">{isEdit ? 'Saldo attuale' : 'Saldo iniziale'}</Label>
           <Input
             type="number"
             step="0.01"
@@ -311,11 +310,13 @@ export default function AccountsPage() {
             {...form.register('balance')}
             className="h-14 border-[#e5e7f0] bg-white text-2xl font-semibold tabular-nums text-slate-950 placeholder:text-slate-300"
           />
+          {isEdit && (
+            <p className="text-xs text-amber-600">Modifica diretta del saldo — usala solo per correggere errori, non per registrare movimenti.</p>
+          )}
           {form.formState.errors.balance && (
             <p className="text-sm text-red-600">{form.formState.errors.balance.message}</p>
           )}
         </div>
-      )}
 
       <div className="space-y-2">
         <Label className="text-slate-700">Colore</Label>
