@@ -439,7 +439,8 @@ export default function ImportEstratti() {
     const toSave = rows.filter((r) => r.included)
     const total = toSave.length + transferPairs.length
     if (total === 0) { setSaving(false); return }
-    let done = 0; let errors = 0
+    let done = 0
+    const failedRows: { desc: string; error: string }[] = []
 
     const post = async (body: Record<string, unknown>) => {
       const res = await fetch('/api/transactions', {
@@ -449,21 +450,25 @@ export default function ImportEstratti() {
       })
       if (!res.ok) {
         const p = await res.json().catch(() => ({}))
-        throw new Error(typeof p.error === 'string' ? p.error : 'Errore API')
+        throw new Error(typeof p.error === 'string' ? p.error : `HTTP ${res.status}`)
       }
     }
 
     for (const row of toSave) {
       try {
         if (row.type === 'transfer') {
-          await post({
-            account_id: row.account_id,
-            destination_account_id: row.destination_account_id || undefined,
-            type: 'transfer',
-            amount: row.amount,
-            description: row.description || 'Giroconto',
-            date: row.date,
-          })
+          if (!row.destination_account_id) {
+            failedRows.push({ desc: row.description || 'Giroconto', error: 'Conto destinazione mancante' })
+          } else {
+            await post({
+              account_id: row.account_id,
+              destination_account_id: row.destination_account_id,
+              type: 'transfer',
+              amount: row.amount,
+              description: row.description || 'Giroconto',
+              date: row.date,
+            })
+          }
         } else {
           await post({
             account_id: row.account_id,
@@ -474,7 +479,9 @@ export default function ImportEstratti() {
             category_id: row.category_id || null,
           })
         }
-      } catch { errors++ }
+      } catch (e) {
+        failedRows.push({ desc: row.description || '—', error: e instanceof Error ? e.message : 'Errore sconosciuto' })
+      }
       setProgress(Math.round((++done / total) * 100))
     }
 
@@ -488,15 +495,24 @@ export default function ImportEstratti() {
           description: pair.bancRow.description || 'Pagamento carta Amex',
           date: pair.bancRow.date,
         })
-      } catch { errors++ }
+      } catch (e) {
+        failedRows.push({ desc: pair.bancRow.description || 'Coppia BP↔Amex', error: e instanceof Error ? e.message : 'Errore sconosciuto' })
+      }
       setProgress(Math.round((++done / total) * 100))
     }
 
     setSaving(false)
-    const imported = total - errors
-    if (errors === 0) toast.success(`${imported} operazioni importate con successo`)
-    else toast.warning(`${imported} importate, ${errors} errori`)
-    router.push('/transactions')
+    const imported = total - failedRows.length
+    if (failedRows.length === 0) {
+      toast.success(`${imported} operazioni importate con successo`)
+      router.push('/transactions')
+    } else {
+      failedRows.forEach(({ desc, error }) =>
+        toast.error(`"${desc.slice(0, 40)}" — ${error}`, { duration: 8000 }),
+      )
+      if (imported > 0) toast.success(`${imported} operazioni importate con successo`)
+      // non reindirizza: l'utente vede gli errori e può riprovare
+    }
   }, [rows, transferPairs, router])
 
   const updateRow = useCallback((id: string, patch: Partial<ParsedRow>) => {
