@@ -3,13 +3,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
+  AlertTriangle,
   ArrowDownLeft,
   ArrowLeftRight,
   ArrowRight,
   ArrowUpRight,
   Cake,
+  CalendarClock,
+  HandCoins,
   PiggyBank,
   Plus,
+  Repeat,
   TrendingDown,
   TrendingUp,
   Wallet,
@@ -61,6 +65,15 @@ interface UpcomingBirthday {
   birth_date: string
   daysUntil: number
   age: number
+}
+
+interface UpcomingLoan {
+  id: string
+  counterpart: string
+  description: string | null
+  remaining: number
+  due_date: string
+  type: 'given' | 'received'
 }
 
 const monthLabels = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic']
@@ -192,6 +205,11 @@ export default function DashboardPage() {
   const [upcomingRules, setUpcomingRules] = useState<UpcomingRule[]>([])
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingBirthday[]>([])
   const [upcomingLoading, setUpcomingLoading] = useState(true)
+  const [upcoming30Rules, setUpcoming30Rules] = useState<UpcomingRule[]>([])
+  const [upcoming30Loans, setUpcoming30Loans] = useState<UpcomingLoan[]>([])
+  const [upcoming30Loading, setUpcoming30Loading] = useState(true)
+  const [dashBudgets, setDashBudgets] = useState<{ category_id: string; amount: number }[]>([])
+  const [dashBudgetSpent, setDashBudgetSpent] = useState<Record<string, number>>({})
 
   useEffect(() => {
     let mounted = true
@@ -293,6 +311,84 @@ export default function DashboardPage() {
     }
   }, [])
 
+  useEffect(() => {
+    let mounted = true
+    const supabase = createClient()
+
+    async function fetchUpcoming30() {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const todayStr = today.toLocaleDateString('en-CA')
+      const in30 = new Date(today)
+      in30.setDate(today.getDate() + 30)
+      const in30Str = in30.toLocaleDateString('en-CA')
+
+      const [rulesRes, loansRes] = await Promise.all([
+        supabase
+          .from('recurring_rules')
+          .select('id, description, amount, type, next_due_date, auto_create')
+          .eq('is_active', true)
+          .gte('next_due_date', todayStr)
+          .lte('next_due_date', in30Str)
+          .order('next_due_date', { ascending: true }),
+        supabase
+          .from('loans')
+          .select('id, counterpart, description, remaining, due_date, type')
+          .eq('is_settled', false)
+          .not('due_date', 'is', null)
+          .gte('due_date', todayStr)
+          .lte('due_date', in30Str)
+          .order('due_date', { ascending: true }),
+      ])
+
+      if (!mounted) return
+      setUpcoming30Rules((rulesRes.data ?? []) as UpcomingRule[])
+      setUpcoming30Loans((loansRes.data ?? []) as UpcomingLoan[])
+      setUpcoming30Loading(false)
+    }
+
+    fetchUpcoming30()
+    return () => { mounted = false }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    const supabase = createClient()
+
+    async function fetchDashBudgets() {
+      const now = new Date()
+      const month = now.getMonth() + 1
+      const year = now.getFullYear()
+      const monthStart = new Date(year, month - 1, 1).toLocaleDateString('en-CA')
+      const monthEnd = new Date(year, month, 0).toLocaleDateString('en-CA')
+
+      const [budgetsRes, txRes] = await Promise.all([
+        supabase.from('budgets').select('category_id, amount').eq('month', month).eq('year', year),
+        supabase
+          .from('transactions')
+          .select('category_id, amount')
+          .eq('type', 'expense')
+          .is('transfer_peer_id', null)
+          .gte('date', monthStart)
+          .lte('date', monthEnd),
+      ])
+
+      if (!mounted) return
+
+      const spentMap: Record<string, number> = {}
+      for (const tx of (txRes.data ?? []) as { category_id: string | null; amount: number }[]) {
+        if (!tx.category_id) continue
+        spentMap[tx.category_id] = (spentMap[tx.category_id] ?? 0) + Number(tx.amount)
+      }
+
+      setDashBudgets((budgetsRes.data ?? []) as { category_id: string; amount: number }[])
+      setDashBudgetSpent(spentMap)
+    }
+
+    fetchDashBudgets()
+    return () => { mounted = false }
+  }, [])
+
   const activeAccounts = useMemo(() => accounts.filter((account) => account.is_active), [accounts])
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts])
@@ -300,6 +396,69 @@ export default function DashboardPage() {
     () => activeAccounts.reduce((sum, account) => sum + Math.abs(account.balance), 0),
     [activeAccounts],
   )
+
+  const budgetAlerts = useMemo(() => {
+    return dashBudgets
+      .filter((b) => {
+        const spent = dashBudgetSpent[b.category_id] ?? 0
+        return b.amount > 0 && spent / b.amount >= 0.8
+      })
+      .map((b) => ({
+        name: categoryById.get(b.category_id)?.name ?? 'Categoria',
+        percent: Math.round(((dashBudgetSpent[b.category_id] ?? 0) / b.amount) * 100),
+      }))
+      .sort((a, b) => b.percent - a.percent)
+  }, [dashBudgets, dashBudgetSpent, categoryById])
+
+  const unifiedUpcoming30 = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    type Item = {
+      id: string
+      daysUntil: number
+      label: string
+      amount: number
+      kind: 'income' | 'expense' | 'loan-given' | 'loan-received'
+      autoCreate?: boolean
+    }
+
+    const ruleItems: Item[] = upcoming30Rules.map((r) => {
+      const d = new Date(`${r.next_due_date}T00:00:00`)
+      return {
+        id: `rule-${r.id}`,
+        daysUntil: Math.round((d.getTime() - today.getTime()) / 86400000),
+        label: r.description,
+        amount: r.amount,
+        kind: r.type === 'income' ? 'income' : 'expense',
+        autoCreate: r.auto_create,
+      }
+    })
+
+    const loanItems: Item[] = upcoming30Loans.map((l) => {
+      const d = new Date(`${l.due_date}T00:00:00`)
+      return {
+        id: `loan-${l.id}`,
+        daysUntil: Math.round((d.getTime() - today.getTime()) / 86400000),
+        label: `${l.counterpart}${l.description ? ` — ${l.description}` : ''}`,
+        amount: l.remaining,
+        kind: l.type === 'given' ? 'loan-given' : 'loan-received',
+      }
+    })
+
+    return [...ruleItems, ...loanItems].sort((a, b) => a.daysUntil - b.daysUntil)
+  }, [upcoming30Rules, upcoming30Loans])
+
+  const upcoming30Summary = useMemo(() => {
+    let uscite = 0, entrate = 0, rientri = 0
+    for (const item of unifiedUpcoming30) {
+      if (item.kind === 'expense' || item.kind === 'loan-received') uscite += item.amount
+      else if (item.kind === 'income') entrate += item.amount
+      else rientri += item.amount
+    }
+    return { uscite, entrate, rientri }
+  }, [unifiedUpcoming30])
+
   const netSavings = totalIncome - totalExpense
   const displayName = profile?.display_name?.trim() || null
   const today = format(new Date(), 'EEEE d MMMM yyyy', { locale: it })
@@ -395,6 +554,108 @@ export default function DashboardPage() {
         />
       </section>
 
+      {budgetAlerts.length > 0 && (
+        <section>
+          <Card className="border-[#e5e7f0] bg-white shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base text-slate-950">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  Budget da tenere d&apos;occhio
+                </CardTitle>
+                <Link href="/budgets" className="text-xs font-medium text-indigo-600 hover:underline">
+                  Vai ai budget →
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-3">
+                {budgetAlerts.map((alert, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                    <span className="text-sm font-medium text-amber-800">{alert.name}</span>
+                    <span className={cn('text-sm font-bold tabular-nums', alert.percent >= 100 ? 'text-red-600' : 'text-amber-600')}>
+                      {alert.percent}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      {!upcoming30Loading && unifiedUpcoming30.length > 0 && (
+        <section>
+          <Card className="border-[#e5e7f0] bg-white shadow-sm">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg text-slate-950">
+                  <CalendarClock className="h-5 w-5 text-indigo-500" />
+                  Prossimi 30 giorni
+                </CardTitle>
+              </div>
+              <p className="text-sm text-slate-500">Movimenti attesi e prestiti in scadenza.</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+                {upcoming30Summary.uscite > 0 && (
+                  <span>
+                    <span className="font-medium text-slate-500">Uscite attese </span>
+                    <span className="font-bold tabular-nums text-red-600">{formatCurrency(upcoming30Summary.uscite)}</span>
+                  </span>
+                )}
+                {upcoming30Summary.entrate > 0 && (
+                  <span>
+                    <span className="font-medium text-slate-500">Entrate attese </span>
+                    <span className="font-bold tabular-nums text-emerald-600">{formatCurrency(upcoming30Summary.entrate)}</span>
+                  </span>
+                )}
+                {upcoming30Summary.rientri > 0 && (
+                  <span>
+                    <span className="font-medium text-slate-500">Rientri prestiti </span>
+                    <span className="font-bold tabular-nums text-indigo-600">{formatCurrency(upcoming30Summary.rientri)}</span>
+                  </span>
+                )}
+              </div>
+              <div className="divide-y divide-slate-100">
+                {unifiedUpcoming30.map((item) => {
+                  const isUrgent = item.daysUntil <= 7
+                  const isLoan = item.kind === 'loan-given' || item.kind === 'loan-received'
+                  const isExpense = item.kind === 'expense' || item.kind === 'loan-received'
+                  return (
+                    <div key={item.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                      <div className={cn(
+                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl',
+                        isLoan ? 'bg-indigo-50 text-indigo-600' : isExpense ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600',
+                      )}>
+                        {isLoan ? <HandCoins className="h-4 w-4" /> : isExpense ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-slate-900">{item.label}</p>
+                        <p className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                          <span>{item.daysUntil === 0 ? 'Oggi' : `Tra ${item.daysUntil} ${item.daysUntil === 1 ? 'giorno' : 'giorni'}`}</span>
+                          <span className={cn(
+                            'rounded-full px-1.5 py-0.5 font-medium',
+                            isUrgent ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500',
+                          )}>
+                            {isUrgent ? '⚡ Urgente' : isLoan ? 'Prestito' : <Repeat className="inline h-3 w-3" />}
+                          </span>
+                        </p>
+                      </div>
+                      <AmountDisplay
+                        amount={item.amount}
+                        type={isExpense ? 'expense' : 'income'}
+                        className="shrink-0 text-sm font-bold"
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
         <Card className="border-[#e5e7f0] bg-white shadow-sm">
           <CardHeader>
@@ -433,9 +694,17 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-500">Peso proporzionale sul patrimonio totale.</p>
           </CardHeader>
           <CardContent className="space-y-3">
-            {activeAccounts.map((account) => (
-              <AccountRow key={account.id} account={account} total={absoluteAssets} />
-            ))}
+            {[...activeAccounts]
+              .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))
+              .slice(0, 7)
+              .map((account) => (
+                <AccountRow key={account.id} account={account} total={absoluteAssets} />
+              ))}
+            {activeAccounts.length > 7 && (
+              <Link href="/accounts" className="block pt-1 text-center text-xs font-medium text-indigo-600 hover:underline">
+                Vedi tutti i conti →
+              </Link>
+            )}
           </CardContent>
         </Card>
       </section>

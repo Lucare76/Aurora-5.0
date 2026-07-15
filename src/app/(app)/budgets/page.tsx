@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { CalendarDays, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, PiggyBank, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, PiggyBank, Plus, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -126,6 +126,19 @@ export default function BudgetsPage() {
     return { budgetTotal, spentTotal, remaining: budgetTotal - spentTotal }
   }, [budgets, spentByCategory])
 
+  const atRiskBudgets = useMemo(() => {
+    return budgets
+      .filter((b) => {
+        const spent = spentByCategory[b.category_id] ?? 0
+        return b.amount > 0 && spent / b.amount >= 0.8
+      })
+      .map((b) => ({
+        name: categoryById.get(b.category_id)?.name ?? 'Categoria',
+        percent: Math.round(((spentByCategory[b.category_id] ?? 0) / b.amount) * 100),
+      }))
+      .sort((a, b) => b.percent - a.percent)
+  }, [budgets, spentByCategory, categoryById])
+
   const onSubmit: SubmitHandler<BudgetForm> = async (values) => {
     try {
       const {
@@ -202,6 +215,23 @@ export default function BudgetsPage() {
             </Button>
           </div>
         </header>
+
+        {!loading && atRiskBudgets.length > 0 && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <p className="text-sm text-amber-800">
+              <span className="font-semibold">
+                {atRiskBudgets.length === 1 ? '1 categoria vicina' : `${atRiskBudgets.length} categorie vicine`} o oltre il limite:
+              </span>{' '}
+              {atRiskBudgets.map((b, i) => (
+                <span key={i}>
+                  {b.name} <span className="font-semibold">({b.percent}%)</span>
+                  {i < atRiskBudgets.length - 1 ? ', ' : ''}
+                </span>
+              ))}
+            </p>
+          </div>
+        )}
 
         <section className="grid gap-4 md:grid-cols-3">
           <Card className="border-[#e5e7f0] bg-white shadow-sm">
