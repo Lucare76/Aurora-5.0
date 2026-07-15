@@ -98,7 +98,7 @@ const transactionSchema = z
   })
 
 type TransactionForm = z.infer<typeof transactionSchema>
-type TypeFilter = 'all' | 'income' | 'expense'
+type TypeFilter = 'all' | 'income' | 'expense' | 'transfer'
 
 interface TransactionWithPeer extends Transaction {
   destination_account_id?: string
@@ -742,6 +742,7 @@ export default function TransactionsPage() {
                   { value: 'all', label: 'Tutte' },
                   { value: 'income', label: 'Entrate' },
                   { value: 'expense', label: 'Uscite' },
+                  { value: 'transfer', label: 'Giroconti' },
                 ].map((item) => (
                   <button
                     key={item.value}
@@ -868,10 +869,16 @@ export default function TransactionsPage() {
                     const account = accountById.get(transaction.account_id)
                     const category = transaction.category_id ? categoryById.get(transaction.category_id) : null
                     const parentCategory = category ? parentCategoryByChildId.get(category.id) : null
-                    const isTransfer = Boolean(transaction.transfer_peer_id)
+                    const isTransfer = transaction.type === 'transfer'
                     const isIncome = transaction.type === 'income' && !isTransfer
                     const isExpense = transaction.type === 'expense' && !isTransfer
-                    const peerAccount = transaction.peer ? accountById.get(transaction.peer.account_id) : null
+                    // New-model transfers store the destination account UUID directly in
+                    // transfer_peer_id. Old-model transfers store a peer transaction UUID.
+                    const peerAccount = transaction.peer
+                      ? accountById.get(transaction.peer.account_id)
+                      : transaction.transfer_peer_id
+                        ? accountById.get(transaction.transfer_peer_id)
+                        : null
                     const Icon = isTransfer ? ArrowLeftRight : isIncome ? ArrowDownLeft : ArrowUpRight
 
                     return (
