@@ -203,9 +203,15 @@ export default function TransactionsPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [categoryFilters, setCategoryFilters] = useState<string[]>([])
+  const [showCatDropdown, setShowCatDropdown] = useState(false)
   const [amountMin, setAmountMin] = useState('')
   const [amountMax, setAmountMax] = useState('')
+  const [useDateRange, setUseDateRange] = useState(false)
+  const [dateRangeFrom, setDateRangeFrom] = useState(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'),
+  )
+  const [dateRangeTo, setDateRangeTo] = useState(() => new Date().toLocaleDateString('en-CA'))
   const [importOpen, setImportOpen] = useState(false)
   const [importStep, setImportStep] = useState<'upload' | 'preview'>('upload')
   const [importAccount, setImportAccount] = useState('')
@@ -250,7 +256,9 @@ export default function TransactionsPage() {
 
   const fetchTransactions = async () => {
     setLoading(true)
-    const range = getMonthRange(selectedMonth)
+    const range = useDateRange
+      ? { start: dateRangeFrom, end: dateRangeTo }
+      : getMonthRange(selectedMonth)
     let query = db
       .from('transactions')
       .select('*')
@@ -285,7 +293,7 @@ export default function TransactionsPage() {
   useEffect(() => {
     fetchTransactions()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth, typeFilter, accountFilter])
+  }, [selectedMonth, typeFilter, accountFilter, useDateRange, dateRangeFrom, dateRangeTo])
 
   const getTransferPeer = async (transaction: Transaction) => {
     if (!transaction.transfer_peer_id) return null
@@ -420,11 +428,11 @@ export default function TransactionsPage() {
           t.notes?.toLowerCase().includes(q),
       )
     }
-    if (categoryFilter !== 'all') {
+    if (categoryFilters.length > 0) {
       list = list.filter((t) => {
-        if (categoryFilter === 'none') return !t.category_id
-        return t.category_id === categoryFilter ||
-          (t.category_id ? (categoryById.get(t.category_id)?.parent_id === categoryFilter) : false)
+        if (!t.category_id) return categoryFilters.includes('none')
+        const parentId = categoryById.get(t.category_id)?.parent_id ?? null
+        return categoryFilters.includes(t.category_id) || (parentId !== null && categoryFilters.includes(parentId))
       })
     }
     const min = parseFloat(amountMin)
@@ -432,24 +440,24 @@ export default function TransactionsPage() {
     if (!isNaN(min) && amountMin !== '') list = list.filter((t) => t.amount >= min)
     if (!isNaN(max) && amountMax !== '') list = list.filter((t) => t.amount <= max)
     return list
-  }, [monthTransactions, searchQuery, categoryFilter, categoryById, amountMin, amountMax])
+  }, [monthTransactions, searchQuery, categoryFilters, categoryById, amountMin, amountMax])
 
   const activeFilterCount = useMemo(() => {
     let n = 0
     if (searchQuery.trim()) n++
     if (typeFilter !== 'all') n++
     if (accountFilter !== 'all') n++
-    if (categoryFilter !== 'all') n++
+    if (categoryFilters.length > 0) n++
     if (amountMin !== '') n++
     if (amountMax !== '') n++
     return n
-  }, [searchQuery, typeFilter, accountFilter, categoryFilter, amountMin, amountMax])
+  }, [searchQuery, typeFilter, accountFilter, categoryFilters, amountMin, amountMax])
 
   const clearAllFilters = () => {
     setSearchQuery('')
     setTypeFilter('all')
     setAccountFilter('all')
-    setCategoryFilter('all')
+    setCategoryFilters([])
     setAmountMin('')
     setAmountMax('')
   }
@@ -693,16 +701,46 @@ export default function TransactionsPage() {
             <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Transazioni</h1>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center rounded-2xl border border-[#e5e7f0] bg-white p-1 shadow-sm">
-              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => shiftMonth(-1)}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex min-w-44 items-center justify-center gap-2 px-3 text-sm font-semibold capitalize text-slate-800">
-                <CalendarDays className="h-4 w-4 text-indigo-500" />
-                {monthLabel(selectedMonth)}
-              </div>
-              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => shiftMonth(1)}>
-                <ChevronRight className="h-4 w-4" />
+            <div className="flex items-center gap-2">
+              {!useDateRange ? (
+                <div className="flex items-center rounded-2xl border border-[#e5e7f0] bg-white p-1 shadow-sm">
+                  <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => shiftMonth(-1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex min-w-44 items-center justify-center gap-2 px-3 text-sm font-semibold capitalize text-slate-800">
+                    <CalendarDays className="h-4 w-4 text-indigo-500" />
+                    {monthLabel(selectedMonth)}
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => shiftMonth(1)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-2xl border border-indigo-300 bg-indigo-50 px-3 py-2 shadow-sm">
+                  <CalendarDays className="h-4 w-4 shrink-0 text-indigo-500" />
+                  <input
+                    type="date"
+                    value={dateRangeFrom}
+                    onChange={(e) => setDateRangeFrom(e.target.value)}
+                    className="h-7 rounded border border-[#e5e7f0] bg-white px-2 text-sm text-slate-900 outline-none focus:border-indigo-400"
+                  />
+                  <span className="text-sm text-slate-400">—</span>
+                  <input
+                    type="date"
+                    value={dateRangeTo}
+                    onChange={(e) => setDateRangeTo(e.target.value)}
+                    className="h-7 rounded border border-[#e5e7f0] bg-white px-2 text-sm text-slate-900 outline-none focus:border-indigo-400"
+                  />
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setUseDateRange((v) => !v)}
+                className={cn('h-9 gap-1.5 text-xs', useDateRange && 'border-indigo-400 bg-indigo-50 text-indigo-700')}
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                {useDateRange ? 'Per mese' : 'Intervallo'}
               </Button>
             </div>
             <Button variant="outline" onClick={() => { setImportOpen(true); setImportStep('upload'); setImportRows([]) }} className="h-11 gap-2">
@@ -763,13 +801,39 @@ export default function TransactionsPage() {
                 <option key={account.id} value={account.id}>{account.name}</option>
               ))}
             </SelectField>
-            <SelectField value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="min-w-44">
-              <option value="all">Tutte le categorie</option>
-              <option value="none">Senza categoria</option>
-              {categories.filter((c) => !c.parent_id).map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </SelectField>
+            <div className="relative">
+              {showCatDropdown && (
+                <div className="fixed inset-0 z-20" onClick={() => setShowCatDropdown(false)} />
+              )}
+              <button
+                onClick={() => setShowCatDropdown((s) => !s)}
+                className={cn(
+                  'relative z-30 h-11 rounded-xl border border-[#e5e7f0] bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-indigo-400',
+                  categoryFilters.length > 0 && 'border-indigo-400 bg-indigo-50 text-indigo-700',
+                )}
+              >
+                {categoryFilters.length === 0 ? 'Tutte le categorie' : `Categorie (${categoryFilters.length})`}
+              </button>
+              {showCatDropdown && (
+                <div className="absolute left-0 top-12 z-30 max-h-64 w-56 overflow-y-auto rounded-xl border border-[#e5e7f0] bg-white p-2 shadow-xl">
+                  {([{ id: 'none', name: 'Senza categoria' }, ...categories.filter((c) => !c.parent_id)] as { id: string; name: string }[]).map((cat) => (
+                    <label key={cat.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        checked={categoryFilters.includes(cat.id)}
+                        onChange={(e) => {
+                          setCategoryFilters((prev) =>
+                            e.target.checked ? [...prev, cat.id] : prev.filter((id) => id !== cat.id),
+                          )
+                        }}
+                        className="h-3.5 w-3.5 accent-indigo-600"
+                      />
+                      <span className="text-sm text-slate-700">{cat.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">€</span>

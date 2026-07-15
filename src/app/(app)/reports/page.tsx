@@ -157,12 +157,44 @@ export default function ReportsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = useMemo(() => createClient(), [])
+  const currentYear = new Date().getFullYear()
+  const availableYears = Array.from({ length: currentYear - 2019 }, (_, i) => currentYear - i)
+  const [yearA, setYearA] = useState(currentYear)
+  const [yearB, setYearB] = useState(currentYear - 1)
+  const [yoyTransA, setYoyTransA] = useState<Transaction[]>([])
+  const [yoyTransB, setYoyTransB] = useState<Transaction[]>([])
+  const [yoyLoading, setYoyLoading] = useState(false)
   const { categories } = useCategories()
 
   const dateRange = useMemo(
     () => getDateRange(period, customFrom, customTo),
     [period, customFrom, customTo],
   )
+
+  const fetchYoy = useCallback(async () => {
+    setYoyLoading(true)
+    const [resA, resB] = await Promise.all([
+      supabase
+        .from('transactions')
+        .select('*')
+        .eq('type', 'expense')
+        .is('transfer_peer_id', null)
+        .gte('date', `${yearA}-01-01`)
+        .lte('date', `${yearA}-12-31`),
+      supabase
+        .from('transactions')
+        .select('*')
+        .eq('type', 'expense')
+        .is('transfer_peer_id', null)
+        .gte('date', `${yearB}-01-01`)
+        .lte('date', `${yearB}-12-31`),
+    ])
+    if (!resA.error && resA.data) setYoyTransA(resA.data as Transaction[])
+    if (!resB.error && resB.data) setYoyTransB(resB.data as Transaction[])
+    setYoyLoading(false)
+  }, [supabase, yearA, yearB])
+
+  useEffect(() => { fetchYoy() }, [fetchYoy])
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true)
@@ -291,6 +323,43 @@ export default function ReportsPage() {
       })),
     [categoryExpenses, totalExpense],
   )
+
+  const yoyTableData = useMemo(() => {
+    const map = new Map<string, { name: string; amtA: number; amtB: number }>()
+
+    const addTxs = (txs: Transaction[], key: 'amtA' | 'amtB') => {
+      for (const t of txs) {
+        const cat = t.category_id ? categoryById.get(t.category_id) : null
+        const parent = cat?.parent_id ? categoryById.get(cat.parent_id) : cat
+        const k = parent?.id ?? 'no-category'
+        const existing = map.get(k) ?? { name: parent?.name ?? 'Senza categoria', amtA: 0, amtB: 0 }
+        existing[key] += t.amount
+        map.set(k, existing)
+      }
+    }
+
+    addTxs(yoyTransA, 'amtA')
+    addTxs(yoyTransB, 'amtB')
+
+    return Array.from(map.values())
+      .map((row) => ({
+        ...row,
+        diff: row.amtA - row.amtB,
+        pct: row.amtB > 0 ? ((row.amtA - row.amtB) / row.amtB) * 100 : null,
+      }))
+      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff))
+  }, [yoyTransA, yoyTransB, categoryById])
+
+  const yoyChartData = useMemo(() => {
+    return [...yoyTableData]
+      .sort((a, b) => (b.amtA + b.amtB) - (a.amtA + a.amtB))
+      .slice(0, 8)
+      .map((row) => ({
+        name: row.name.length > 14 ? `${row.name.slice(0, 13)}…` : row.name,
+        [String(yearA)]: Math.round(row.amtA * 100) / 100,
+        [String(yearB)]: Math.round(row.amtB * 100) / 100,
+      }))
+  }, [yoyTableData, yearA, yearB])
 
   const exportCSV = () => {
     const header = ['Data', 'Tipo', 'Descrizione', 'Categoria', 'Importo (EUR)']
@@ -663,6 +732,99 @@ export default function ReportsPage() {
             )}
           </>
         )}
+
+        {/* ── Confronto annuale ── */}
+        <section className="space-y-5">
+          <Card className="border-[#e5e7f0] bg-white shadow-sm">
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg text-slate-950">Confronto annuale</CardTitle>
+                  <p className="mt-1 text-sm text-slate-500">Spese per categoria — differenza anno su anno</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <select
+                    value={yearA}
+                    onChange={(e) => setYearA(Number(e.target.value))}
+                    className="h-9 rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm text-slate-900 outline-none focus:border-indigo-400"
+                  >
+                    {availableYears.map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                  <span className="text-sm text-slate-400">vs</span>
+                  <select
+                    value={yearB}
+                    onChange={(e) => setYearB(Number(e.target.value))}
+                    className="h-9 rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm text-slate-900 outline-none focus:border-indigo-400"
+                  >
+                    {availableYears.map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {yoyLoading ? (
+                <Skeleton className="h-48 rounded-2xl" />
+              ) : yoyChartData.length === 0 ? (
+                <p className="py-8 text-center text-sm text-slate-500">Nessuna spesa in entrambi gli anni selezionati.</p>
+              ) : (
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={yoyChartData} margin={{ left: 8, right: 8, top: 4, bottom: 4 }}>
+                      <CartesianGrid vertical={false} stroke="#e5e7f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={11} stroke="#94a3b8" />
+                      <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => formatCurrency(Number(v)).replace(',00', '')} fontSize={11} stroke="#94a3b8" />
+                      <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f8f9fc' }} />
+                      <Legend iconType="circle" iconSize={8} />
+                      <Bar dataKey={String(yearA)} name={String(yearA)} fill="#6366f1" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey={String(yearB)} name={String(yearB)} fill="#10b981" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {!yoyLoading && yoyTableData.length > 0 && (
+            <Card className="border-[#e5e7f0] bg-white shadow-sm">
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[#e5e7f0] bg-slate-50">
+                        <th className="px-6 py-3 text-left font-semibold text-slate-600">Categoria</th>
+                        <th className="px-6 py-3 text-right font-semibold text-slate-600">{yearA}</th>
+                        <th className="px-6 py-3 text-right font-semibold text-slate-600">{yearB}</th>
+                        <th className="px-6 py-3 text-right font-semibold text-slate-600">Diff. assoluta</th>
+                        <th className="px-6 py-3 text-right font-semibold text-slate-600">Diff. %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {yoyTableData.map((row, i) => (
+                        <tr key={i} className="border-b border-[#e5e7f0] last:border-b-0 hover:bg-slate-50/70">
+                          <td className="px-6 py-3 font-medium text-slate-900">{row.name}</td>
+                          <td className="px-6 py-3 text-right tabular-nums text-slate-700">{formatCurrency(row.amtA)}</td>
+                          <td className="px-6 py-3 text-right tabular-nums text-slate-700">{formatCurrency(row.amtB)}</td>
+                          <td className={cn(
+                            'px-6 py-3 text-right tabular-nums font-semibold',
+                            row.diff > 0 ? 'text-red-600' : row.diff < 0 ? 'text-emerald-600' : 'text-slate-500',
+                          )}>
+                            {row.diff > 0 ? '+' : ''}{formatCurrency(row.diff)}
+                          </td>
+                          <td className={cn(
+                            'px-6 py-3 text-right tabular-nums',
+                            row.pct === null ? 'text-slate-400' : row.pct > 0 ? 'text-red-600' : 'text-emerald-600',
+                          )}>
+                            {row.pct === null ? '—' : `${row.pct > 0 ? '+' : ''}${row.pct.toFixed(1)}%`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </section>
       </div>
     </div>
   )
