@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Account, Transaction } from '@/types/database'
 
-import { adaptTransactionRow } from './transaction-adapter'
+import { adaptTransactionRow, adaptTransactionRows } from './transaction-adapter'
 
 const userId = 'user-1'
 const sourceAccount = account({ id: 'account-source' })
@@ -86,6 +86,61 @@ describe('adaptTransactionRow', () => {
 
     expect(adapted.categoryId).toBeNull()
     expect(adapted.transferReferenceKind).toBe('none')
+  })
+
+  it('maps database snake_case fields to AppTransaction camelCase fields', () => {
+    const adapted = adaptTransactionRow(transaction({
+      recurring_id: 'recurring-1',
+      receipt_url: 'https://example.test/receipt.pdf',
+      receipt_data: { source: 'test' },
+    }))
+
+    expect(adapted).toMatchObject({
+      userId,
+      accountId: sourceAccount.id,
+      categoryId: 'category-1',
+      recurringId: 'recurring-1',
+      receiptUrl: 'https://example.test/receipt.pdf',
+      receiptData: { source: 'test' },
+      createdAt: '2026-03-10T00:00:00.000Z',
+      updatedAt: '2026-03-10T00:00:00.000Z',
+    })
+  })
+
+  it('adapts multiple query rows with account and peer context', () => {
+    const source = transaction({ id: 'tx-out', transfer_peer_id: 'tx-in', type: 'expense' })
+    const peer = transaction({
+      id: 'tx-in',
+      account_id: destinationAccount.id,
+      transfer_peer_id: 'tx-out',
+      type: 'income',
+    })
+
+    const adapted = adaptTransactionRows([source, peer], {
+      accounts: [sourceAccount, destinationAccount],
+      peerTransactions: [source, peer],
+    })
+
+    expect(adapted.map((row) => row.transferReferenceKind)).toEqual(['peer_transaction', 'peer_transaction'])
+  })
+
+  it('resolves destination-account transfers from query account context', () => {
+    const adapted = adaptTransactionRows(
+      [transaction({ type: 'transfer', transfer_peer_id: destinationAccount.id })],
+      { accounts: [sourceAccount, destinationAccount] },
+    )
+
+    expect(adapted[0].destinationAccountId).toBe(destinationAccount.id)
+    expect(adapted[0].peerTransactionId).toBeNull()
+  })
+
+  it('marks unresolved query references as orphan', () => {
+    const adapted = adaptTransactionRows(
+      [transaction({ type: 'transfer', transfer_peer_id: 'missing-reference' })],
+      { accounts: [sourceAccount], peerTransactions: [] },
+    )
+
+    expect(adapted[0].transferReferenceKind).toBe('orphan')
   })
 })
 

@@ -51,6 +51,7 @@ const CHART_COLORS = [
   '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
   '#06b6d4', '#ec4899', '#14b8a6', '#84cc16', '#f97316',
 ]
+const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
 
 function getDateRange(
   period: Period,
@@ -185,14 +186,14 @@ export default function ReportsPage() {
     const [resA, resB] = await Promise.all([
       supabase
         .from('transactions')
-        .select('*')
+        .select(TRANSACTION_SELECT)
         .eq('type', 'expense')
         .is('transfer_peer_id', null)
         .gte('date', `${yearA}-01-01`)
         .lte('date', `${yearA}-12-31`),
       supabase
         .from('transactions')
-        .select('*')
+        .select(TRANSACTION_SELECT)
         .eq('type', 'expense')
         .is('transfer_peer_id', null)
         .gte('date', `${yearB}-01-01`)
@@ -209,7 +210,7 @@ export default function ReportsPage() {
     setLoading(true)
     const { data, error } = await supabase
       .from('transactions')
-      .select('*')
+      .select(TRANSACTION_SELECT)
       .gte('date', dateRange.from)
       .lte('date', dateRange.to)
       .order('date', { ascending: true })

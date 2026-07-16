@@ -85,6 +85,7 @@ interface CashFlowDay {
 }
 
 const monthLabels = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic']
+const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
 
 const toneClasses = {
   indigo: 'bg-indigo-100 text-indigo-600',
@@ -246,7 +247,7 @@ export default function DashboardPage() {
 
       const { data } = await supabase
         .from('transactions')
-        .select('*')
+        .select(TRANSACTION_SELECT)
         .gte('date', sixMonthsAgo.toLocaleDateString('en-CA'))
         .order('date', { ascending: true })
 

@@ -23,6 +23,7 @@ import { useCategories } from '@/hooks/use-categories'
 import type { Budget, Transaction } from '@/types/database'
 
 const BORDER = '#e5e7f0'
+const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
 
 const budgetSchema = z.object({
   category_id: z.string().min(1, 'Seleziona una categoria'),
@@ -90,10 +91,10 @@ export default function BudgetsPage() {
   const fetchData = async () => {
     setLoading(true)
     const [{ data: budgetRows, error: budgetError }, { data: transactionRows, error: transactionError }] = await Promise.all([
-      db.from('budgets').select('*').eq('month', range.month).eq('year', range.year),
+      db.from('budgets').select('id,user_id,category_id,amount,month,year,created_at,updated_at').eq('month', range.month).eq('year', range.year),
       db
         .from('transactions')
-        .select('*')
+        .select(TRANSACTION_SELECT)
         .eq('type', 'expense')
         .gte('date', range.start)
         .lte('date', range.end),

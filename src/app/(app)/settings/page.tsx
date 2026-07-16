@@ -12,9 +12,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { buildTransactionExportRows, buildTransactionsCsv } from '@/domain/accounting/export'
+import { adaptTransactionRows } from '@/domain/accounting/transaction-adapter'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
+import type { Account, Category, Transaction } from '@/types/database'
 
 const profileSchema = z.object({
   display_name: z.string().trim().min(1, 'Il nome è obbligatorio'),
@@ -23,6 +26,8 @@ const profileSchema = z.object({
 })
 
 type ProfileForm = z.infer<typeof profileSchema>
+
+const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
 
 function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
@@ -125,28 +130,21 @@ export default function SettingsPage() {
   const exportTransactions = async () => {
     try {
       const [txRes, catRes, accRes] = await Promise.all([
-        db.from('transactions').select('date,type,description,amount,category_id,account_id,transfer_peer_id').order('date', { ascending: false }),
+        db.from('transactions').select(TRANSACTION_SELECT).order('date', { ascending: false }).order('created_at', { ascending: false }),
         db.from('categories').select('id,name'),
-        db.from('accounts').select('id,name'),
+        db.from('accounts').select('id,name,user_id'),
       ])
       if (txRes.error) throw txRes.error
 
-      const catById = new Map((catRes.data ?? []).map((c: { id: string; name: string }) => [c.id, c.name]))
-      const accById = new Map((accRes.data ?? []).map((a: { id: string; name: string }) => [a.id, a.name]))
-
-      const header = ['Data', 'Tipo', 'Descrizione', 'Categoria', 'Conto', 'Importo (EUR)']
-      const rows = (txRes.data ?? [])
-        .filter((t: Record<string, unknown>) => !t.transfer_peer_id)
-        .map((t: Record<string, unknown>) => [
-          t.date,
-          t.type === 'income' ? 'Entrata' : 'Uscita',
-          `"${String(t.description ?? '').replace(/"/g, '""')}"`,
-          `"${String(catById.get(t.category_id as string) ?? 'Senza categoria').replace(/"/g, '""')}"`,
-          `"${String(accById.get(t.account_id as string) ?? '').replace(/"/g, '""')}"`,
-          Number(t.amount).toFixed(2),
-        ])
-
-      const csv = [header, ...rows].map((row) => (row as unknown[]).join(',')).join('\n')
+      const transactions = (txRes.data ?? []) as Transaction[]
+      const accounts = (accRes.data ?? []) as Pick<Account, 'id' | 'name' | 'user_id'>[]
+      const categories = (catRes.data ?? []) as Pick<Category, 'id' | 'name'>[]
+      const appTransactions = adaptTransactionRows(transactions, {
+        accounts: accounts as Account[],
+        peerTransactions: transactions,
+      })
+      const rows = buildTransactionExportRows(appTransactions, categories, accounts)
+      const csv = buildTransactionsCsv(rows)
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -164,7 +162,7 @@ export default function SettingsPage() {
     try {
       setBusy(true)
       const [txRes, accRes, catRes, budRes, recRes, loanRes, payRes, birthRes] = await Promise.all([
-        db.from('transactions').select('*').order('date', { ascending: false }),
+        db.from('transactions').select(TRANSACTION_SELECT).order('date', { ascending: false }),
         db.from('accounts').select('*'),
         db.from('categories').select('*'),
         db.from('budgets').select('*'),

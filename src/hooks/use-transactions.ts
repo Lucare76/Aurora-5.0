@@ -13,6 +13,8 @@ interface UseTransactionsOptions {
   accountId?: string
 }
 
+const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
+
 export function useTransactions(options: UseTransactionsOptions = {}) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,7 +24,7 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
     setLoading(true)
     let query = supabase
       .from('transactions')
-      .select('*')
+      .select(TRANSACTION_SELECT)
       .order('date', { ascending: false })
 
     if (options.accountId) {

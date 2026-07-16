@@ -46,6 +46,7 @@ import { cn, formatCurrency } from '@/lib/utils'
 import type { Account, Category, Transaction, TransactionType } from '@/types/database'
 
 const BORDER = '#e5e7f0'
+const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
 
 interface ImportRow {
   date: string
@@ -268,7 +269,7 @@ export default function TransactionsPage() {
       : getMonthRange(selectedMonth)
     let query = db
       .from('transactions')
-      .select('*')
+      .select(TRANSACTION_SELECT)
       .gte('date', range.start)
       .lte('date', range.end)
       .order('date', { ascending: false })
@@ -285,7 +286,7 @@ export default function TransactionsPage() {
       const rows = (data ?? []) as TransactionWithPeer[]
       const peerIds = rows.map((row) => row.transfer_peer_id).filter(Boolean) as string[]
       const { data: peers } = peerIds.length > 0
-        ? await db.from('transactions').select('*').in('id', peerIds)
+        ? await db.from('transactions').select(TRANSACTION_SELECT).in('id', peerIds)
         : { data: [] }
       const peerRows = (peers ?? []) as Transaction[]
       const peerById = new Map(peerRows.map((peer) => [peer.id, peer]))
@@ -312,7 +313,7 @@ export default function TransactionsPage() {
     if (!transaction.transfer_peer_id) return null
     const { data } = await db
       .from('transactions')
-      .select('*')
+      .select(TRANSACTION_SELECT)
       .eq('id', transaction.transfer_peer_id)
       .maybeSingle()
     return data as Transaction | null
