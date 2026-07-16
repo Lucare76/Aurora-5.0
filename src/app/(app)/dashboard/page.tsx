@@ -26,6 +26,8 @@ import { AmountDisplay } from '@/components/shared/AmountDisplay'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { calculateMonthlyTotals, calculateNetWorth } from '@/domain/accounting/aggregations'
+import { adaptTransactionRows } from '@/domain/accounting/transaction-adapter'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
@@ -214,7 +216,7 @@ export default function DashboardPage() {
   const { user, profile } = useAuth()
   const current = getCurrentMonth()
   const previous = getPreviousMonth()
-  const { accounts, totalBalance, loading: accountsLoading } = useAccounts()
+  const { accounts, loading: accountsLoading } = useAccounts()
   const { categories, loading: categoriesLoading } = useCategories()
   const { transactions: recentTransactions, loading: recentLoading } = useTransactions({ limit: 8 })
   const { totalIncome, totalExpense, loading: monthLoading } = useTransactions(current)
@@ -244,7 +246,7 @@ export default function DashboardPage() {
 
       const { data } = await supabase
         .from('transactions')
-        .select('amount, type, date')
+        .select('*')
         .gte('date', sixMonthsAgo.toLocaleDateString('en-CA'))
         .order('date', { ascending: true })
 
@@ -261,14 +263,18 @@ export default function DashboardPage() {
         }
       })
 
-      for (const transaction of (data ?? []) as Pick<Transaction, 'amount' | 'type' | 'date'>[]) {
-        const transactionDate = new Date(`${transaction.date}T00:00:00`)
-        const key = `${transactionDate.getFullYear()}-${transactionDate.getMonth()}`
-        const bucket = buckets.find((item) => item.key === key)
-        if (!bucket) continue
+      const monthlyTotals = new Map(
+        calculateMonthlyTotals(adaptTransactionRows((data ?? []) as Transaction[], { accounts }))
+          .map((row) => [row.key, row]),
+      )
 
-        if (transaction.type === 'income') bucket.entrate += Number(transaction.amount)
-        if (transaction.type === 'expense') bucket.uscite += Number(transaction.amount)
+      for (const bucket of buckets) {
+        const [year, monthIndex] = bucket.key.split('-')
+        const monthKey = `${year}-${String(Number(monthIndex) + 1).padStart(2, '0')}`
+        const totals = monthlyTotals.get(monthKey)
+        if (!totals) continue
+        bucket.entrate = totals.income
+        bucket.uscite = totals.expense
       }
 
       setChartData(buckets)
@@ -279,7 +285,7 @@ export default function DashboardPage() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [accounts])
 
   useEffect(() => {
     let mounted = true
@@ -302,27 +308,34 @@ export default function DashboardPage() {
           .lte('next_due_date', in7Str)
           .order('next_due_date', { ascending: true })
           .limit(5),
-        supabase.from('birthdays').select('id, name, birth_date'),
+        supabase
+          .from('birthdays')
+          .select('id, name, birth_date')
       ])
 
       if (!mounted) return
 
       setUpcomingRules((rulesRes.data ?? []) as UpcomingRule[])
 
-      const bds = ((bdRes.data ?? []) as { id: string; name: string; birth_date: string }[])
-        .map((b) => {
-          const born = new Date(`${b.birth_date}T00:00:00`)
-          let next = new Date(todayDate.getFullYear(), born.getMonth(), born.getDate())
-          if (next < todayDate) next = new Date(todayDate.getFullYear() + 1, born.getMonth(), born.getDate())
-          const daysUntil = Math.round((next.getTime() - todayDate.getTime()) / 86400000)
-          const age = next.getFullYear() - born.getFullYear()
-          return { ...b, daysUntil, age }
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const birthdays = ((bdRes.data ?? []) as { id: string; name: string; birth_date: string }[])
+        .map((birthday) => {
+          const birth = new Date(`${birthday.birth_date}T00:00:00`)
+          let next = new Date(today.getFullYear(), birth.getMonth(), birth.getDate())
+          if (next < today) next = new Date(today.getFullYear() + 1, birth.getMonth(), birth.getDate())
+          const daysUntil = Math.round((next.getTime() - today.getTime()) / 86400000)
+          return {
+            ...birthday,
+            daysUntil,
+            age: next.getFullYear() - birth.getFullYear(),
+          }
         })
-        .filter((b) => b.daysUntil <= 30)
+        .filter((birthday) => birthday.daysUntil <= 30)
         .sort((a, b) => a.daysUntil - b.daysUntil)
         .slice(0, 5)
 
-      setUpcomingBirthdays(bds)
+      setUpcomingBirthdays(birthdays)
       setUpcomingLoading(false)
     }
 
@@ -501,6 +514,7 @@ export default function DashboardPage() {
   }, [])
 
   const activeAccounts = useMemo(() => accounts.filter((account) => account.is_active), [accounts])
+  const totalBalance = useMemo(() => calculateNetWorth(activeAccounts), [activeAccounts])
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts])
   const absoluteAssets = useMemo(

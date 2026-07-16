@@ -1,0 +1,155 @@
+import type { AccountingTransaction, Category } from '@/domain/accounting/calculations'
+
+export const accountIds = {
+  checking: 'account-checking',
+  creditCard: 'account-credit-card',
+} as const
+
+export const initialBalances = {
+  [accountIds.checking]: 500,
+  [accountIds.creditCard]: 200,
+}
+
+export const categories: Category[] = [
+  {
+    id: 'category-salary',
+    name: 'Stipendio',
+    type: 'income',
+    parent_id: null,
+  },
+  {
+    id: 'category-home',
+    name: 'Casa',
+    type: 'expense',
+    parent_id: null,
+  },
+  {
+    id: 'category-rent',
+    name: 'Affitto',
+    type: 'expense',
+    parent_id: 'category-home',
+  },
+  {
+    id: 'category-food',
+    name: 'Alimentari',
+    type: 'expense',
+    parent_id: null,
+  },
+  {
+    id: 'category-groceries',
+    name: 'Supermercato',
+    type: 'expense',
+    parent_id: 'category-food',
+  },
+]
+
+export const transactions: AccountingTransaction[] = [
+  {
+    id: 'tx-jan-salary',
+    account_id: accountIds.checking,
+    amount: 1000,
+    type: 'income',
+    date: '2026-01-05',
+    category_id: 'category-salary',
+    transfer_peer_id: null,
+  },
+  {
+    id: 'tx-jan-rent',
+    account_id: accountIds.checking,
+    amount: 700,
+    type: 'expense',
+    date: '2026-01-10',
+    category_id: 'category-rent',
+    transfer_peer_id: null,
+  },
+  {
+    id: 'tx-jan-groceries',
+    account_id: accountIds.checking,
+    amount: 150,
+    type: 'expense',
+    date: '2026-01-12',
+    category_id: 'category-groceries',
+    transfer_peer_id: null,
+  },
+  {
+    id: 'tx-jan-coffee',
+    account_id: accountIds.checking,
+    amount: 10.99,
+    type: 'expense',
+    date: '2026-01-13',
+    category_id: null,
+    transfer_peer_id: null,
+  },
+  {
+    id: 'tx-jan-transfer',
+    account_id: accountIds.checking,
+    amount: 100,
+    type: 'transfer',
+    date: '2026-01-15',
+    category_id: null,
+    transfer_peer_id: accountIds.creditCard,
+  },
+  {
+    id: 'tx-jan-linked-income',
+    account_id: accountIds.checking,
+    amount: 50,
+    type: 'income',
+    date: '2026-01-20',
+    category_id: 'category-salary',
+    transfer_peer_id: 'tx-linked-expense',
+  },
+  {
+    id: 'tx-feb-salary',
+    account_id: accountIds.checking,
+    amount: 1000,
+    type: 'income',
+    date: '2026-02-05',
+    category_id: 'category-salary',
+    transfer_peer_id: null,
+  },
+  {
+    id: 'tx-feb-card-purchase',
+    account_id: accountIds.creditCard,
+    amount: 300,
+    type: 'expense',
+    date: '2026-02-07',
+    category_id: 'category-groceries',
+    transfer_peer_id: null,
+  },
+  {
+    id: 'tx-feb-duplicate-a',
+    account_id: accountIds.checking,
+    amount: 20,
+    type: 'expense',
+    date: '2026-02-10',
+    category_id: 'category-food',
+    transfer_peer_id: null,
+  },
+  {
+    id: 'tx-feb-duplicate-b',
+    account_id: accountIds.checking,
+    amount: 20,
+    type: 'expense',
+    date: '2026-02-10',
+    category_id: 'category-food',
+    transfer_peer_id: null,
+  },
+  {
+    id: 'tx-feb-rounded',
+    account_id: accountIds.checking,
+    amount: 10.335,
+    type: 'expense',
+    date: '2026-02-11',
+    category_id: null,
+    transfer_peer_id: null,
+  },
+  {
+    id: 'tx-feb-transfer',
+    account_id: accountIds.checking,
+    amount: 300,
+    type: 'transfer',
+    date: '2026-02-20',
+    category_id: null,
+    transfer_peer_id: accountIds.creditCard,
+  },
+]

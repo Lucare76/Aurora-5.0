@@ -32,6 +32,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { AmountDisplay } from '@/components/shared/AmountDisplay'
+import {
+  calculateExpenseTotal,
+  calculateIncomeTotal,
+  calculateNetTotal,
+} from '@/domain/accounting/aggregations'
+import { adaptTransactionRow, type AppTransaction } from '@/domain/accounting/transaction-adapter'
 import { useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
 import type { CategoryTreeNode } from '@/hooks/use-categories'
@@ -103,6 +109,7 @@ type TypeFilter = 'all' | 'income' | 'expense' | 'transfer'
 interface TransactionWithPeer extends Transaction {
   destination_account_id?: string
   peer?: Transaction | null
+  app?: AppTransaction
 }
 
 const defaultValues: TransactionForm = {
@@ -282,9 +289,15 @@ export default function TransactionsPage() {
         : { data: [] }
       const peerRows = (peers ?? []) as Transaction[]
       const peerById = new Map(peerRows.map((peer) => [peer.id, peer]))
+      const accountById = new Map(accounts.map((account) => [account.id, account]))
       setTransactions(rows.map((row): TransactionWithPeer => ({
         ...row,
         peer: row.transfer_peer_id ? peerById.get(row.transfer_peer_id) ?? null : null,
+        app: adaptTransactionRow(row, {
+          peerTransaction: row.transfer_peer_id ? peerById.get(row.transfer_peer_id) ?? null : null,
+          sourceAccount: accountById.get(row.account_id) ?? null,
+          destinationAccount: row.transfer_peer_id ? accountById.get(row.transfer_peer_id) ?? null : null,
+        }),
       })))
     }
     setLoading(false)
@@ -335,14 +348,16 @@ export default function TransactionsPage() {
     setOpenMenuId(null)
     let destinationId = transaction.destination_account_id ?? ''
 
-    if (transaction.transfer_peer_id) {
+    if (transaction.app?.destinationAccountId) {
+      destinationId = transaction.app.destinationAccountId
+    } else if (transaction.transfer_peer_id) {
       const peer = await getTransferPeer(transaction)
       destinationId = peer?.account_id ?? ''
     }
 
     setEditingTransaction({ ...transaction, destination_account_id: destinationId })
     editForm.reset({
-      type: transaction.transfer_peer_id ? 'transfer' : transaction.type,
+      type: transaction.app && transaction.app.transferReferenceKind !== 'none' ? 'transfer' : transaction.type,
       amount: transaction.amount,
       description: transaction.description ?? '',
       date: transaction.date,
@@ -401,22 +416,23 @@ export default function TransactionsPage() {
   }
 
   const monthTransactions = useMemo(() => {
-    return transactions.filter((transaction) => !(transaction.transfer_peer_id && transaction.type === 'income'))
+    return transactions.filter((transaction) => !(transaction.app && transaction.app.transferReferenceKind !== 'none' && transaction.type === 'income'))
   }, [transactions])
 
-  const totalIncome = useMemo(
-    () => monthTransactions
-      .filter((transaction) => transaction.type === 'income' && !transaction.transfer_peer_id)
-      .reduce((sum, transaction) => sum + transaction.amount, 0),
+  const appMonthTransactions = useMemo(
+    () => monthTransactions.map((transaction) => transaction.app).filter(Boolean) as AppTransaction[],
     [monthTransactions],
+  )
+
+  const totalIncome = useMemo(
+    () => calculateIncomeTotal(appMonthTransactions),
+    [appMonthTransactions],
   )
   const totalExpense = useMemo(
-    () => monthTransactions
-      .filter((transaction) => transaction.type === 'expense' && !transaction.transfer_peer_id)
-      .reduce((sum, transaction) => sum + transaction.amount, 0),
-    [monthTransactions],
+    () => calculateExpenseTotal(appMonthTransactions),
+    [appMonthTransactions],
   )
-  const netTotal = totalIncome - totalExpense
+  const netTotal = useMemo(() => calculateNetTotal(appMonthTransactions), [appMonthTransactions])
 
   const filteredTransactions = useMemo(() => {
     let list = monthTransactions
@@ -933,16 +949,12 @@ export default function TransactionsPage() {
                     const account = accountById.get(transaction.account_id)
                     const category = transaction.category_id ? categoryById.get(transaction.category_id) : null
                     const parentCategory = category ? parentCategoryByChildId.get(category.id) : null
-                    const isTransfer = transaction.type === 'transfer'
+                    const isTransfer = transaction.app ? transaction.app.transferReferenceKind !== 'none' : transaction.type === 'transfer'
                     const isIncome = transaction.type === 'income' && !isTransfer
                     const isExpense = transaction.type === 'expense' && !isTransfer
-                    // New-model transfers store the destination account UUID directly in
-                    // transfer_peer_id. Old-model transfers store a peer transaction UUID.
-                    const peerAccount = transaction.peer
-                      ? accountById.get(transaction.peer.account_id)
-                      : transaction.transfer_peer_id
-                        ? accountById.get(transaction.transfer_peer_id)
-                        : null
+                    const peerAccount = transaction.app?.destinationAccountId
+                      ? accountById.get(transaction.app.destinationAccountId)
+                      : null
                     const Icon = isTransfer ? ArrowLeftRight : isIncome ? ArrowDownLeft : ArrowUpRight
 
                     return (

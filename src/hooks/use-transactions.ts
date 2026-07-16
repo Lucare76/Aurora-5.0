@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Transaction } from '@/types/database'
+import { adaptTransactionRows } from '@/domain/accounting/transaction-adapter'
+import { calculateExpenseTotal, calculateIncomeTotal } from '@/domain/accounting/aggregations'
 
 interface UseTransactionsOptions {
   limit?: number
@@ -46,13 +48,25 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
     fetchTransactions()
   }, [fetchTransactions])
 
-  const totalIncome = transactions
-    .filter((t) => t.type === 'income' && !t.transfer_peer_id)
-    .reduce((sum, t) => sum + t.amount, 0)
+  const adaptedTransactions = useMemo(
+    () => adaptTransactionRows(transactions),
+    [transactions],
+  )
+  const totalIncome = useMemo(
+    () => calculateIncomeTotal(adaptedTransactions),
+    [adaptedTransactions],
+  )
+  const totalExpense = useMemo(
+    () => calculateExpenseTotal(adaptedTransactions),
+    [adaptedTransactions],
+  )
 
-  const totalExpense = transactions
-    .filter((t) => t.type === 'expense' && !t.transfer_peer_id)
-    .reduce((sum, t) => sum + t.amount, 0)
-
-  return { transactions, loading, totalIncome, totalExpense, refetch: fetchTransactions }
+  return {
+    transactions,
+    adaptedTransactions,
+    loading,
+    totalIncome,
+    totalExpense,
+    refetch: fetchTransactions,
+  }
 }

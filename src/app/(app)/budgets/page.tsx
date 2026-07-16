@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/shared/EmptyState'
+import { isCountableExpense } from '@/domain/accounting/aggregations'
+import { adaptTransactionRows } from '@/domain/accounting/transaction-adapter'
 import { createClient } from '@/lib/supabase/client'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useCategories } from '@/hooks/use-categories'
@@ -113,11 +115,13 @@ export default function BudgetsPage() {
   }, [range.month, range.year])
 
   const spentByCategory = useMemo(() => {
-    return transactions.reduce<Record<string, number>>((totals, transaction) => {
-      if (!transaction.category_id || transaction.transfer_peer_id) return totals
-      totals[transaction.category_id] = (totals[transaction.category_id] ?? 0) + transaction.amount
-      return totals
-    }, {})
+    return adaptTransactionRows(transactions)
+      .filter(isCountableExpense)
+      .reduce<Record<string, number>>((totals, transaction) => {
+        if (!transaction.categoryId) return totals
+        totals[transaction.categoryId] = (totals[transaction.categoryId] ?? 0) + transaction.amount
+        return totals
+      }, {})
   }, [transactions])
 
   const totals = useMemo(() => {

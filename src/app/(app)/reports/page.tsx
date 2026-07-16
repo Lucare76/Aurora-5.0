@@ -23,6 +23,15 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  calculateCategoryTotals,
+  calculateExpenseTotal,
+  calculateIncomeTotal,
+  calculateNetTotal,
+  isCountableExpense,
+  isCountableIncome,
+} from '@/domain/accounting/aggregations'
+import { adaptTransactionRows } from '@/domain/accounting/transaction-adapter'
 import { useCategories } from '@/hooks/use-categories'
 import { createClient } from '@/lib/supabase/client'
 import { cn, formatCurrency } from '@/lib/utils'
@@ -219,49 +228,43 @@ export default function ReportsPage() {
     [categories],
   )
 
-  const expenseTransactions = useMemo(
-    () => transactions.filter((t) => t.type === 'expense' && !t.transfer_peer_id),
+  const appTransactions = useMemo(
+    () => adaptTransactionRows(transactions),
     [transactions],
   )
+  const yoyAppTransA = useMemo(() => adaptTransactionRows(yoyTransA), [yoyTransA])
+  const yoyAppTransB = useMemo(() => adaptTransactionRows(yoyTransB), [yoyTransB])
+  const expenseTransactions = useMemo(
+    () => appTransactions.filter(isCountableExpense),
+    [appTransactions],
+  )
   const incomeTransactions = useMemo(
-    () => transactions.filter((t) => t.type === 'income' && !t.transfer_peer_id),
-    [transactions],
+    () => appTransactions.filter(isCountableIncome),
+    [appTransactions],
   )
 
   const totalExpense = useMemo(
-    () => expenseTransactions.reduce((sum, t) => sum + t.amount, 0),
-    [expenseTransactions],
+    () => calculateExpenseTotal(appTransactions),
+    [appTransactions],
   )
   const totalIncome = useMemo(
-    () => incomeTransactions.reduce((sum, t) => sum + t.amount, 0),
-    [incomeTransactions],
+    () => calculateIncomeTotal(appTransactions),
+    [appTransactions],
   )
-  const netSavings = totalIncome - totalExpense
+  const netSavings = useMemo(() => calculateNetTotal(appTransactions), [appTransactions])
   const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0
 
   const categoryExpenses = useMemo(() => {
-    const map = new Map<string, { name: string; color: string; amount: number; count: number }>()
-
-    for (const t of expenseTransactions) {
-      const cat = t.category_id ? categoryById.get(t.category_id) : null
-      const parentCat = cat?.parent_id ? categoryById.get(cat.parent_id) : cat
-      const key = parentCat?.id ?? 'no-category'
-      const existing = map.get(key)
-      if (existing) {
-        existing.amount += t.amount
-        existing.count += 1
-      } else {
-        map.set(key, {
-          name: parentCat?.name ?? 'Senza categoria',
-          color: parentCat?.color ?? '#94a3b8',
-          amount: t.amount,
-          count: 1,
-        })
+    return calculateCategoryTotals(appTransactions, categories).map((entry) => {
+      const category = categoryById.get(entry.categoryId)
+      return {
+        name: category?.name ?? 'Senza categoria',
+        color: category?.color ?? '#94a3b8',
+        amount: entry.amount,
+        count: entry.count,
       }
-    }
-
-    return Array.from(map.values()).sort((a, b) => b.amount - a.amount)
-  }, [expenseTransactions, categoryById])
+    })
+  }, [appTransactions, categories, categoryById])
 
   const pieData = useMemo(
     () =>
@@ -296,19 +299,18 @@ export default function ReportsPage() {
       return { key: k, label: format(d, 'MMM yy', { locale: it }) }
     }
 
-    for (const t of transactions) {
-      if (t.transfer_peer_id) continue
+    for (const t of appTransactions) {
       const { key, label } = getKey(t.date)
       const bucket = buckets.get(key) ?? { label, income: 0, expense: 0 }
-      if (t.type === 'income') bucket.income += t.amount
-      if (t.type === 'expense') bucket.expense += t.amount
+      if (isCountableIncome(t)) bucket.income += t.amount
+      if (isCountableExpense(t)) bucket.expense += t.amount
       buckets.set(key, bucket)
     }
 
     return Array.from(buckets.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([, v]) => v)
-  }, [transactions, dateRange.from, dateRange.to])
+  }, [appTransactions, dateRange.from, dateRange.to])
 
   const tableData = useMemo(
     () =>
@@ -327,9 +329,10 @@ export default function ReportsPage() {
   const yoyTableData = useMemo(() => {
     const map = new Map<string, { name: string; amtA: number; amtB: number }>()
 
-    const addTxs = (txs: Transaction[], key: 'amtA' | 'amtB') => {
+    const addTxs = (txs: typeof yoyAppTransA, key: 'amtA' | 'amtB') => {
       for (const t of txs) {
-        const cat = t.category_id ? categoryById.get(t.category_id) : null
+        if (!isCountableExpense(t)) continue
+        const cat = t.categoryId ? categoryById.get(t.categoryId) : null
         const parent = cat?.parent_id ? categoryById.get(cat.parent_id) : cat
         const k = parent?.id ?? 'no-category'
         const existing = map.get(k) ?? { name: parent?.name ?? 'Senza categoria', amtA: 0, amtB: 0 }
@@ -338,8 +341,8 @@ export default function ReportsPage() {
       }
     }
 
-    addTxs(yoyTransA, 'amtA')
-    addTxs(yoyTransB, 'amtB')
+    addTxs(yoyAppTransA, 'amtA')
+    addTxs(yoyAppTransB, 'amtB')
 
     return Array.from(map.values())
       .map((row) => ({
@@ -348,7 +351,7 @@ export default function ReportsPage() {
         pct: row.amtB > 0 ? ((row.amtA - row.amtB) / row.amtB) * 100 : null,
       }))
       .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff))
-  }, [yoyTransA, yoyTransB, categoryById])
+  }, [yoyAppTransA, yoyAppTransB, categoryById])
 
   const yoyChartData = useMemo(() => {
     return [...yoyTableData]
@@ -363,10 +366,10 @@ export default function ReportsPage() {
 
   const exportCSV = () => {
     const header = ['Data', 'Tipo', 'Descrizione', 'Categoria', 'Importo (EUR)']
-    const rows = transactions
-      .filter((t) => !t.transfer_peer_id)
+    const rows = appTransactions
+      .filter((t) => isCountableIncome(t) || isCountableExpense(t))
       .map((t) => {
-        const cat = t.category_id ? categoryById.get(t.category_id) : null
+        const cat = t.categoryId ? categoryById.get(t.categoryId) : null
         return [
           t.date,
           t.type === 'income' ? 'Entrata' : 'Uscita',
@@ -496,7 +499,7 @@ export default function ReportsPage() {
               />
             </section>
 
-            {transactions.filter((t) => !t.transfer_peer_id).length === 0 ? (
+            {appTransactions.filter((t) => isCountableIncome(t) || isCountableExpense(t)).length === 0 ? (
               <Card className="border-[#e5e7f0] bg-white shadow-sm">
                 <CardContent className="p-12 text-center">
                   <p className="font-semibold text-slate-900">Nessuna transazione</p>
