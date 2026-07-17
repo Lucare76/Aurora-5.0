@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -29,6 +30,7 @@ type ProfileForm = z.infer<typeof profileSchema>
 
 const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
 const MAX_BACKUP_DRY_RUN_BYTES = 10 * 1024 * 1024
+const RESTORE_CONFIRMATION_PHRASE = 'RIPRISTINA AURORA'
 
 type DryRunReport = {
   readiness: 'ready' | 'ready_with_warnings' | 'blocked'
@@ -65,6 +67,26 @@ type DryRunReport = {
     recordCount: number
     status: 'ready' | 'warning' | 'blocked'
   }>
+}
+
+type RestorePreparation = {
+  tokenId: string
+  token: string
+  expiresAt: string
+  checksum: string
+  requiredConfirmation: string
+  summary: DryRunReport['summary']
+  accountingPreview: NonNullable<DryRunReport['accountingPreview']>
+}
+
+type RestoreResult = {
+  status: 'completed'
+  restore: {
+    restoreId: string
+    counts: Record<string, number>
+    verified: boolean
+  }
+  checksum: string
 }
 
 function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
@@ -109,6 +131,7 @@ function SectionCard({
 }
 
 export default function SettingsPage() {
+  const router = useRouter()
   const supabase = createClient()
   const db = supabase
   const { user, profile, signOut } = useAuth()
@@ -118,6 +141,10 @@ export default function SettingsPage() {
   const [busy, setBusy] = useState(false)
   const [backupFile, setBackupFile] = useState<File | null>(null)
   const [dryRunReport, setDryRunReport] = useState<DryRunReport | null>(null)
+  const [restorePreparation, setRestorePreparation] = useState<RestorePreparation | null>(null)
+  const [restoreConfirm, setRestoreConfirm] = useState('')
+  const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null)
+  const [restoreBusy, setRestoreBusy] = useState(false)
 
   const defaultTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
   const form = useForm<ProfileForm>({
@@ -245,6 +272,9 @@ export default function SettingsPage() {
     try {
       setBusy(true)
       setDryRunReport(null)
+      setRestorePreparation(null)
+      setRestoreResult(null)
+      setRestoreConfirm('')
       const content = await backupFile.text()
       const response = await fetch('/api/backup/restore/dry-run', {
         method: 'POST',
@@ -264,6 +294,61 @@ export default function SettingsPage() {
       toast.error(error instanceof Error ? error.message : 'Errore durante la verifica del backup')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const prepareRestore = async () => {
+    if (!backupFile || dryRunReport?.readiness !== 'ready') return
+    try {
+      setRestoreBusy(true)
+      setRestorePreparation(null)
+      setRestoreResult(null)
+      const content = await backupFile.text()
+      const response = await fetch('/api/backup/restore/prepare', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: backupFile.name, content }),
+      })
+      const payload = await response.json() as RestorePreparation | { error?: string }
+      if (!response.ok) throw new Error('error' in payload ? restoreErrorMessage(payload.error) : 'Preparazione non riuscita')
+      setRestorePreparation(payload as RestorePreparation)
+      toast.success('Conferma pronta per 5 minuti')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Errore durante la preparazione del ripristino')
+    } finally {
+      setRestoreBusy(false)
+    }
+  }
+
+  const restoreBackup = async () => {
+    if (!backupFile || !restorePreparation || restoreConfirm !== RESTORE_CONFIRMATION_PHRASE) return
+    try {
+      setRestoreBusy(true)
+      const content = await backupFile.text()
+      const response = await fetch('/api/backup/restore', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: backupFile.name,
+          content,
+          tokenId: restorePreparation.tokenId,
+          token: restorePreparation.token,
+          confirmation: restoreConfirm,
+        }),
+      })
+      const payload = await response.json() as RestoreResult | { error?: string }
+      if (!response.ok) throw new Error('error' in payload ? restoreErrorMessage(payload.error) : 'Ripristino non riuscito')
+      setRestoreResult(payload as RestoreResult)
+      setRestorePreparation(null)
+      setRestoreConfirm('')
+      toast.success('Ripristino completato e verificato')
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Il ripristino non è stato completato')
+    } finally {
+      setRestoreBusy(false)
     }
   }
 
@@ -366,7 +451,11 @@ export default function SettingsPage() {
                   onChange={(event) => {
                     setBackupFile(event.target.files?.[0] ?? null)
                     setDryRunReport(null)
+                    setRestorePreparation(null)
+                    setRestoreResult(null)
+                    setRestoreConfirm('')
                   }}
+                  disabled={restoreBusy}
                 />
                 {backupFile ? (
                   <p className="text-xs text-slate-500">
@@ -375,7 +464,7 @@ export default function SettingsPage() {
                 ) : null}
               </div>
               <div className="flex items-end">
-                <Button variant="outline" className="w-full gap-2 md:w-auto" onClick={verifyBackup} disabled={busy || !backupFile}>
+                <Button variant="outline" className="w-full gap-2 md:w-auto" onClick={verifyBackup} disabled={busy || restoreBusy || !backupFile}>
                   <Download className="h-4 w-4" />
                   {busy ? 'Verifica in corso...' : 'Verifica backup'}
                 </Button>
@@ -440,6 +529,58 @@ export default function SettingsPage() {
                 {dryRunReport.currentState && dryRunReport.currentState.blockingCollections.length > 0 ? (
                   <p className="mt-4 text-sm text-red-600">L’account contiene già dati: {dryRunReport.currentState.blockingCollections.join(', ')}.</p>
                 ) : null}
+
+                {dryRunReport.readiness === 'ready' ? (
+                  <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-sm font-semibold text-amber-900">Ripristino reale disponibile solo su account vuoto</p>
+                    <p className="mt-1 text-sm text-amber-800">
+                      Il ripristino inserirà i dati presenti nel backup. In caso di errore l’operazione verrà annullata integralmente.
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <Button variant="outline" onClick={prepareRestore} disabled={restoreBusy || Boolean(restorePreparation)}>
+                        {restoreBusy ? 'Preparazione...' : 'Prepara conferma'}
+                      </Button>
+                    </div>
+
+                    {restorePreparation ? (
+                      <div className="mt-4 space-y-3">
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <ReportMetric label="Checksum" value={`${restorePreparation.checksum.slice(0, 18)}...`} />
+                          <ReportMetric label="Scadenza" value={new Date(restorePreparation.expiresAt).toLocaleTimeString('it-IT')} />
+                          <ReportMetric label="Frase richiesta" value={restorePreparation.requiredConfirmation} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Digita RIPRISTINA AURORA</Label>
+                          <Input
+                            value={restoreConfirm}
+                            onChange={(event) => setRestoreConfirm(event.target.value)}
+                            className="h-11 border-[#e5e7f0] bg-white text-slate-950"
+                            disabled={restoreBusy}
+                          />
+                        </div>
+                        <Button
+                          variant="destructive"
+                          onClick={restoreBackup}
+                          disabled={restoreBusy || restoreConfirm !== RESTORE_CONFIRMATION_PHRASE}
+                        >
+                          {restoreBusy ? 'Ripristino...' : 'Ripristina backup'}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {restoreResult ? (
+                  <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <p className="text-sm font-semibold text-emerald-900">Ripristino completato e verificato.</p>
+                    <div className="mt-3 grid gap-3 md:grid-cols-4">
+                      <ReportMetric label="Restore ID" value={`${restoreResult.restore.restoreId.slice(0, 8)}...`} />
+                      <ReportMetric label="Stato integrità" value={restoreResult.restore.verified ? 'Verificato' : 'Da verificare'} />
+                      <ReportMetric label="Conti" value={String(restoreResult.restore.counts.accounts ?? 0)} />
+                      <ReportMetric label="Transazioni" value={String(restoreResult.restore.counts.transactions ?? 0)} />
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -496,4 +637,29 @@ function ReportMetric({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-sm font-semibold text-slate-950">{value}</p>
     </div>
   )
+}
+
+function restoreErrorMessage(code?: string) {
+  switch (code) {
+    case 'UNAUTHENTICATED':
+      return 'Sessione scaduta. Effettua di nuovo il login.'
+    case 'RESTORE_NOT_READY':
+      return 'Il backup non è pronto per il ripristino reale.'
+    case 'CONFIRMATION_REQUIRED':
+      return 'Conferma testuale richiesta.'
+    case 'TOKEN_INVALID':
+      return 'Token di conferma non valido.'
+    case 'TOKEN_EXPIRED':
+      return 'Token di conferma scaduto.'
+    case 'TOKEN_ALREADY_USED':
+      return 'Token di conferma già utilizzato.'
+    case 'ACCOUNT_NOT_EMPTY':
+      return 'L’account contiene già dati.'
+    case 'ACCOUNTING_MISMATCH':
+      return 'Verifica contabile non superata.'
+    case 'RESTORE_ROLLED_BACK':
+      return 'Il ripristino non è stato completato. L’operazione è stata annullata e non dovrebbe essere stato conservato alcun dato parziale.'
+    default:
+      return 'Errore durante il ripristino.'
+  }
 }

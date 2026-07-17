@@ -578,6 +578,90 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_restore_tokens: {
+        Row: {
+          id: string
+          user_id: string
+          token_hash: string
+          backup_checksum: string
+          schema_version: number
+          mode: string
+          readiness: string
+          expires_at: string
+          used_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          token_hash: string
+          backup_checksum: string
+          schema_version: number
+          mode: string
+          readiness: string
+          expires_at: string
+          used_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          token_hash?: string
+          backup_checksum?: string
+          schema_version?: number
+          mode?: string
+          readiness?: string
+          expires_at?: string
+          used_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      backup_restore_runs: {
+        Row: {
+          id: string
+          user_id: string
+          token_id: string | null
+          backup_checksum: string
+          schema_version: number
+          mode: string
+          status: string
+          started_at: string
+          completed_at: string | null
+          counts: Record<string, unknown>
+          error_code: string | null
+          app_version: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          token_id?: string | null
+          backup_checksum: string
+          schema_version: number
+          mode: string
+          status: string
+          started_at?: string
+          completed_at?: string | null
+          counts?: Record<string, unknown>
+          error_code?: string | null
+          app_version?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          token_id?: string | null
+          backup_checksum?: string
+          schema_version?: number
+          mode?: string
+          status?: string
+          started_at?: string
+          completed_at?: string | null
+          counts?: Record<string, unknown>
+          error_code?: string | null
+          app_version?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -640,6 +724,14 @@ export type Database = {
           p_recurring_id: string
         }
         Returns: undefined
+      }
+      restore_aurora_backup_v1_empty_account: {
+        Args: {
+          p_token_id: string
+          p_token: string
+          p_backup: Record<string, unknown>
+        }
+        Returns: Record<string, unknown>
       }
     }
     Enums: {
