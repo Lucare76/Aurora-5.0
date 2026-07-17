@@ -161,42 +161,28 @@ export default function SettingsPage() {
   const exportBackup = async () => {
     try {
       setBusy(true)
-      const [txRes, accRes, catRes, budRes, recRes, loanRes, payRes, birthRes] = await Promise.all([
-        db.from('transactions').select(TRANSACTION_SELECT).order('date', { ascending: false }),
-        db.from('accounts').select('*'),
-        db.from('categories').select('*'),
-        db.from('budgets').select('*'),
-        db.from('recurring_rules').select('*'),
-        db.from('loans').select('*'),
-        db.from('loan_payments').select('*'),
-        db.from('birthdays').select('*'),
-      ])
+      const response = await fetch('/api/backup/export', {
+        method: 'GET',
+        cache: 'no-store',
+      })
 
-      const backup = {
-        exported_at: new Date().toISOString(),
-        version: '5.0',
-        data: {
-          accounts: accRes.data ?? [],
-          categories: catRes.data ?? [],
-          transactions: txRes.data ?? [],
-          budgets: budRes.data ?? [],
-          recurring_rules: recRes.data ?? [],
-          loans: loanRes.data ?? [],
-          loan_payments: payRes.data ?? [],
-          birthdays: birthRes.data ?? [],
-        },
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: string } | null
+        throw new Error(payload?.error ?? 'Non è stato possibile creare il backup')
       }
 
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+      const blob = await response.blob()
+      const disposition = response.headers.get('Content-Disposition')
+      const filename = disposition?.match(/filename="([^"]+)"/)?.[1] ?? `aurora-backup-v1-${new Date().toLocaleDateString('en-CA')}.json`
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `aurora5-backup-${new Date().toLocaleDateString('en-CA')}.json`
+      link.download = filename
       link.click()
       URL.revokeObjectURL(url)
-      toast.success('Backup esportato')
+      toast.success('Backup Aurora verificato scaricato')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Errore durante il backup')
+      toast.error(error instanceof Error ? error.message : 'Errore durante la creazione del backup')
     } finally {
       setBusy(false)
     }
@@ -277,14 +263,14 @@ export default function SettingsPage() {
           </Button>
         </SectionCard>
 
-        <SectionCard title="Backup completo" description="Scarica tutti i tuoi dati in formato JSON per archiviazione o migrazione." icon={Download}>
+        <SectionCard title="Backup completo Aurora" description="Scarica un file JSON versionato e verificato per un futuro ripristino." icon={Download}>
           <div className="space-y-3">
             <p className="text-sm text-slate-500">
-              Include: conti, categorie, transazioni, budget, regole ricorrenti, prestiti, rate e compleanni.
+              Contiene i dati necessari per un futuro ripristino. Conserva il file in un luogo sicuro.
             </p>
             <Button variant="outline" className="gap-2" onClick={exportBackup} disabled={busy}>
               <Download className="h-4 w-4" />
-              Esporta tutti i dati (JSON)
+              {busy ? 'Preparazione backup...' : 'Scarica backup completo Aurora'}
             </Button>
           </div>
         </SectionCard>
