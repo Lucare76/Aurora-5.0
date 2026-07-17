@@ -131,11 +131,18 @@ begin
     raise exception 'ACCOUNT_NOT_EMPTY';
   end if;
 
-  if exists (
-    select 1 from public.categories where user_id = v_uid and is_default is true
-  ) and v_categories > 0 then
-    raise exception 'ACCOUNT_NOT_EMPTY';
-  end if;
+  -- In modalita account vuoto le categorie default generate automaticamente
+  -- sono considerate tecniche. Le rimuoviamo con regola stretta, dopo aver
+  -- verificato che non esistano dati contabili o categorie utente.
+  delete from public.categories
+   where user_id = v_uid
+     and is_default is true
+     and parent_id is not null;
+
+  delete from public.categories
+   where user_id = v_uid
+     and is_default is true
+     and parent_id is null;
 
   insert into public.backup_restore_runs (
     id, user_id, token_id, backup_checksum, schema_version, mode, status, app_version
@@ -170,7 +177,9 @@ begin
   insert into public.accounts (
     id, user_id, name, type, color, icon, balance, currency, is_active, is_hidden, sort_order, created_at, updated_at
   )
-  select id, v_uid, name, type, color, icon, balance, currency, is_active, is_hidden, sort_order, created_at, updated_at
+  select id, v_uid, name, coalesce(type, 'checking'), color, icon, coalesce(balance, 0), coalesce(currency, 'EUR'),
+         coalesce(is_active, true), coalesce(is_hidden, false), coalesce(sort_order, 0),
+         coalesce(created_at, now()), coalesce(updated_at, now())
   from jsonb_to_recordset(coalesce(p_backup #> '{data,accounts}', '[]'::jsonb)) as x(
     id uuid, name text, type text, color text, icon text, balance numeric, currency text,
     is_active boolean, is_hidden boolean, sort_order int, created_at timestamptz, updated_at timestamptz
@@ -179,7 +188,8 @@ begin
   insert into public.categories (
     id, user_id, name, type, color, icon, parent_id, is_default, sort_order, created_at
   )
-  select id, v_uid, name, type, color, icon, parent_id, is_default, sort_order, created_at
+  select id, v_uid, name, coalesce(type, 'expense'), color, icon, parent_id, coalesce(is_default, false),
+         coalesce(sort_order, 0), coalesce(created_at, now())
   from jsonb_to_recordset(coalesce(p_backup #> '{data,categories}', '[]'::jsonb)) as x(
     id uuid, name text, type text, color text, icon text, parent_id uuid,
     is_default boolean, sort_order int, created_at timestamptz
@@ -189,7 +199,8 @@ begin
   insert into public.categories (
     id, user_id, name, type, color, icon, parent_id, is_default, sort_order, created_at
   )
-  select id, v_uid, name, type, color, icon, parent_id, is_default, sort_order, created_at
+  select id, v_uid, name, coalesce(type, 'expense'), color, icon, parent_id, coalesce(is_default, false),
+         coalesce(sort_order, 0), coalesce(created_at, now())
   from jsonb_to_recordset(coalesce(p_backup #> '{data,categories}', '[]'::jsonb)) as x(
     id uuid, name text, type text, color text, icon text, parent_id uuid,
     is_default boolean, sort_order int, created_at timestamptz
@@ -199,7 +210,8 @@ begin
   insert into public.loans (
     id, user_id, counterpart, type, amount, remaining, description, due_date, is_settled, settled_at, created_at, updated_at
   )
-  select id, v_uid, counterpart, type, amount, remaining, description, due_date, is_settled, settled_at, created_at, updated_at
+  select id, v_uid, counterpart, type, amount, remaining, description, due_date, coalesce(is_settled, false),
+         settled_at, coalesce(created_at, now()), coalesce(updated_at, now())
   from jsonb_to_recordset(coalesce(p_backup #> '{data,loans}', '[]'::jsonb)) as x(
     id uuid, counterpart text, type text, amount numeric, remaining numeric,
     description text, due_date date, is_settled boolean, settled_at timestamptz,
@@ -211,7 +223,8 @@ begin
     next_due_date, last_run_date, is_active, auto_create, created_at, updated_at
   )
   select id, v_uid, account_id, category_id, type, amount, description, frequency, start_date, end_date,
-         next_due_date, last_run_date, is_active, auto_create, created_at, updated_at
+         next_due_date, last_run_date, coalesce(is_active, true), coalesce(auto_create, false),
+         coalesce(created_at, now()), coalesce(updated_at, now())
   from jsonb_to_recordset(coalesce(p_backup #> '{data,recurringRules}', '[]'::jsonb)) as x(
     id uuid, account_id uuid, category_id uuid, type text, amount numeric, description text,
     frequency text, start_date date, end_date date, next_due_date date, last_run_date date,
@@ -223,7 +236,7 @@ begin
     transfer_peer_id, recurring_id, receipt_url, receipt_data, created_at, updated_at
   )
   select id, v_uid, account_id, category_id, type, amount, description, notes, date,
-         transfer_peer_id, recurring_id, receipt_url, receipt_data, created_at, updated_at
+         transfer_peer_id, recurring_id, receipt_url, receipt_data, coalesce(created_at, now()), coalesce(updated_at, now())
   from jsonb_to_recordset(coalesce(p_backup #> '{data,transactions}', '[]'::jsonb)) as x(
     id uuid, account_id uuid, category_id uuid, type text, amount numeric,
     description text, notes text, date date, transfer_peer_id uuid, recurring_id uuid,
@@ -236,7 +249,7 @@ begin
     transfer_peer_id, recurring_id, receipt_url, receipt_data, created_at, updated_at
   )
   select id, v_uid, account_id, category_id, type, amount, description, notes, date,
-         transfer_peer_id, recurring_id, receipt_url, receipt_data, created_at, updated_at
+         transfer_peer_id, recurring_id, receipt_url, receipt_data, coalesce(created_at, now()), coalesce(updated_at, now())
   from jsonb_to_recordset(coalesce(p_backup #> '{data,transactions}', '[]'::jsonb)) as x(
     id uuid, account_id uuid, category_id uuid, type text, amount numeric,
     description text, notes text, date date, transfer_peer_id uuid, recurring_id uuid,
@@ -247,7 +260,7 @@ begin
   insert into public.loan_payments (
     id, loan_id, user_id, amount, paid_at, notes, created_at
   )
-  select id, loan_id, v_uid, amount, paid_at, notes, created_at
+  select id, loan_id, v_uid, amount, coalesce(paid_at, now()), notes, coalesce(created_at, now())
   from jsonb_to_recordset(coalesce(p_backup #> '{data,loanPayments}', '[]'::jsonb)) as x(
     id uuid, loan_id uuid, amount numeric, paid_at timestamptz, notes text, created_at timestamptz
   );
@@ -255,7 +268,7 @@ begin
   insert into public.budgets (
     id, user_id, category_id, amount, month, year, created_at, updated_at
   )
-  select id, v_uid, category_id, amount, month, year, created_at, updated_at
+  select id, v_uid, category_id, amount, month, year, coalesce(created_at, now()), coalesce(updated_at, now())
   from jsonb_to_recordset(coalesce(p_backup #> '{data,budgets}', '[]'::jsonb)) as x(
     id uuid, category_id uuid, amount numeric, month int, year int, created_at timestamptz, updated_at timestamptz
   );
@@ -263,7 +276,8 @@ begin
   insert into public.birthdays (
     id, user_id, name, birth_date, reminder_days, notes, created_at, updated_at
   )
-  select id, v_uid, name, birth_date, reminder_days, notes, created_at, updated_at
+  select id, v_uid, name, birth_date, coalesce(reminder_days, '{7}'::int[]), notes,
+         coalesce(created_at, now()), coalesce(updated_at, now())
   from jsonb_to_recordset(coalesce(p_backup #> '{data,birthdays}', '[]'::jsonb)) as x(
     id uuid, name text, birth_date date, reminder_days int[], notes text, created_at timestamptz, updated_at timestamptz
   );
@@ -271,7 +285,7 @@ begin
   insert into public.birthday_reminder_log (
     id, birthday_id, user_id, days_before, year, sent_at
   )
-  select id, birthday_id, v_uid, days_before, year, sent_at
+  select id, birthday_id, v_uid, days_before, year, coalesce(sent_at, now())
   from jsonb_to_recordset(coalesce(p_backup #> '{data,birthdayReminderLog}', '[]'::jsonb)) as x(
     id uuid, birthday_id uuid, days_before int, year int, sent_at timestamptz
   );
@@ -279,7 +293,7 @@ begin
   insert into public.audit_logs (
     id, user_id, action, table_name, record_id, old_data, new_data, ip_address, created_at
   )
-  select id, v_uid, 'RESTORED_' || action, table_name, record_id, old_data, new_data, null, created_at
+  select id, v_uid, 'RESTORED_' || action, table_name, record_id, old_data, new_data, null, coalesce(created_at, now())
   from jsonb_to_recordset(coalesce(p_backup #> '{data,auditLogs}', '[]'::jsonb)) as x(
     id uuid, action text, table_name text, record_id uuid, old_data jsonb, new_data jsonb, created_at timestamptz
   );
@@ -291,6 +305,24 @@ begin
     raise exception 'ACCOUNTING_MISMATCH';
   end if;
   if (select count(*) from public.transactions where user_id = v_uid) <> v_transactions then
+    raise exception 'ACCOUNTING_MISMATCH';
+  end if;
+  if (select count(*) from public.budgets where user_id = v_uid) <> v_budgets then
+    raise exception 'ACCOUNTING_MISMATCH';
+  end if;
+  if (select count(*) from public.recurring_rules where user_id = v_uid) <> v_recurring then
+    raise exception 'ACCOUNTING_MISMATCH';
+  end if;
+  if (select count(*) from public.loans where user_id = v_uid) <> v_loans then
+    raise exception 'ACCOUNTING_MISMATCH';
+  end if;
+  if (select count(*) from public.loan_payments where user_id = v_uid) <> v_loan_payments then
+    raise exception 'ACCOUNTING_MISMATCH';
+  end if;
+  if (select count(*) from public.birthdays where user_id = v_uid) <> v_birthdays then
+    raise exception 'ACCOUNTING_MISMATCH';
+  end if;
+  if (select count(*) from public.birthday_reminder_log where user_id = v_uid) <> v_birthday_logs then
     raise exception 'ACCOUNTING_MISMATCH';
   end if;
 

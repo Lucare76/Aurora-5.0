@@ -16,6 +16,29 @@ describe('backup restore prepare/restore API routes', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
+    process.env.ENABLE_BACKUP_RESTORE_REAL = 'true'
+  })
+
+  it('prepare resta disabilitato se il feature flag server non è attivo', async () => {
+    process.env.ENABLE_BACKUP_RESTORE_REAL = 'false'
+    mockSupabase()
+    const { POST } = await import('@/app/api/backup/restore/prepare/route')
+
+    const response = await POST(requestFor(validBackup()))
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'RESTORE_DISABLED' })
+  })
+
+  it('restore resta disabilitato se il feature flag server non è attivo', async () => {
+    process.env.ENABLE_BACKUP_RESTORE_REAL = 'false'
+    mockSupabase()
+    const { POST } = await import('@/app/api/backup/restore/route')
+
+    const response = await POST(restoreRequest(validBackup()))
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'RESTORE_DISABLED' })
   })
 
   it('prepare restituisce 401 se non autenticato', async () => {

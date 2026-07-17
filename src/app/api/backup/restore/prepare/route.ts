@@ -23,6 +23,10 @@ const requestSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    if (process.env.ENABLE_BACKUP_RESTORE_REAL !== 'true') {
+      return json(error('RESTORE_DISABLED'), 403)
+    }
+
     const supabase = await createClient()
     const user = await getAuthenticatedRestoreUser(supabase)
     if (!user) return json(error('UNAUTHENTICATED'), 401)

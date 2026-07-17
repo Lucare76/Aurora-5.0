@@ -31,6 +31,7 @@ type ProfileForm = z.infer<typeof profileSchema>
 const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
 const MAX_BACKUP_DRY_RUN_BYTES = 10 * 1024 * 1024
 const RESTORE_CONFIRMATION_PHRASE = 'RIPRISTINA AURORA'
+const REAL_RESTORE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BACKUP_RESTORE_REAL === 'true'
 
 type DryRunReport = {
   readiness: 'ready' | 'ready_with_warnings' | 'blocked'
@@ -299,6 +300,10 @@ export default function SettingsPage() {
 
   const prepareRestore = async () => {
     if (!backupFile || dryRunReport?.readiness !== 'ready') return
+    if (!REAL_RESTORE_ENABLED) {
+      toast.error('Ripristino reale non ancora abilitato: manca la validazione DB/RPC finale.')
+      return
+    }
     try {
       setRestoreBusy(true)
       setRestorePreparation(null)
@@ -532,12 +537,16 @@ export default function SettingsPage() {
 
                 {dryRunReport.readiness === 'ready' ? (
                   <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                    <p className="text-sm font-semibold text-amber-900">Ripristino reale disponibile solo su account vuoto</p>
+                    <p className="text-sm font-semibold text-amber-900">
+                      {REAL_RESTORE_ENABLED ? 'Ripristino reale disponibile solo su account vuoto' : 'Ripristino reale non ancora abilitato'}
+                    </p>
                     <p className="mt-1 text-sm text-amber-800">
-                      Il ripristino inserirà i dati presenti nel backup. In caso di errore l’operazione verrà annullata integralmente.
+                      {REAL_RESTORE_ENABLED
+                        ? 'Il ripristino inserirà i dati presenti nel backup. In caso di errore l’operazione verrà annullata integralmente.'
+                        : 'La verifica è pronta, ma il ripristino reale resterà disabilitato finché rollback e concorrenza non saranno provati su database locale o staging.'}
                     </p>
                     <div className="mt-4 flex flex-wrap gap-3">
-                      <Button variant="outline" onClick={prepareRestore} disabled={restoreBusy || Boolean(restorePreparation)}>
+                      <Button variant="outline" onClick={prepareRestore} disabled={!REAL_RESTORE_ENABLED || restoreBusy || Boolean(restorePreparation)}>
                         {restoreBusy ? 'Preparazione...' : 'Prepara conferma'}
                       </Button>
                     </div>
@@ -659,6 +668,8 @@ function restoreErrorMessage(code?: string) {
       return 'Verifica contabile non superata.'
     case 'RESTORE_ROLLED_BACK':
       return 'Il ripristino non è stato completato. L’operazione è stata annullata e non dovrebbe essere stato conservato alcun dato parziale.'
+    case 'RESTORE_DISABLED':
+      return 'Ripristino reale non ancora abilitato: manca la validazione DB/RPC finale.'
     default:
       return 'Errore durante il ripristino.'
   }
