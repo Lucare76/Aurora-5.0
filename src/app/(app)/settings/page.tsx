@@ -28,6 +28,44 @@ const profileSchema = z.object({
 type ProfileForm = z.infer<typeof profileSchema>
 
 const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
+const MAX_BACKUP_DRY_RUN_BYTES = 10 * 1024 * 1024
+
+type DryRunReport = {
+  readiness: 'ready' | 'ready_with_warnings' | 'blocked'
+  backup: {
+    format: string
+    schemaVersion: number | null
+    createdAt: string | null
+    checksumValid: boolean
+  }
+  currentState: {
+    isEmpty: boolean
+    blockingCollections: string[]
+  } | null
+  summary: {
+    backupRecords: number
+    creatableRecords: number
+    collisions: number
+    duplicates: number
+    missingReferences: number
+    blockingErrors: number
+    warnings: number
+  }
+  accountingPreview: {
+    totalIncome: number
+    totalExpense: number
+    netCashflow: number
+    totalNetWorth: number
+    transferCount: number
+    transfersNeutral: boolean
+  } | null
+  restorePlan: Array<{
+    sequence: number
+    collection: string
+    recordCount: number
+    status: 'ready' | 'warning' | 'blocked'
+  }>
+}
 
 function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
@@ -78,6 +116,8 @@ export default function SettingsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [busy, setBusy] = useState(false)
+  const [backupFile, setBackupFile] = useState<File | null>(null)
+  const [dryRunReport, setDryRunReport] = useState<DryRunReport | null>(null)
 
   const defaultTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
   const form = useForm<ProfileForm>({
@@ -188,6 +228,45 @@ export default function SettingsPage() {
     }
   }
 
+  const verifyBackup = async () => {
+    if (!backupFile) {
+      toast.error('Seleziona un file backup JSON')
+      return
+    }
+    if (!backupFile.name.toLowerCase().endsWith('.json')) {
+      toast.error('Sono accettati solo file .json')
+      return
+    }
+    if (backupFile.size > MAX_BACKUP_DRY_RUN_BYTES) {
+      toast.error('File troppo grande. Il limite massimo è 10 MB.')
+      return
+    }
+
+    try {
+      setBusy(true)
+      setDryRunReport(null)
+      const content = await backupFile.text()
+      const response = await fetch('/api/backup/restore/dry-run', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: backupFile.name, content }),
+      })
+      const payload = await response.json() as DryRunReport | { error?: string }
+
+      if (!response.ok) {
+        throw new Error('error' in payload ? payload.error : 'Errore durante la verifica')
+      }
+
+      setDryRunReport(payload as DryRunReport)
+      toast.success('Simulazione completata. Nessun dato è stato modificato.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Errore durante la verifica del backup')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const confirmLogout = async () => {
     try {
       await signOut()
@@ -275,6 +354,97 @@ export default function SettingsPage() {
           </div>
         </SectionCard>
 
+        <SectionCard title="Verifica un backup" description="Controlla il contenuto e simula il ripristino senza modificare i dati." icon={Download}>
+          <div className="space-y-5">
+            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+              <div className="space-y-2">
+                <Label>File backup JSON</Label>
+                <Input
+                  type="file"
+                  accept="application/json,.json"
+                  className="h-11 border-[#e5e7f0] bg-white text-slate-950"
+                  onChange={(event) => {
+                    setBackupFile(event.target.files?.[0] ?? null)
+                    setDryRunReport(null)
+                  }}
+                />
+                {backupFile ? (
+                  <p className="text-xs text-slate-500">
+                    {backupFile.name} - {(backupFile.size / 1024).toFixed(1)} KB
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex items-end">
+                <Button variant="outline" className="w-full gap-2 md:w-auto" onClick={verifyBackup} disabled={busy || !backupFile}>
+                  <Download className="h-4 w-4" />
+                  {busy ? 'Verifica in corso...' : 'Verifica backup'}
+                </Button>
+              </div>
+            </div>
+
+            {dryRunReport ? (
+              <div className="rounded-2xl border border-[#e5e7f0] bg-[#f8f9fc] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">
+                      {dryRunReport.readiness === 'ready'
+                        ? 'Il backup è pronto per un futuro ripristino.'
+                        : dryRunReport.readiness === 'ready_with_warnings'
+                          ? 'Il file è integro ma presenta avvisi.'
+                          : 'Il backup non è ripristinabile nelle condizioni attuali.'}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">Simulazione completata. Nessun dato è stato modificato.</p>
+                  </div>
+                  <span className={cn(
+                    'rounded-full px-3 py-1 text-xs font-semibold',
+                    dryRunReport.readiness === 'ready' && 'bg-emerald-50 text-emerald-700',
+                    dryRunReport.readiness === 'ready_with_warnings' && 'bg-amber-50 text-amber-700',
+                    dryRunReport.readiness === 'blocked' && 'bg-red-50 text-red-700',
+                  )}>
+                    {dryRunReport.readiness}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-4">
+                  <ReportMetric label="Versione" value={String(dryRunReport.backup.schemaVersion ?? '-')} />
+                  <ReportMetric label="Checksum" value={dryRunReport.backup.checksumValid ? 'Valido' : 'Non valido'} />
+                  <ReportMetric label="Account vuoto" value={dryRunReport.currentState?.isEmpty ? 'Sì' : 'No'} />
+                  <ReportMetric label="Record" value={String(dryRunReport.summary.backupRecords)} />
+                  <ReportMetric label="Creabili" value={String(dryRunReport.summary.creatableRecords)} />
+                  <ReportMetric label="Collisioni" value={String(dryRunReport.summary.collisions)} />
+                  <ReportMetric label="Duplicati" value={String(dryRunReport.summary.duplicates)} />
+                  <ReportMetric label="Errori" value={String(dryRunReport.summary.blockingErrors)} />
+                </div>
+
+                {dryRunReport.accountingPreview ? (
+                  <div className="mt-4 grid gap-3 md:grid-cols-4">
+                    <ReportMetric label="Entrate previste" value={`${dryRunReport.accountingPreview.totalIncome.toFixed(2)} €`} />
+                    <ReportMetric label="Uscite previste" value={`${dryRunReport.accountingPreview.totalExpense.toFixed(2)} €`} />
+                    <ReportMetric label="Patrimonio previsto" value={`${dryRunReport.accountingPreview.totalNetWorth.toFixed(2)} €`} />
+                    <ReportMetric label="Trasferimenti" value={`${dryRunReport.accountingPreview.transferCount} ${dryRunReport.accountingPreview.transfersNeutral ? 'neutrali' : 'da verificare'}`} />
+                  </div>
+                ) : null}
+
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Piano sintetico</p>
+                  <div className="mt-2 grid gap-2 md:grid-cols-2">
+                    {dryRunReport.restorePlan.slice(0, 8).map((step) => (
+                      <div key={`${step.sequence}-${step.collection}`} className="flex items-center justify-between rounded-xl border border-[#e5e7f0] bg-white px-3 py-2 text-xs">
+                        <span>{step.sequence}. {step.collection}</span>
+                        <span className="font-medium text-slate-500">{step.recordCount} - {step.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {dryRunReport.currentState && dryRunReport.currentState.blockingCollections.length > 0 ? (
+                  <p className="mt-4 text-sm text-red-600">L’account contiene già dati: {dryRunReport.currentState.blockingCollections.join(', ')}.</p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </SectionCard>
+
         <SectionCard title="Account" description="Gestisci sessione e cancellazione account." icon={Settings}>
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" className="gap-2" onClick={() => setLogoutOpen(true)}>
@@ -315,6 +485,15 @@ export default function SettingsPage() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+function ReportMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-[#e5e7f0] bg-white p-3">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-950">{value}</p>
     </div>
   )
 }
