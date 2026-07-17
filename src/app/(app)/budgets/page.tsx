@@ -200,6 +200,9 @@ export default function BudgetsPage() {
           <div>
             <p className="text-sm font-medium text-indigo-600">Pianificazione</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight">Budget</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              Il budget ti aiuta a monitorare quanto hai speso rispetto all'obiettivo del mese.
+            </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <div className="flex items-center rounded-2xl border border-[#e5e7f0] bg-white p-1 shadow-sm">
@@ -272,7 +275,7 @@ export default function BudgetsPage() {
             <EmptyState
               icon={PiggyBank}
               title="Nessun budget"
-              description="Imposta il primo limite mensile per controllare le spese per categoria."
+              description="Imposta un obiettivo mensile per una categoria: Aurora confrontera' automaticamente speso e rimanente."
               action={
                 <Button onClick={() => { setEditingBudget(null); setDialogOpen(true) }} className="gap-2">
                   <Plus className="h-4 w-4" />

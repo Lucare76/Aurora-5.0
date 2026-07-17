@@ -161,7 +161,7 @@ export default function CategoriesPage() {
 
   const deleteCategory = async (category: Category) => {
     if ((transactionCount[category.id] ?? 0) > 0) {
-      toast.error('Non puoi eliminare una categoria con transazioni collegate')
+      toast.error('Non puoi eliminare una categoria con movimenti collegati')
       return
     }
     if (childrenOf(category.id).length > 0) {
@@ -218,6 +218,9 @@ export default function CategoriesPage() {
           <div>
             <p className="text-sm font-medium text-indigo-600">Organizzazione</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight">Categorie</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              Le categorie e sottocategorie classificano i movimenti e rendono piu' chiari report e budget.
+            </p>
           </div>
           <Button onClick={openCreate} className="h-11 gap-2">
             <Plus className="h-4 w-4" />
@@ -230,7 +233,7 @@ export default function CategoriesPage() {
             <EmptyState
               icon={Tags}
               title="Nessuna categoria"
-              description="Crea categorie personalizzate per leggere meglio entrate e uscite."
+              description="Crea categorie per organizzare entrate e uscite. Potrai aggiungere sottocategorie quando serve piu' dettaglio."
               action={<Button onClick={openCreate}>Nuova categoria</Button>}
             />
           </div>

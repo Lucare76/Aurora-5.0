@@ -236,10 +236,13 @@ export default function RecurringPage() {
           <div>
             <p className="text-sm font-medium text-indigo-600">Automazioni</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight">Ricorrenti</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              Le ricorrenze generano o ricordano movimenti futuri come abbonamenti, stipendi e spese fisse.
+            </p>
           </div>
           <Button onClick={openCreate} className="h-11 gap-2">
             <Plus className="h-4 w-4" />
-            Nuovo
+            Nuova ricorrenza
           </Button>
         </header>
 
@@ -269,8 +272,8 @@ export default function RecurringPage() {
             <EmptyState
               icon={Repeat}
               title="Nessuna regola ricorrente"
-              description="Configura abbonamenti, stipendi o spese fisse da monitorare automaticamente."
-              action={<Button onClick={openCreate}>Nuovo ricorrente</Button>}
+              description="Configura abbonamenti, stipendi o spese fisse. Se attivi l'auto-creazione, Aurora prepara i movimenti futuri."
+              action={<Button onClick={openCreate}>Nuova ricorrenza</Button>}
             />
           </div>
         ) : (
@@ -396,8 +399,11 @@ export default function RecurringPage() {
                 </SelectField>
               </div>
             </div>
-            <label className="flex items-center justify-between rounded-2xl border border-[#e5e7f0] bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
-              Auto-crea transazione
+            <label className="flex items-center justify-between gap-4 rounded-2xl border border-[#e5e7f0] bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+              <span>
+                Auto-crea movimento
+                <span className="mt-1 block text-xs font-normal text-slate-500">Genera automaticamente i movimenti futuri.</span>
+              </span>
               <input type="checkbox" {...form.register('auto_create')} className="h-5 w-5 accent-indigo-600" />
             </label>
             <Button type="submit" className="h-12 w-full" disabled={busy || form.formState.isSubmitting}>

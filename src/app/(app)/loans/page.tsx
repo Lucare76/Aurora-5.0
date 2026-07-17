@@ -217,6 +217,9 @@ export default function LoansPage() {
           <div>
             <p className="text-sm font-medium text-indigo-600">Crediti e debiti</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight">Prestiti</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              I prestiti permettono di monitorare capitale residuo, scadenze e pagamenti registrati.
+            </p>
           </div>
           <Button onClick={openCreate} className="h-11 gap-2">
             <Plus className="h-4 w-4" />
@@ -242,7 +245,7 @@ export default function LoansPage() {
           <div className="space-y-3">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-28 animate-pulse rounded-2xl border border-[#e5e7f0] bg-white" />)}</div>
         ) : visibleLoans.length === 0 ? (
           <div className="rounded-3xl border border-[#e5e7f0] bg-white p-8 shadow-sm">
-            <EmptyState icon={HandCoins} title="Nessun prestito" description="Tieni traccia di soldi prestati o ricevuti." action={<Button onClick={openCreate}>Nuovo prestito</Button>} />
+            <EmptyState icon={HandCoins} title="Nessun prestito" description="Aggiungi un prestito per seguire quanto resta da ricevere o restituire nel tempo." action={<Button onClick={openCreate}>Nuovo prestito</Button>} />
           </div>
         ) : (
           <div className="space-y-3">

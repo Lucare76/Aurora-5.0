@@ -33,7 +33,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/transactions', label: 'Transazioni', icon: ArrowLeftRight },
+  { path: '/transactions', label: 'Movimenti', icon: ArrowLeftRight },
   { path: '/accounts', label: 'Conti', icon: Wallet },
   { path: '/categories', label: 'Categorie', icon: Tag },
   { path: '/budgets', label: 'Budget', icon: Target },
@@ -46,7 +46,7 @@ const navItems: NavItem[] = [
 
 const bottomNavItems: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/transactions', label: 'Transazioni', icon: ArrowLeftRight },
+  { path: '/transactions', label: 'Movimenti', icon: ArrowLeftRight },
   { path: '/accounts', label: 'Conti', icon: Wallet },
   { path: '/budgets', label: 'Budget', icon: Target },
 ]

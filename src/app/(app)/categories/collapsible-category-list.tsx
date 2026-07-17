@@ -85,7 +85,7 @@ export function CollapsibleCategorySection({
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-slate-950">{category.name}</p>
-              <p className="mt-1 text-xs text-slate-500">{transactionCount[category.id] ?? 0} transazioni</p>
+              <p className="mt-1 text-xs text-slate-500">{transactionCount[category.id] ?? 0} movimenti</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">

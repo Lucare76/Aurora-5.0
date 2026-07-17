@@ -280,7 +280,7 @@ export default function TransactionsPage() {
 
     const { data, error } = await query
     if (error) {
-      toast.error('Errore nel caricamento delle transazioni')
+      toast.error('Errore nel caricamento dei movimenti')
       setTransactions([])
     } else {
       const rows = (data ?? []) as TransactionWithPeer[]
@@ -495,7 +495,7 @@ export default function TransactionsPage() {
         {[
           { value: 'income', label: 'Entrata', icon: ArrowDownLeft },
           { value: 'expense', label: 'Uscita', icon: ArrowUpRight },
-          { value: 'transfer', label: 'Transfer', icon: ArrowLeftRight },
+          { value: 'transfer', label: 'Trasferimento', icon: ArrowLeftRight },
         ].map((item) => (
           <button
             key={item.value}
@@ -699,7 +699,7 @@ export default function TransactionsPage() {
       setImportProgress(Math.round(((i + 1) / validRows.length) * 100))
     }
     setImportBusy(false)
-    if (errors === 0) toast.success(`${success} transazioni importate`)
+    if (errors === 0) toast.success(`${success} movimenti importati`)
     else toast.warning(`${success} importate, ${errors} errori`)
     setImportOpen(false); setImportStep('upload'); setImportRows([]); setImportAccount('')
     await fetchTransactions(); await refetchAccounts()
@@ -715,7 +715,10 @@ export default function TransactionsPage() {
         <header className="flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
           <div>
             <p className="text-sm font-medium text-indigo-600">Movimenti</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Transazioni</h1>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Movimenti</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              Registra entrate, uscite e trasferimenti. Un trasferimento sposta denaro tra conti senza modificare il patrimonio.
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
@@ -766,7 +769,7 @@ export default function TransactionsPage() {
             </Button>
             <Button onClick={() => setCreateOpen(true)} className="h-11 gap-2">
               <Plus className="h-4 w-4" />
-              Nuova transazione
+              Nuovo movimento
             </Button>
           </div>
         </header>
@@ -919,11 +922,11 @@ export default function TransactionsPage() {
           <div className="rounded-3xl border border-[#e5e7f0] bg-white p-8 shadow-sm">
             <EmptyState
               icon={activeFilterCount > 0 ? Search : ArrowLeftRight}
-              title={activeFilterCount > 0 ? 'Nessun risultato' : 'Nessuna transazione'}
+              title={activeFilterCount > 0 ? 'Nessun risultato' : 'Nessun movimento'}
               description={
                 activeFilterCount > 0
                   ? `${activeFilterCount} ${activeFilterCount === 1 ? 'filtro attivo' : 'filtri attivi'} — prova a modificarli o rimuoverli.`
-                  : 'Aggiungi entrate, uscite o trasferimenti per iniziare a tracciare il mese.'
+                  : 'Usa “Nuovo movimento” per registrare la prima entrata, uscita o trasferimento.'
               }
               action={
                 activeFilterCount > 0 ? (
@@ -934,7 +937,7 @@ export default function TransactionsPage() {
                 ) : (
                   <Button onClick={() => setCreateOpen(true)} className="gap-2">
                     <Plus className="h-4 w-4" />
-                    Nuova transazione
+                    Nuovo movimento
                   </Button>
                 )
               }
@@ -972,7 +975,7 @@ export default function TransactionsPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold text-slate-950">
-                              {transaction.description || (isTransfer ? 'Giroconto' : 'Transazione')}
+                              {transaction.description || (isTransfer ? 'Trasferimento' : 'Movimento')}
                             </p>
                             <p className="mt-1 truncate text-xs text-slate-500">
                               {isTransfer
@@ -1035,16 +1038,16 @@ export default function TransactionsPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border-[#e5e7f0] bg-white text-slate-950">
           <DialogHeader>
-            <DialogTitle>Nuova transazione</DialogTitle>
+            <DialogTitle>Nuovo movimento</DialogTitle>
           </DialogHeader>
-          {renderTransactionForm(form, 'Salva transazione', onCreate, watchedType, watchedAccount, createCategoryTree)}
+          {renderTransactionForm(form, 'Salva movimento', onCreate, watchedType, watchedAccount, createCategoryTree)}
         </DialogContent>
       </Dialog>
 
       <Dialog open={Boolean(editingTransaction)} onOpenChange={(open) => !open && setEditingTransaction(null)}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border-[#e5e7f0] bg-white text-slate-950">
           <DialogHeader>
-            <DialogTitle>Modifica transazione</DialogTitle>
+            <DialogTitle>Modifica movimento</DialogTitle>
           </DialogHeader>
           {renderTransactionForm(editForm, 'Salva modifiche', onEdit, watchedEditType, watchedEditAccount, editCategoryTree)}
         </DialogContent>
@@ -1053,11 +1056,11 @@ export default function TransactionsPage() {
       <Dialog open={Boolean(deletingTransaction)} onOpenChange={(open) => !open && setDeletingTransaction(null)}>
         <DialogContent className="max-w-md border-[#e5e7f0] bg-white text-slate-950">
           <DialogHeader>
-            <DialogTitle>Elimina transazione</DialogTitle>
+            <DialogTitle>Elimina movimento</DialogTitle>
           </DialogHeader>
           <div className="mt-5 space-y-5">
             <p className="text-sm leading-6 text-slate-600">
-              Vuoi eliminare definitivamente questa transazione? Il saldo del conto verrà aggiornato automaticamente in direzione inversa.
+              Vuoi eliminare definitivamente questo movimento? Il saldo del conto verra' aggiornato automaticamente in direzione inversa.
             </p>
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={() => setDeletingTransaction(null)}>
@@ -1074,7 +1077,7 @@ export default function TransactionsPage() {
       <Dialog open={importOpen} onOpenChange={(open) => { if (!importBusy) setImportOpen(open) }}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border-[#e5e7f0] bg-white text-slate-950">
           <DialogHeader>
-            <DialogTitle>Importa transazioni da CSV</DialogTitle>
+            <DialogTitle>Importa movimenti da CSV</DialogTitle>
           </DialogHeader>
 
           {importStep === 'upload' && (
@@ -1170,7 +1173,7 @@ export default function TransactionsPage() {
                 </Button>
                 <Button onClick={doImport} disabled={importBusy || !importAccount || importRows.filter((r) => r.valid).length === 0} className="gap-2">
                   <Upload className="h-4 w-4" />
-                  {importBusy ? `Importazione... ${importProgress}%` : `Importa ${importRows.filter((r) => r.valid).length} transazioni`}
+                  {importBusy ? `Importazione... ${importProgress}%` : `Importa ${importRows.filter((r) => r.valid).length} movimenti`}
                 </Button>
               </div>
             </div>

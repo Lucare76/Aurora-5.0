@@ -23,6 +23,7 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, Responsiv
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { AmountDisplay } from '@/components/shared/AmountDisplay'
+import { FirstUseChecklist } from '@/components/onboarding/FirstUseChecklist'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -589,6 +590,12 @@ export default function DashboardPage() {
   const displayName = profile?.display_name?.trim() || null
   const today = format(new Date(), 'EEEE d MMMM yyyy', { locale: it })
   const loading = accountsLoading || categoriesLoading || recentLoading || monthLoading
+  const firstUseStatus = {
+    hasAccount: activeAccounts.length > 0,
+    hasCategory: categories.length > 0,
+    hasMovement: recentTransactions.length > 0,
+    hasBudget: dashBudgets.length > 0,
+  }
 
   if (loading) {
     return (
@@ -609,7 +616,8 @@ export default function DashboardPage() {
 
   if (activeAccounts.length === 0) {
     return (
-      <div className="flex min-h-[65vh] items-center justify-center">
+      <div className="mx-auto flex min-h-[65vh] max-w-5xl flex-col justify-center gap-6">
+        <FirstUseChecklist status={firstUseStatus} />
         <Card className="w-full max-w-xl border-[#e5e7f0] bg-white text-center shadow-sm">
           <CardContent className="p-10">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-indigo-50 text-indigo-600">
@@ -617,7 +625,7 @@ export default function DashboardPage() {
             </div>
             <h1 className="mt-6 text-2xl font-bold text-slate-950">Aggiungi il tuo primo conto</h1>
             <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-slate-500">
-              Appena colleghi un conto, Aurora calcola patrimonio, entrate, uscite e trend reali dalla tua base dati.
+              Il conto e' il punto di partenza: da qui Aurora calcola patrimonio, entrate, uscite e andamento reale.
             </p>
             <Link href="/accounts" className={cn(buttonVariants(), 'mt-8 gap-2')}>
               <Plus className="h-4 w-4" />
@@ -643,11 +651,13 @@ export default function DashboardPage() {
             </p>
           </div>
           <Link href="/transactions" className={cn(buttonVariants(), 'h-11 gap-2 self-start lg:self-auto')}>
-            Nuova transazione
+            Nuovo movimento
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </section>
+
+      <FirstUseChecklist status={firstUseStatus} />
 
       <section className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
@@ -1007,16 +1017,16 @@ export default function DashboardPage() {
       <Card className="border-[#e5e7f0] bg-white shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg text-slate-950">Ultimi movimenti</CardTitle>
-          <p className="text-sm text-slate-500">Le ultime 8 transazioni registrate.</p>
+          <p className="text-sm text-slate-500">Gli ultimi 8 movimenti registrati.</p>
         </CardHeader>
         <CardContent>
           {recentTransactions.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[#e5e7f0] bg-[#f8f9fc] p-8 text-center">
               <p className="font-semibold text-slate-900">Nessun movimento ancora</p>
-              <p className="mt-2 text-sm text-slate-500">Aggiungi una transazione per popolare la dashboard.</p>
+              <p className="mt-2 text-sm text-slate-500">Aggiungi un movimento per popolare la dashboard.</p>
               <Link href="/transactions" className={cn(buttonVariants({ variant: 'outline' }), 'mt-5 gap-2')}>
                 <Plus className="h-4 w-4" />
-                Nuova transazione
+                Nuovo movimento
               </Link>
             </div>
           ) : (
@@ -1031,7 +1041,7 @@ export default function DashboardPage() {
                     <TransactionIcon transaction={transaction} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-slate-900">
-                        {transaction.description || (transaction.transfer_peer_id ? 'Giroconto' : isIncome ? 'Entrata' : 'Uscita')}
+                        {transaction.description || (transaction.transfer_peer_id ? 'Trasferimento' : isIncome ? 'Entrata' : 'Uscita')}
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
                         <span>{category?.icon ? `${category.icon} ` : ''}{category?.name ?? 'Nessuna categoria'}</span>
