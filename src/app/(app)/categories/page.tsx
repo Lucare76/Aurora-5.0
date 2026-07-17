@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { MoreHorizontal, Pencil, Plus, Tags, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, Tags, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -60,6 +60,7 @@ export default function CategoriesPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [expandedCategoryIds, setExpandedCategoryIds] = useState<Set<string>>(() => new Set())
 
   const form = useForm<CategoryForm>({
     resolver: zodResolver(categorySchema) as Resolver<CategoryForm>,
@@ -126,6 +127,18 @@ export default function CategoriesPage() {
     setDialogOpen(true)
   }
 
+  const toggleCategoryExpanded = (categoryId: string) => {
+    setExpandedCategoryIds((current) => {
+      const next = new Set(current)
+      if (next.has(categoryId)) {
+        next.delete(categoryId)
+      } else {
+        next.add(categoryId)
+      }
+      return next
+    })
+  }
+
   const onSubmit: SubmitHandler<CategoryForm> = async (values) => {
     try {
       const {
@@ -182,17 +195,35 @@ export default function CategoriesPage() {
     }
   }
 
-  const renderCategory = (category: Category, depth = 0) => (
-    <div key={category.id}>
-      <div
-        className={cn(
-          'relative flex items-center justify-between gap-4 rounded-2xl border border-[#e5e7f0] bg-white px-4 py-3 shadow-sm hover:bg-slate-50/70',
-          depth > 0 && 'border-l-4 border-l-indigo-200',
-        )}
-        style={{ marginLeft: depth * 24 }}
-      >
-        {depth > 0 && <span className="absolute -left-4 top-1/2 h-px w-4 bg-indigo-200" />}
-        <div className="flex min-w-0 items-center gap-3">
+  const renderCategory = (category: Category, depth = 0) => {
+    const childCategories = childrenOf(category.id)
+    const hasChildren = childCategories.length > 0
+    const isExpanded = expandedCategoryIds.has(category.id)
+
+    return (
+      <div key={category.id}>
+        <div
+          className={cn(
+            'relative flex items-center justify-between gap-4 rounded-2xl border border-[#e5e7f0] bg-white px-4 py-3 shadow-sm hover:bg-slate-50/70',
+            depth > 0 && 'border-l-4 border-l-indigo-200',
+          )}
+          style={{ marginLeft: depth * 24 }}
+        >
+          {depth > 0 && <span className="absolute -left-4 top-1/2 h-px w-4 bg-indigo-200" />}
+          <div className="flex min-w-0 items-center gap-3">
+            {hasChildren ? (
+              <button
+                type="button"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600"
+                onClick={() => toggleCategoryExpanded(category.id)}
+                aria-label={isExpanded ? `Comprimi ${category.name}` : `Espandi ${category.name}`}
+                aria-expanded={isExpanded}
+              >
+                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </button>
+            ) : (
+              <span className="h-8 w-8 shrink-0" />
+            )}
           <span
             className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg', depth > 0 && 'h-8 w-8 text-sm')}
             style={{ backgroundColor: `${category.color ?? '#6366f1'}18`, color: category.color ?? '#6366f1' }}
@@ -232,12 +263,15 @@ export default function CategoriesPage() {
             )}
           </div>
         </div>
+        </div>
+        {hasChildren && isExpanded && (
+          <div className="mt-2 space-y-2">
+            {childCategories.map((child) => renderCategory(child, depth + 1))}
+          </div>
+        )}
       </div>
-      <div className="mt-2 space-y-2">
-        {childrenOf(category.id).map((child) => renderCategory(child, depth + 1))}
-      </div>
-    </div>
-  )
+    )
+  }
 
   const renderSection = (title: string, type: 'income' | 'expense') => {
     const items = getCategoryTree(type)
