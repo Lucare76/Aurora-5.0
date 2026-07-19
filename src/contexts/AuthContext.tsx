@@ -173,7 +173,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw toItalianAuthError(error)
 
       if (data.user) {
-        await fetchProfile(data.user.id, displayName.trim())
+        try {
+          await fetchProfile(data.user.id, displayName.trim())
+        } catch (profileError) {
+          console.error('Errore creazione/lettura profilo dopo signup', profileError)
+        }
         const { error: rpcError } = await db.rpc('create_default_categories', {
           p_user_id: data.user.id,
         })
