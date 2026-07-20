@@ -17,7 +17,7 @@ interface AuthContextValue {
   profile: Profile | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, displayName: string) => Promise<void>
+  signUp: (email: string, password: string, displayName: string) => Promise<{ needsEmailVerification: boolean }>
   signOut: () => Promise<void>
 }
 
@@ -31,6 +31,12 @@ function toItalianAuthError(error: Error): Error {
   }
   if (message.includes('email not confirmed')) {
     return new Error('Conferma la tua email prima di accedere.')
+  }
+  if (message.includes('email rate limit exceeded')) {
+    return new Error('Hai superato il limite di invio email. Attendi qualche minuto e riprova.')
+  }
+  if (message.includes('for security purposes') && message.includes('seconds')) {
+    return new Error('Richiesta troppo ravvicinata. Attendi qualche secondo e riprova.')
   }
   if (message.includes('user already registered') || message.includes('already registered')) {
     return new Error('Esiste già un account con questa email.')
@@ -172,19 +178,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       if (error) throw toItalianAuthError(error)
 
-      if (data.user) {
-        try {
-          await fetchProfile(data.user.id, displayName.trim())
-        } catch (profileError) {
-          console.error('Errore creazione/lettura profilo dopo signup', profileError)
-        }
-        const { error: rpcError } = await db.rpc('create_default_categories', {
-          p_user_id: data.user.id,
-        })
-        if (rpcError) {
-          console.error('Errore creazione categorie default', rpcError)
-        }
+      if (!data.user) {
+        return { needsEmailVerification: false }
       }
+
+      if (!data.session) {
+        return { needsEmailVerification: true }
+      }
+
+      try {
+        await fetchProfile(data.user.id, displayName.trim())
+      } catch (profileError) {
+        console.error('Errore creazione/lettura profilo dopo signup', profileError)
+      }
+
+      const { error: rpcError } = await db.rpc('create_default_categories', {
+        p_user_id: data.user.id,
+      })
+      if (rpcError) {
+        console.error('Errore creazione categorie default', rpcError)
+      }
+
+      return { needsEmailVerification: false }
     },
     [supabase, db, fetchProfile],
   )

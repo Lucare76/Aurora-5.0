@@ -30,6 +30,7 @@ type RegisterForm = z.infer<typeof registerSchema>
 export default function RegisterPage() {
   const { user, loading, signUp } = useAuth()
   const [formError, setFormError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const router = useRouter()
 
   const {
@@ -54,8 +55,13 @@ export default function RegisterPage() {
 
   const onSubmit: SubmitHandler<RegisterForm> = async (values) => {
     setFormError('')
+    setSuccessMessage('')
     try {
-      await signUp(values.email, values.password, values.displayName)
+      const result = await signUp(values.email, values.password, values.displayName)
+      if (result.needsEmailVerification) {
+        setSuccessMessage('Registrazione creata. Controlla la tua email per verificare l’account, poi accedi.')
+        return
+      }
       router.replace('/dashboard')
       router.refresh()
     } catch (error) {
@@ -129,6 +135,12 @@ export default function RegisterPage() {
           {formError && (
             <p className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
               {formError}
+            </p>
+          )}
+
+          {successMessage && (
+            <p className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+              {successMessage}
             </p>
           )}
 
