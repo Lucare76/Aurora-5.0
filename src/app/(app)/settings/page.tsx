@@ -48,6 +48,7 @@ type DryRunReport = {
   summary: {
     backupRecords: number
     creatableRecords: number
+    reconciledCategories?: number
     collisions: number
     duplicates: number
     missingReferences: number
@@ -93,6 +94,11 @@ type DryRunReport = {
     id: string
     reference: string
     code: string
+    message: string
+  }>
+  reconciledDefaultCategories?: Array<{
+    backupCategoryId: string
+    key: string
     message: string
   }>
 }
@@ -536,6 +542,13 @@ export default function SettingsPage() {
                   <ReportMetric label="Duplicati" value={String(dryRunReport.summary.duplicates)} />
                   <ReportMetric label="Errori" value={String(dryRunReport.summary.blockingErrors)} />
                 </div>
+
+                {(dryRunReport.summary.reconciledCategories ?? 0) > 0 && (
+                  <div className="mt-3 flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm text-indigo-800">
+                    <span className="font-semibold">{dryRunReport.summary.reconciledCategories} {dryRunReport.summary.reconciledCategories === 1 ? 'categoria predefinita già presente' : 'categorie predefinite già presenti'}</span>
+                    {' '}sarà riutilizzata durante il ripristino (nessun duplicato).
+                  </div>
+                )}
 
                 {dryRunReport.accountingPreview ? (
                   <div className="mt-4 grid gap-3 md:grid-cols-4">

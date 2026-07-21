@@ -14,7 +14,7 @@ export function runRestoreDryRun(input: DryRunInput): DryRunResult {
   const issues: DryRunIssue[] = []
   const accountEmpty = checkAccountEmpty(input.snapshot)
   const idMapping = buildIdMapping(input.backup, input.snapshot)
-  const { collisions, logicalDuplicates } = detectRestoreCollisions(input.backup, input.snapshot)
+  const { collisions, logicalDuplicates, reconciledDefaultCategories } = detectRestoreCollisions(input.backup, input.snapshot)
   const relationshipIssues = validateBackupRelationships(input.backup).map(toDryRunIssue)
   const transferValidation = validateRestoreTransfers(input.backup)
   const accounting = buildAccountingPreview(input.backup)
@@ -82,6 +82,7 @@ export function runRestoreDryRun(input: DryRunInput): DryRunResult {
     summary: {
       backupRecords,
       creatableRecords: readiness === 'blocked' ? 0 : backupRecords,
+      reconciledCategories: reconciledDefaultCategories.length,
       collisions: collisions.length,
       duplicates: logicalDuplicates.length,
       missingReferences: missingReferences.length,
@@ -91,6 +92,7 @@ export function runRestoreDryRun(input: DryRunInput): DryRunResult {
     idMapping,
     collisions,
     logicalDuplicates,
+    reconciledDefaultCategories,
     missingReferences,
     accountingPreview: {
       ...accounting.preview,

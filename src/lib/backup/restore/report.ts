@@ -10,6 +10,7 @@ export function summarizeDryRunForLog(result: DryRunResult) {
   return {
     readiness: result.readiness,
     backupRecords: result.summary.backupRecords,
+    reconciledCategories: result.summary.reconciledCategories,
     collisions: result.summary.collisions,
     duplicates: result.summary.duplicates,
     blockingErrors: result.summary.blockingErrors,

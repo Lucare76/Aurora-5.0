@@ -77,6 +77,15 @@ export type LogicalDuplicate = {
   message: string
 }
 
+// A backup category that corresponds exactly to an existing default category.
+// The RPC deletes all defaults before inserting backup categories, so no ID
+// remapping is needed and no duplicate is created. This is informational only.
+export type DefaultCategoryReconciliation = {
+  backupCategoryId: string
+  key: string
+  message: string
+}
+
 export type MissingReference = {
   collection: keyof AuroraBackupRecordCounts
   id: string
@@ -160,6 +169,7 @@ export type DryRunResult = {
   summary: {
     backupRecords: number
     creatableRecords: number
+    reconciledCategories: number
     collisions: number
     duplicates: number
     missingReferences: number
@@ -169,6 +179,7 @@ export type DryRunResult = {
   idMapping: IdMapping[]
   collisions: IdCollision[]
   logicalDuplicates: LogicalDuplicate[]
+  reconciledDefaultCategories: DefaultCategoryReconciliation[]
   missingReferences: MissingReference[]
   accountingPreview: AccountingPreview
   transferValidation: TransferValidationResult
