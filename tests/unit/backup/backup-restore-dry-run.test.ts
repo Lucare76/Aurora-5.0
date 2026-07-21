@@ -7,6 +7,7 @@ import {
   computeBackupChecksum,
   detectRestoreCollisions,
   runRestoreDryRun,
+  summarizeDryRunForLog,
   validateRestoreTransfers,
   type CurrentUserDataSnapshot,
   type AuroraBackupV1,
@@ -180,6 +181,96 @@ describe('Aurora Backup restore dry-run core', () => {
 
     expect(result.legacyRecoverable).toBe(1)
     expect(result.issues.map((issue) => issue.code)).toContain('TRANSFER_LEGACY_RECOVERABLE')
+  })
+
+  // --- dettaglio issues, alias collection, log safety ---
+
+  it('popola arrays issues e logicalDuplicates quando rileva duplicato categoria', () => {
+    // snapshot ha categoria con stesso nome/tipo ma UUID diverso (is_default:true → account vuoto)
+    const result = runRestoreDryRun({
+      backup: withChecksum(createMinimalBackup()),
+      inspectionIssues: [],
+      snapshot: {
+        ...emptySnapshot(),
+        categories: [{ id: 'ff000000-0000-4000-8000-000000000001', name: 'Stipendio', type: 'income', parent_id: null, is_default: true }],
+      },
+    })
+
+    expect(result.issues.length).toBeGreaterThan(0)
+    expect(result.logicalDuplicates.length).toBeGreaterThan(0)
+    expect(result.issues.some((i) => i.code === 'RESTORE_LOGICAL_DUPLICATE')).toBe(true)
+  })
+
+  it('il contatore blockingErrors corrisponde agli issues con severity error', () => {
+    const result = runRestoreDryRun({
+      backup: withChecksum(createMinimalBackup()),
+      inspectionIssues: [],
+      snapshot: {
+        ...emptySnapshot(),
+        categories: [{ id: 'ff000000-0000-4000-8000-000000000001', name: 'Stipendio', type: 'income', parent_id: null, is_default: true }],
+      },
+    })
+
+    const countedErrors = result.issues.filter((i) => i.severity === 'error').length
+    expect(result.summary.blockingErrors).toBe(countedErrors)
+  })
+
+  it('parentCategories e childCategories mostrano blocked quando categories ha duplicati logici', () => {
+    const result = runRestoreDryRun({
+      backup: withChecksum(createMinimalBackup()),
+      inspectionIssues: [],
+      snapshot: {
+        ...emptySnapshot(),
+        categories: [{ id: 'ff000000-0000-4000-8000-000000000001', name: 'Stipendio', type: 'income', parent_id: null, is_default: true }],
+      },
+    })
+
+    const parentStep = result.restorePlan.find((s) => s.collection === 'parentCategories')
+    const childStep = result.restorePlan.find((s) => s.collection === 'childCategories')
+    expect(parentStep?.status).toBe('blocked')
+    expect(childStep?.status).toBe('blocked')
+  })
+
+  it('normalTransactions mostra blocked per relazione mancante su transazione normale', () => {
+    const backup = withChecksum(createCompleteBackup())
+    backup.data.transactions[0].account_id = '99999999-9999-4999-8999-999999999999'
+
+    const result = runRestoreDryRun({ backup, inspectionIssues: [], snapshot: emptySnapshot() })
+
+    const step = result.restorePlan.find((s) => s.collection === 'normalTransactions')
+    expect(step?.status).toBe('blocked')
+  })
+
+  it('creatableRecords è sempre 0 quando readiness è blocked', () => {
+    const result = runRestoreDryRun({
+      backup: withChecksum(createMinimalBackup()),
+      inspectionIssues: [],
+      snapshot: {
+        ...emptySnapshot(),
+        categories: [{ id: 'ff000000-0000-4000-8000-000000000001', name: 'Stipendio', type: 'income', parent_id: null, is_default: true }],
+      },
+    })
+
+    expect(result.readiness).toBe('blocked')
+    expect(result.summary.creatableRecords).toBe(0)
+  })
+
+  it('summarizeDryRunForLog include errorCodes e sectionsWithErrors senza dati sensibili', () => {
+    const result = runRestoreDryRun({
+      backup: withChecksum(createMinimalBackup()),
+      inspectionIssues: [],
+      snapshot: {
+        ...emptySnapshot(),
+        categories: [{ id: 'ff000000-0000-4000-8000-000000000001', name: 'Stipendio', type: 'income', parent_id: null, is_default: true }],
+      },
+    })
+
+    const log = summarizeDryRunForLog(result)
+    expect(log.errorCodes).toContain('RESTORE_LOGICAL_DUPLICATE')
+    expect(log.sectionsWithErrors.some((s) => s.startsWith('parentCategories'))).toBe(true)
+    expect(log).not.toHaveProperty('userId')
+    expect(log).not.toHaveProperty('backup')
+    expect(log).not.toHaveProperty('idMapping')
   })
 })
 

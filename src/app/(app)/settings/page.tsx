@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -67,6 +67,33 @@ type DryRunReport = {
     collection: string
     recordCount: number
     status: 'ready' | 'warning' | 'blocked'
+  }>
+  issues?: Array<{
+    code: string
+    severity: 'error' | 'warning' | 'info'
+    path: Array<string | number>
+    message: string
+    details?: Record<string, string | number | boolean | null>
+  }>
+  logicalDuplicates?: Array<{
+    collection: string
+    key: string
+    blocking: boolean
+    message: string
+  }>
+  collisions?: Array<{
+    collection: string
+    id?: string
+    kind: string
+    blocking: boolean
+    message: string
+  }>
+  missingReferences?: Array<{
+    collection: string
+    id: string
+    reference: string
+    code: string
+    message: string
   }>
 }
 
@@ -531,6 +558,8 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
+                <DryRunDetailPanel report={dryRunReport} />
+
                 {dryRunReport.currentState && dryRunReport.currentState.blockingCollections.length > 0 ? (
                   <p className="mt-4 text-sm text-red-600">L’account contiene già dati: {dryRunReport.currentState.blockingCollections.join(', ')}.</p>
                 ) : null}
@@ -644,6 +673,87 @@ function ReportMetric({ label, value }: { label: string; value: string }) {
     <div className="rounded-xl border border-[#e5e7f0] bg-white p-3">
       <p className="text-xs text-slate-500">{label}</p>
       <p className="mt-1 text-sm font-semibold text-slate-950">{value}</p>
+    </div>
+  )
+}
+
+const DUPE_CODES = new Set(['RESTORE_LOGICAL_DUPLICATE', 'RESTORE_ID_COLLISION', 'RESTORE_DUPLICATE'])
+
+function DryRunDetailPanel({ report }: { report: DryRunReport }) {
+  const issues = report.issues ?? []
+  const logicalDuplicates = report.logicalDuplicates ?? []
+  const collisions = report.collisions ?? []
+
+  const blockingErrors = issues.filter((i) => i.severity === 'error' && !DUPE_CODES.has(i.code))
+  const warnings = issues.filter((i) => i.severity === 'warning' && !DUPE_CODES.has(i.code))
+
+  if (blockingErrors.length === 0 && logicalDuplicates.length === 0 && collisions.length === 0 && warnings.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="mt-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Dettaglio problemi</p>
+
+      {blockingErrors.length > 0 && (
+        <div className="mt-2 space-y-1.5">
+          <p className="text-xs font-medium text-red-600">Errori bloccanti ({blockingErrors.length})</p>
+          {blockingErrors.map((issue, i) => (
+            <div key={i} className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs">
+              <span className="font-mono font-semibold text-red-700">{issue.code}</span>
+              <span className="mx-1.5 text-red-300">·</span>
+              <span className="text-slate-500">{issue.path.join('.')}</span>
+              <p className="mt-0.5 text-slate-700">{issue.message}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {logicalDuplicates.length > 0 && (
+        <div className="mt-2 space-y-1.5">
+          <p className="text-xs font-medium text-amber-600">Duplicati logici ({logicalDuplicates.length})</p>
+          {logicalDuplicates.map((dup, i) => (
+            <div key={i} className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs">
+              <span className="font-semibold text-amber-800">{dup.collection}</span>
+              <span className="mx-1.5 text-amber-400">·</span>
+              <span className="break-all font-mono text-slate-500">{dup.key}</span>
+              <p className="mt-0.5 text-slate-700">{dup.message}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {collisions.length > 0 && (
+        <div className="mt-2 space-y-1.5">
+          <p className="text-xs font-medium text-orange-600">Collisioni UUID ({collisions.length})</p>
+          {collisions.map((col, i) => (
+            <div key={i} className="rounded-xl border border-orange-100 bg-orange-50 px-3 py-2 text-xs">
+              <span className="font-semibold text-orange-800">{col.collection}</span>
+              {col.id ? (
+                <>
+                  <span className="mx-1.5 text-orange-400">·</span>
+                  <span className="font-mono text-slate-500">{col.id}</span>
+                </>
+              ) : null}
+              <p className="mt-0.5 text-slate-700">{col.message}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {warnings.length > 0 && (
+        <div className="mt-2 space-y-1.5">
+          <p className="text-xs font-medium text-slate-500">Avvisi ({warnings.length})</p>
+          {warnings.map((issue, i) => (
+            <div key={i} className="rounded-xl border border-[#e5e7f0] bg-white px-3 py-2 text-xs">
+              <span className="font-mono font-semibold text-slate-600">{issue.code}</span>
+              <span className="mx-1.5 text-slate-300">·</span>
+              <span className="text-slate-500">{issue.path.join('.')}</span>
+              <p className="mt-0.5 text-slate-600">{issue.message}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

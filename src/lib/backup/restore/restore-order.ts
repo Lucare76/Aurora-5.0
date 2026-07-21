@@ -1,6 +1,16 @@
 import type { AuroraBackupV1 } from '../types'
 import type { DryRunIssue, RestorePlan, RestorePlanStep } from './types'
 
+// Plan steps use semantic names ('parentCategories', 'childCategories',
+// 'normalTransactions', 'transferTransactions') while DryRunIssue paths use
+// the canonical DB collection key ('categories', 'transactions').
+// This mapping ensures issues are correctly attributed to their plan steps.
+function collectionAliases(collection: string): string[] {
+  if (collection === 'parentCategories' || collection === 'childCategories') return [collection, 'categories']
+  if (collection === 'normalTransactions' || collection === 'transferTransactions') return [collection, 'transactions']
+  return [collection]
+}
+
 export function buildRestorePlan(backup: AuroraBackupV1, issues: DryRunIssue[] = []): RestorePlan {
   const steps: RestorePlanStep[] = [
     step(1, 'profile', 1, []),
@@ -19,7 +29,8 @@ export function buildRestorePlan(backup: AuroraBackupV1, issues: DryRunIssue[] =
   ]
 
   const enriched = steps.map((item) => {
-    const relatedIssues = issues.filter((issue) => issue.path.includes(item.collection))
+    const aliases = collectionAliases(item.collection)
+    const relatedIssues = issues.filter((issue) => aliases.some((alias) => issue.path.includes(alias)))
     const blockingIssues = relatedIssues.filter((issue) => issue.severity === 'error').map((issue) => issue.code)
     const warnings = relatedIssues.filter((issue) => issue.severity === 'warning').map((issue) => issue.code)
     return {

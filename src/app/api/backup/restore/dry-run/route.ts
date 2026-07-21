@@ -6,6 +6,7 @@ import {
   getAuthenticatedRestoreUser,
   inspectAuroraBackup,
   runRestoreDryRun,
+  summarizeDryRunForLog,
 } from '@/lib/backup'
 import { createClient } from '@/lib/supabase/server'
 
@@ -89,6 +90,11 @@ export async function POST(request: Request) {
       snapshot,
       options: { mode: 'empty_account_restore' },
     })
+
+    if (process.env.NODE_ENV === 'development') {
+      const userId_prefix = user.id.slice(0, 8)
+      console.log('[aurora-dry-run]', JSON.stringify({ ...summarizeDryRunForLog(result), userId_prefix }))
+    }
 
     return json(result, 200)
   } catch (error) {
