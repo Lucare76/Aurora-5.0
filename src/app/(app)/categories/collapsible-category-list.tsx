@@ -1,4 +1,9 @@
-import { ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import {
+  BookOpen, Briefcase, Car, ChevronDown, ChevronRight, Code, Cpu,
+  Gamepad2, Gift, Heart, Home, MoreHorizontal, Pencil, Plane,
+  Plus, Repeat, RotateCcw, ShoppingCart, Shirt, Trash2,
+  TrendingUp, Utensils, Zap, type LucideIcon,
+} from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -81,7 +86,7 @@ export function CollapsibleCategorySection({
               className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg', depth > 0 && 'h-8 w-8 text-sm')}
               style={{ backgroundColor: `${category.color ?? '#6366f1'}18`, color: category.color ?? '#6366f1' }}
             >
-              {category.icon ?? '•'}
+              <CategoryIcon icon={category.icon} size={depth > 0 ? 'sm' : 'md'} />
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-slate-950">{category.name}</p>
@@ -144,6 +149,34 @@ export function CollapsibleCategorySection({
       </CardContent>
     </Card>
   )
+}
+
+const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
+  'home': Home,
+  'shopping-cart': ShoppingCart,
+  'car': Car,
+  'heart': Heart,
+  'game': Gamepad2,
+  'utensils': Utensils,
+  'shirt': Shirt,
+  'cpu': Cpu,
+  'book': BookOpen,
+  'plane': Plane,
+  'zap': Zap,
+  'repeat': Repeat,
+  'more-horizontal': MoreHorizontal,
+  'briefcase': Briefcase,
+  'code': Code,
+  'trending-up': TrendingUp,
+  'gift': Gift,
+  'rotate-ccw': RotateCcw,
+}
+
+function CategoryIcon({ icon, size }: { icon: string | null | undefined; size: 'md' | 'sm' }) {
+  if (!icon) return <span>•</span>
+  const Icon = LUCIDE_ICON_MAP[icon]
+  if (Icon) return <Icon className={size === 'sm' ? 'h-4 w-4' : 'h-5 w-5'} />
+  return <span>{icon}</span>
 }
 
 function typeLabel(type: CategoryType) {
