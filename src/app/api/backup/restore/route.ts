@@ -79,8 +79,9 @@ export async function POST(request: Request) {
     })
 
     if (rpcError) {
-      console.error('[aurora-restore-rpc]', rpcError.message)
-      return json(error(mapRpcError(rpcError.message)), 409)
+      const mappedCode = mapRpcError(rpcError.message)
+      console.error('[aurora-restore-rpc]', mappedCode, '|', rpcError.code, '|', rpcError.message)
+      return json({ error: mappedCode, _debug: rpcError.message }, 409)
     }
 
     return json({
