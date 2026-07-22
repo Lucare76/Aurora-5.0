@@ -376,8 +376,11 @@ export default function SettingsPage() {
           confirmation: restoreConfirm,
         }),
       })
-      const payload = await response.json() as RestoreResult | { error?: string }
-      if (!response.ok) throw new Error('error' in payload ? restoreErrorMessage(payload.error) : 'Ripristino non riuscito')
+      const payload = await response.json() as RestoreResult | { error?: string; _debug?: string }
+      if (!response.ok) {
+        const p = payload as { error?: string; _debug?: string }
+        throw new Error(restoreErrorMessage(p.error) + (p._debug ? ` — ${p._debug}` : ''))
+      }
       setRestoreResult(payload as RestoreResult)
       setRestorePreparation(null)
       setRestoreConfirm('')
