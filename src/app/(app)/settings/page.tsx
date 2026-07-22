@@ -31,7 +31,7 @@ type ProfileForm = z.infer<typeof profileSchema>
 const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
 const MAX_BACKUP_DRY_RUN_BYTES = 10 * 1024 * 1024
 const RESTORE_CONFIRMATION_PHRASE = 'RIPRISTINA AURORA'
-const REAL_RESTORE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BACKUP_RESTORE_REAL === 'true'
+const REAL_RESTORE_ENABLED = true
 
 type DryRunReport = {
   readiness: 'ready' | 'ready_with_warnings' | 'blocked'
