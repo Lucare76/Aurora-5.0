@@ -35,7 +35,7 @@ export function validateBackupRelationships(backup: AuroraBackupV1): BackupValid
         if (peer?.transfer_peer_id !== transaction.id) {
           issues.push(issue('TRANSFER_PEER_INCOHERENT', 'error', ['data', 'transactions', index, 'transfer_peer_id'], 'Trasferimento legacy con peer non reciproco.'))
         } else {
-          issues.push(issue('LEGACY_TRANSFER_REFERENCE', 'warning', ['data', 'transactions', index, 'transfer_peer_id'], 'Trasferimento legacy a due righe rilevato.'))
+          issues.push(issue('LEGACY_TRANSFER_REFERENCE', 'info', ['data', 'transactions', index, 'transfer_peer_id'], 'Trasferimento legacy a due righe rilevato.'))
         }
       }
     }
