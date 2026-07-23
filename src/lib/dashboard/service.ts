@@ -439,7 +439,7 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
     topCats, prevTopCats, chart, currentKey,
   })
 
-  const recentTransactions: DashboardTransaction[] = allTxs.slice(0, 10).map((tx) => ({
+  const recentTransactions: DashboardTransaction[] = allTxs.slice(0, 3).map((tx) => ({
     id: tx.id,
     date: tx.date,
     description: tx.description,

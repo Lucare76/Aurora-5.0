@@ -700,7 +700,7 @@ export default function DashboardPage() {
       <Card className="border-[#e5e7f0] bg-white shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg text-slate-950">Ultimi movimenti</CardTitle>
-          <p className="text-sm text-slate-500">Gli ultimi 10 movimenti registrati.</p>
+          <p className="text-sm text-slate-500">Gli ultimi 3 movimenti registrati.</p>
         </CardHeader>
         <CardContent>
           {recentTransactions.length === 0 ? (
