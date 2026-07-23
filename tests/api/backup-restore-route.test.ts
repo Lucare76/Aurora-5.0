@@ -130,6 +130,54 @@ describe('backup restore prepare/restore API routes', () => {
     expect(response.status).toBe(409)
     expect(await response.json()).toEqual({ error: 'ACCOUNT_NOT_EMPTY' })
   })
+
+  // ── FASE 8: UUID remapping ────────────────────────────────────────────────
+
+  it('restore cross-account riesce senza UUID_CONFLICT grazie alla rimappatura', async () => {
+    // Simula il caso: backup di src-user ripristinato su dst-user (account vuoto).
+    // Con UUID remapping nella RPC, gli UUID del backup vengono rigenerati,
+    // quindi non ci sono collisioni anche se src-user esiste ancora nel DB.
+    const { rpcs } = mockSupabase()
+    const { POST } = await import('@/app/api/backup/restore/route')
+
+    const response = await POST(restoreRequest(validBackup()))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.status).toBe('completed')
+    expect(rpcs).toEqual(['restore_aurora_backup_v1_empty_account'])
+  })
+
+  it('restore restituisce reconciledCategories nel risultato', async () => {
+    mockSupabase({ rpcResult: { reconciledCategories: 4 } })
+    const { POST } = await import('@/app/api/backup/restore/route')
+
+    const response = await POST(restoreRequest(validBackup()))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.restore.reconciledCategories).toBe(4)
+  })
+
+  it('restore mappa ACCOUNTING_MISMATCH dalla RPC', async () => {
+    mockSupabase({ rpcError: 'ACCOUNTING_MISMATCH' })
+    const { POST } = await import('@/app/api/backup/restore/route')
+
+    const response = await POST(restoreRequest(validBackup()))
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'ACCOUNTING_MISMATCH' })
+  })
+
+  it('restore mappa RESTORE_ROLLED_BACK per errori RPC sconosciuti', async () => {
+    mockSupabase({ rpcError: 'ERROR: duplicate key value violates unique constraint' })
+    const { POST } = await import('@/app/api/backup/restore/route')
+
+    const response = await POST(restoreRequest(validBackup()))
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'RESTORE_ROLLED_BACK' })
+  })
 })
 
 function validBackup(): AuroraBackupV1 {
@@ -165,6 +213,7 @@ function mockSupabase(options: {
   authenticated?: boolean
   token?: Record<string, unknown>
   rpcError?: string
+  rpcResult?: Record<string, unknown>
 } = {}) {
   const writes: string[] = []
   const rpcs: string[] = []
@@ -217,7 +266,9 @@ function mockSupabase(options: {
           restoreId: '88888888-8888-4888-8888-888888888888',
           status: 'completed',
           counts: { accounts: 1, transactions: 0 },
+          reconciledCategories: 0,
           verified: true,
+          ...options.rpcResult,
         },
         error: null,
       })

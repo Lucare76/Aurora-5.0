@@ -31,7 +31,7 @@ type ProfileForm = z.infer<typeof profileSchema>
 const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
 const MAX_BACKUP_DRY_RUN_BYTES = 10 * 1024 * 1024
 const RESTORE_CONFIRMATION_PHRASE = 'RIPRISTINA AURORA'
-const REAL_RESTORE_ENABLED = true
+const REAL_RESTORE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BACKUP_RESTORE_REAL === 'true'
 
 type DryRunReport = {
   readiness: 'ready' | 'ready_with_warnings' | 'blocked'
@@ -376,10 +376,9 @@ export default function SettingsPage() {
           confirmation: restoreConfirm,
         }),
       })
-      const payload = await response.json() as RestoreResult | { error?: string; _debug?: string }
+      const payload = await response.json() as RestoreResult | { error?: string }
       if (!response.ok) {
-        const p = payload as { error?: string; _debug?: string }
-        throw new Error(restoreErrorMessage(p.error) + (p._debug ? ` — ${p._debug}` : ''))
+        throw new Error(restoreErrorMessage((payload as { error?: string }).error))
       }
       setRestoreResult(payload as RestoreResult)
       setRestorePreparation(null)
@@ -577,7 +576,7 @@ export default function SettingsPage() {
                 <DryRunDetailPanel report={dryRunReport} />
 
                 {dryRunReport.currentState && dryRunReport.currentState.blockingCollections.length > 0 ? (
-                  <p className="mt-4 text-sm text-red-600">L’account contiene già dati: {dryRunReport.currentState.blockingCollections.join(', ')}.</p>
+                  <p className="mt-4 text-sm text-red-600">L'account contiene già dati: {dryRunReport.currentState.blockingCollections.join(', ')}.</p>
                 ) : null}
 
                 {dryRunReport.readiness === 'ready' ? (
@@ -587,7 +586,7 @@ export default function SettingsPage() {
                     </p>
                     <p className="mt-1 text-sm text-amber-800">
                       {REAL_RESTORE_ENABLED
-                        ? 'Il ripristino inserirà i dati presenti nel backup. In caso di errore l’operazione verrà annullata integralmente.'
+                        ? "Il ripristino inserirà i dati presenti nel backup. In caso di errore l'operazione verrà annullata integralmente."
                         : 'La verifica è pronta, ma il ripristino reale resterà disabilitato finché rollback e concorrenza non saranno provati su database locale o staging.'}
                     </p>
                     <div className="mt-4 flex flex-wrap gap-3">
@@ -789,11 +788,13 @@ function restoreErrorMessage(code?: string) {
     case 'TOKEN_ALREADY_USED':
       return 'Token di conferma già utilizzato.'
     case 'ACCOUNT_NOT_EMPTY':
-      return 'L’account contiene già dati.'
+      return "L'account contiene già dati."
+    case 'UUID_CONFLICT':
+      return 'Il backup appartiene a un account che esiste ancora nel database. Usa lo stesso account originale (svuotato) per il ripristino.'
     case 'ACCOUNTING_MISMATCH':
       return 'Verifica contabile non superata.'
     case 'RESTORE_ROLLED_BACK':
-      return 'Il ripristino non è stato completato. L’operazione è stata annullata e non dovrebbe essere stato conservato alcun dato parziale.'
+      return "Il ripristino non è stato completato. L'operazione è stata annullata e non dovrebbe essere stato conservato alcun dato parziale."
     case 'RESTORE_DISABLED':
       return 'Ripristino reale non ancora abilitato: manca la validazione DB/RPC finale.'
     default:

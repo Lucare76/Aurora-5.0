@@ -28,6 +28,8 @@ const requestSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    if (process.env.ENABLE_BACKUP_RESTORE_REAL !== 'true') return json(error('RESTORE_DISABLED'), 403)
+
     const supabase = await createClient()
     const user = await getAuthenticatedRestoreUser(supabase)
     if (!user) return json(error('UNAUTHENTICATED'), 401)
@@ -81,7 +83,7 @@ export async function POST(request: Request) {
     if (rpcError) {
       const mappedCode = mapRpcError(rpcError.message)
       console.error('[aurora-restore-rpc]', mappedCode, '|', rpcError.code, '|', rpcError.message)
-      return json({ error: mappedCode, _debug: rpcError.message }, 409)
+      return json(error(mappedCode), 409)
     }
 
     return json({
@@ -122,6 +124,7 @@ function mapRpcError(message: string): string {
     'TOKEN_INVALID',
     'TOKEN_ALREADY_USED',
     'ACCOUNT_NOT_EMPTY',
+    'UUID_CONFLICT',
     'ACCOUNTING_MISMATCH',
   ]
   return known.find((code) => message.includes(code)) ?? 'RESTORE_ROLLED_BACK'
