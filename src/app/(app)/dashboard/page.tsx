@@ -8,19 +8,25 @@ import {
   ArrowLeftRight,
   ArrowRight,
   ArrowUpRight,
+  BarChart2,
   Cake,
   CalendarClock,
+  CalendarDays,
+  Clock,
   HandCoins,
   Lightbulb,
   PiggyBank,
   Plus,
   Repeat,
+  Star,
+  Trophy,
   TrendingDown,
   TrendingUp,
   Wallet,
   type LucideIcon,
 } from 'lucide-react'
 import {
+  Area, AreaChart,
   Bar, BarChart, CartesianGrid, Line, LineChart,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
@@ -38,11 +44,12 @@ import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import type {
   DashboardAccount,
   DashboardInsight,
+  DashboardTimelineEventType,
   DashboardTransaction,
 } from '@/lib/dashboard/service'
 import type { AccountType } from '@/types/database'
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Sub-components ─────────────────────────────────────────────────────────
 
 const toneClasses = {
   indigo: 'bg-indigo-100 text-indigo-600',
@@ -54,11 +61,8 @@ const toneClasses = {
 function StatCard({
   title, value, icon: Icon, tone, detail,
 }: {
-  title: string
-  value: string
-  icon: LucideIcon
-  tone: 'indigo' | 'green' | 'red' | 'violet'
-  detail: string
+  title: string; value: string; icon: LucideIcon
+  tone: 'indigo' | 'green' | 'red' | 'violet'; detail: string
 }) {
   return (
     <Card className="border-[#e5e7f0] bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
@@ -75,6 +79,16 @@ function StatCard({
         <p className="mt-2 text-xs font-medium text-slate-400 sm:mt-4">{detail}</p>
       </CardContent>
     </Card>
+  )
+}
+
+function MiniStatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="rounded-xl border border-[#e5e7f0] bg-white p-3 sm:rounded-2xl sm:p-4">
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className="mt-1 truncate font-bold tabular-nums text-slate-950">{value}</p>
+      {sub && <p className="mt-0.5 text-xs text-slate-400">{sub}</p>}
+    </div>
   )
 }
 
@@ -109,6 +123,17 @@ function CashFlowTooltip({ active, payload, label }: any) {
       <p className={cn('font-bold tabular-nums', balance < 0 ? 'text-red-600' : 'text-emerald-600')}>
         {formatCurrency(balance)}
       </p>
+    </div>
+  )
+}
+
+function NetWorthTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  const value = payload[0]?.value as number
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-xl">
+      <p className="mb-1 font-semibold text-slate-900">{label}</p>
+      <p className="font-bold tabular-nums text-indigo-600">{formatCurrency(value)}</p>
     </div>
   )
 }
@@ -157,15 +182,25 @@ const insightIcons: Record<string, LucideIcon> = {
   savings_down:  TrendingDown,
   best_month:    TrendingUp,
   worst_month:   TrendingDown,
+  net_worth_up:  TrendingUp,
+  net_worth_down: TrendingDown,
+  budget_warning: AlertTriangle,
+  daily_avg_down: TrendingDown,
+  daily_avg_up:   TrendingUp,
 }
 
 const insightColors: Record<string, string> = {
-  category_up:   'bg-amber-50 border-amber-200 text-amber-800',
-  category_down: 'bg-emerald-50 border-emerald-200 text-emerald-800',
-  savings_up:    'bg-emerald-50 border-emerald-200 text-emerald-800',
-  savings_down:  'bg-red-50 border-red-200 text-red-800',
-  best_month:    'bg-indigo-50 border-indigo-200 text-indigo-800',
-  worst_month:   'bg-red-50 border-red-200 text-red-800',
+  category_up:    'bg-amber-50 border-amber-200 text-amber-800',
+  category_down:  'bg-emerald-50 border-emerald-200 text-emerald-800',
+  savings_up:     'bg-emerald-50 border-emerald-200 text-emerald-800',
+  savings_down:   'bg-red-50 border-red-200 text-red-800',
+  best_month:     'bg-indigo-50 border-indigo-200 text-indigo-800',
+  worst_month:    'bg-red-50 border-red-200 text-red-800',
+  net_worth_up:   'bg-emerald-50 border-emerald-200 text-emerald-800',
+  net_worth_down: 'bg-red-50 border-red-200 text-red-800',
+  budget_warning: 'bg-amber-50 border-amber-200 text-amber-800',
+  daily_avg_down: 'bg-emerald-50 border-emerald-200 text-emerald-800',
+  daily_avg_up:   'bg-amber-50 border-amber-200 text-amber-800',
 }
 
 function InsightCard({ insight }: { insight: DashboardInsight }) {
@@ -179,7 +214,15 @@ function InsightCard({ insight }: { insight: DashboardInsight }) {
   )
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+const timelineConfig: Record<DashboardTimelineEventType, { Icon: LucideIcon; colors: string }> = {
+  month_open:      { Icon: CalendarDays,  colors: 'bg-indigo-50 text-indigo-600' },
+  biggest_income:  { Icon: ArrowDownLeft, colors: 'bg-emerald-50 text-emerald-600' },
+  biggest_expense: { Icon: ArrowUpRight,  colors: 'bg-red-50 text-red-600' },
+  budget_exceeded: { Icon: AlertTriangle, colors: 'bg-amber-50 text-amber-600' },
+  month_close:     { Icon: Clock,         colors: 'bg-slate-50 text-slate-600' },
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -201,7 +244,12 @@ function daysUntilDate(dateStr: string): number {
   return Math.round((d.getTime() - today.getTime()) / 86400000)
 }
 
-// ── Page ───────────────────────────────────────────────────────────────────────
+function shortDate(dateStr: string): string {
+  const [, mm, dd] = dateStr.split('-')
+  return `${dd}/${mm}`
+}
+
+// ── Page ───────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const { profile } = useAuth()
@@ -253,6 +301,10 @@ export default function DashboardPage() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Skeleton className="h-48 rounded-2xl" />
+          <Skeleton className="h-48 rounded-2xl" />
+        </div>
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(340px,0.7fr)]">
           <Skeleton className="h-[360px] rounded-3xl" />
           <Skeleton className="h-[360px] rounded-3xl" />
@@ -262,19 +314,19 @@ export default function DashboardPage() {
   }
 
   const {
-    netWorth, netWorthVsPrevMonth,
+    netWorth, netWorthVsPrevMonth, netWorthTrend,
     accounts, monthIncome, monthExpense, monthBalance,
     prevMonthIncome, prevMonthExpense,
     topCategories, recentTransactions,
     monthlyChart, insights, budgetSummary,
-    cashFlowProjection, upcomingBirthdays,
-    firstUseStatus,
+    endOfMonthForecast, monthStats, monthRecords, timeline,
+    cashFlowProjection, upcomingBirthdays, firstUseStatus,
   } = data
 
   const activeAccounts = accounts.filter((a) => !a.is_hidden)
   const absoluteAssets = activeAccounts.reduce((s, a) => s + Math.abs(a.balance), 0)
-  const displayName = profile?.display_name?.trim() || null
-  const today = format(new Date(), 'EEEE d MMMM yyyy', { locale: it })
+  const displayName    = profile?.display_name?.trim() || null
+  const today          = format(new Date(), 'EEEE d MMMM yyyy', { locale: it })
 
   if (activeAccounts.length === 0) {
     return (
@@ -301,6 +353,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5 sm:space-y-7">
+
       {/* Greeting banner */}
       <section className="rounded-[2rem] border border-[#e5e7f0] bg-white p-5 shadow-sm sm:p-8">
         <div className="flex items-start justify-between gap-4 lg:items-end">
@@ -335,14 +388,14 @@ export default function DashboardPage() {
             : `${formatCurrency(netWorthVsPrevMonth)} da inizio mese`}
         />
         <StatCard
-          title="Entrate mese corrente"
+          title="Entrate mese"
           value={formatCurrency(monthIncome)}
           icon={TrendingUp}
           tone="green"
           detail={`${getVariation(monthIncome, prevMonthIncome)} vs mese scorso`}
         />
         <StatCard
-          title="Uscite mese corrente"
+          title="Uscite mese"
           value={formatCurrency(monthExpense)}
           icon={TrendingDown}
           tone="red"
@@ -357,14 +410,102 @@ export default function DashboardPage() {
         />
       </section>
 
-      {/* Insights */}
+      {/* Saldo previsto + Statistiche del mese */}
+      <section className="grid gap-4 sm:grid-cols-2">
+
+        {/* Saldo previsto a fine mese */}
+        <Card className="border-[#e5e7f0] bg-white shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base text-slate-950">
+              <BarChart2 className="h-4 w-4 text-indigo-500" />
+              Saldo previsto a fine mese
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!endOfMonthForecast.hasEnoughData ? (
+              <p className="text-sm text-slate-400">Dati insufficienti — torna dopo almeno 3 giorni di movimenti.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+                  <div>
+                    <p className="text-xs text-slate-500">Attuale</p>
+                    <p className="mt-0.5 font-bold tabular-nums text-slate-900">{formatCurrency(endOfMonthForecast.currentBalance)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Previsto</p>
+                    <p className="mt-0.5 font-bold tabular-nums text-indigo-600">{formatCurrency(endOfMonthForecast.projectedBalance)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Differenza</p>
+                    <p className={cn('mt-0.5 font-bold tabular-nums', endOfMonthForecast.difference >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                      {endOfMonthForecast.difference >= 0 ? '+' : ''}{formatCurrency(endOfMonthForecast.difference)}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Media giornaliera {formatCurrency(endOfMonthForecast.dailyAvgFlow)}/giorno
+                  · {endOfMonthForecast.daysElapsed}/{endOfMonthForecast.daysInMonth} giorni trascorsi
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Statistiche del mese */}
+        <Card className="border-[#e5e7f0] bg-white shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base text-slate-950">
+              <Star className="h-4 w-4 text-amber-500" />
+              Statistiche del mese
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {monthStats.txCount === 0 ? (
+              <p className="text-sm text-slate-400">Nessun movimento registrato questo mese.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <MiniStatCard
+                  label="Spesa media/giorno"
+                  value={formatCurrency(monthStats.avgDailyExpense)}
+                  sub={`${monthStats.daysElapsed} giorni`}
+                />
+                <MiniStatCard
+                  label="Movimenti totali"
+                  value={String(monthStats.txCount)}
+                />
+                {monthStats.peakExpenseDay && (
+                  <MiniStatCard
+                    label="Giorno più costoso"
+                    value={shortDate(monthStats.peakExpenseDay)}
+                    sub={formatCurrency(monthStats.peakExpenseAmount)}
+                  />
+                )}
+                {monthStats.biggestIncome > 0 && (
+                  <MiniStatCard
+                    label="Entrata maggiore"
+                    value={formatCurrency(monthStats.biggestIncome)}
+                  />
+                )}
+                {monthStats.biggestExpense > 0 && (
+                  <MiniStatCard
+                    label="Uscita maggiore"
+                    value={formatCurrency(monthStats.biggestExpense)}
+                  />
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Insight del mese (max 5) */}
       {insights.length > 0 && (
         <section>
           <div className="mb-3 flex items-center gap-2">
             <Lightbulb className="h-4 w-4 text-amber-500" />
             <span className="text-sm font-semibold text-slate-700">Insight del mese</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {insights.map((insight, i) => (
               <InsightCard key={i} insight={insight} />
             ))}
@@ -388,7 +529,6 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Totals */}
               <div className="grid grid-cols-3 gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm">
                 <div>
                   <p className="text-xs text-slate-500">Budget totale</p>
@@ -405,8 +545,6 @@ export default function DashboardPage() {
                   </p>
                 </div>
               </div>
-
-              {/* Status badges */}
               <div className="flex flex-wrap gap-2">
                 {budgetSummary.exceededCount > 0 && (
                   <span className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600">
@@ -425,11 +563,9 @@ export default function DashboardPage() {
                   </span>
                 )}
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
-                  {budgetSummary.totalBudgets} {budgetSummary.totalBudgets === 1 ? 'budget' : 'budget'}
+                  {budgetSummary.totalBudgets} budget
                 </span>
               </div>
-
-              {/* Top at-risk budgets */}
               {budgetSummary.topRiskBudgets.length > 0 && (
                 <div className="space-y-3">
                   {budgetSummary.topRiskBudgets.map((b) => {
@@ -460,137 +596,94 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* Prossimi 30 giorni */}
-      {unifiedUpcoming30.length > 0 && (
+      {/* Record del mese */}
+      {monthRecords.totalOps > 0 && (
         <section>
-          <Card className="border-[#e5e7f0] bg-white shadow-sm">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-lg text-slate-950">
-                  <CalendarClock className="h-5 w-5 text-indigo-500" />
-                  Prossimi 30 giorni
-                </CardTitle>
-              </div>
-              <p className="text-sm text-slate-500">Movimenti attesi e prestiti in scadenza.</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm">
-                {upcoming30Summary.uscite > 0 && (
-                  <span>
-                    <span className="font-medium text-slate-500">Uscite attese </span>
-                    <span className="font-bold tabular-nums text-red-600">{formatCurrency(upcoming30Summary.uscite)}</span>
-                  </span>
+          <div className="mb-3 flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-amber-500" />
+            <span className="text-sm font-semibold text-slate-700">Record del mese</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Card className="border-[#e5e7f0] bg-white shadow-sm">
+              <CardContent className="p-4">
+                <p className="text-xs font-medium text-slate-500">Categoria più costosa</p>
+                {monthRecords.topSpendCategoryName ? (
+                  <>
+                    <p className="mt-1.5 font-bold text-slate-950">{monthRecords.topSpendCategoryName}</p>
+                    <p className="mt-0.5 text-sm font-semibold tabular-nums text-red-600">{formatCurrency(monthRecords.topSpendCategoryAmount)}</p>
+                  </>
+                ) : (
+                  <p className="mt-1.5 text-sm text-slate-400">—</p>
                 )}
-                {upcoming30Summary.entrate > 0 && (
-                  <span>
-                    <span className="font-medium text-slate-500">Entrate attese </span>
-                    <span className="font-bold tabular-nums text-emerald-600">{formatCurrency(upcoming30Summary.entrate)}</span>
-                  </span>
+              </CardContent>
+            </Card>
+            <Card className="border-[#e5e7f0] bg-white shadow-sm">
+              <CardContent className="p-4">
+                <p className="text-xs font-medium text-slate-500">Conto più utilizzato</p>
+                {monthRecords.mostUsedAccountName ? (
+                  <>
+                    <p className="mt-1.5 font-bold text-slate-950">{monthRecords.mostUsedAccountName}</p>
+                    <p className="mt-0.5 text-sm text-slate-400">{monthRecords.mostUsedAccountTxCount} {monthRecords.mostUsedAccountTxCount === 1 ? 'operazione' : 'operazioni'}</p>
+                  </>
+                ) : (
+                  <p className="mt-1.5 text-sm text-slate-400">—</p>
                 )}
-                {upcoming30Summary.rientri > 0 && (
-                  <span>
-                    <span className="font-medium text-slate-500">Rientri prestiti </span>
-                    <span className="font-bold tabular-nums text-indigo-600">{formatCurrency(upcoming30Summary.rientri)}</span>
-                  </span>
-                )}
-              </div>
-              <div className="divide-y divide-slate-100">
-                {unifiedUpcoming30.map((item) => {
-                  const isUrgent = item.daysUntil <= 7
-                  const isLoan = item.kind === 'loan-given' || item.kind === 'loan-received'
-                  const isExpense = item.kind === 'expense' || item.kind === 'loan-received'
-                  return (
-                    <div key={item.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0 sm:gap-4 sm:py-3">
-                      <div className={cn(
-                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl',
-                        isLoan ? 'bg-indigo-50 text-indigo-600' : isExpense ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600',
-                      )}>
-                        {isLoan ? <HandCoins className="h-4 w-4" /> : isExpense ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-slate-900">{item.label}</p>
-                        <p className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
-                          <span>{item.daysUntil === 0 ? 'Oggi' : `Tra ${item.daysUntil} ${item.daysUntil === 1 ? 'giorno' : 'giorni'}`}</span>
-                          <span className={cn(
-                            'rounded-full px-1.5 py-0.5 font-medium',
-                            isUrgent ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500',
-                          )}>
-                            {isUrgent ? '⚡ Urgente' : isLoan ? 'Prestito' : <Repeat className="inline h-3 w-3" />}
-                          </span>
-                        </p>
-                      </div>
-                      <AmountDisplay
-                        amount={item.amount}
-                        type={isExpense ? 'expense' : 'income'}
-                        className="shrink-0 text-sm font-bold"
-                      />
-                    </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+            <Card className="border-[#e5e7f0] bg-white shadow-sm">
+              <CardContent className="p-4">
+                <p className="text-xs font-medium text-slate-500">Totale operazioni</p>
+                <p className="mt-1.5 text-2xl font-bold tabular-nums text-indigo-600">{monthRecords.totalOps}</p>
+                <p className="mt-0.5 text-xs text-slate-400">movimenti registrati</p>
+              </CardContent>
+            </Card>
+          </div>
         </section>
       )}
 
-      {/* Cash flow projection */}
+      {/* Trend patrimonio — 12 mesi */}
       <section>
         <Card className="border-[#e5e7f0] bg-white shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg text-slate-950">Proiezione cash flow — prossimi 30 giorni</CardTitle>
-            <p className="text-sm text-slate-500">Andamento della liquidità disponibile (conti correnti e contanti).</p>
+            <CardTitle className="text-lg text-slate-950">Andamento patrimonio — ultimi 12 mesi</CardTitle>
+            <p className="text-sm text-slate-500">Ricostruzione del patrimonio netto mese per mese.</p>
           </CardHeader>
           <CardContent>
             <div className="h-[200px] sm:h-[240px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={cashFlowProjection} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <AreaChart data={netWorthTrend} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="nwGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid stroke="#e5e7f0" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={10} interval={4} />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={10} />
                   <YAxis
-                    axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={10} width={68}
-                    tickFormatter={(v) => formatCurrency(Number(v)).replace(',00', '').replace('€ ', '€')}
+                    axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={10} width={72}
+                    tickFormatter={(v) => formatCurrency(Number(v)).replace(',00', '').replace('€ ', '€')}
                   />
-                  <Tooltip content={<CashFlowTooltip />} cursor={{ stroke: '#e5e7f0' }} />
-                  <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="4 4" />
-                  <Line
-                    type="monotone" dataKey="balance" stroke="#6366f1" strokeWidth={2}
-                    dot={(props: any) => {
-                      const { cx, cy, payload } = props
-                      const neg = payload.balance < 0
-                      return (
-                        <circle
-                          key={`cf-${payload.dayIndex}`}
-                          cx={cx} cy={cy} r={neg ? 4 : 2.5}
-                          fill={neg ? '#ef4444' : '#6366f1'} stroke="white" strokeWidth={1}
-                        />
-                      )
-                    }}
-                    activeDot={{ r: 5 }}
+                  <Tooltip content={<NetWorthTooltip />} cursor={{ stroke: '#e5e7f0' }} />
+                  <Area
+                    type="monotone" dataKey="netWorth" name="Patrimonio"
+                    stroke="#6366f1" strokeWidth={2}
+                    fill="url(#nwGradient)"
+                    dot={{ fill: '#6366f1', r: 3, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: '#6366f1' }}
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
-            {cashFlowProjection.length > 0 && (
-              <div className="mt-4 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                {cashFlowProjection.every((d) => d.balance === cashFlowProjection[0].balance) ? (
-                  <p className="text-sm text-slate-500">
-                    Nessun movimento futuro previsto — aggiungi regole ricorrenti per una proiezione più accurata.
-                  </p>
-                ) : (
-                  <>
-                    <p className="text-sm text-slate-500">Saldo previsto tra 30 giorni</p>
-                    <p className={cn('text-lg font-bold tabular-nums', cashFlowProjection[cashFlowProjection.length - 1].balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
-                      {formatCurrency(cashFlowProjection[cashFlowProjection.length - 1].balance)}
-                    </p>
-                  </>
-                )}
-              </div>
-            )}
+            <div className="mt-4 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+              <p className="text-sm text-slate-500">Patrimonio corrente</p>
+              <p className="text-lg font-bold tabular-nums text-indigo-600">{formatCurrency(netWorth)}</p>
+            </div>
           </CardContent>
         </Card>
       </section>
 
-      {/* Chart + Conti */}
+      {/* Chart 6 mesi + Conti */}
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
         <Card className="border-[#e5e7f0] bg-white shadow-sm">
           <CardHeader>
@@ -609,7 +702,7 @@ export default function DashboardPage() {
                   />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f8f9fc' }} />
                   <Bar dataKey="entrate" name="Entrate" fill="#10b981" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="uscite" name="Uscite" fill="#ef4444" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="uscite"  name="Uscite"  fill="#ef4444" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -676,6 +769,176 @@ export default function DashboardPage() {
         </section>
       )}
 
+      {/* Timeline finanziaria */}
+      {timeline.length > 0 && (
+        <section>
+          <Card className="border-[#e5e7f0] bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg text-slate-950">
+                <Clock className="h-5 w-5 text-indigo-500" />
+                Timeline finanziaria
+              </CardTitle>
+              <p className="text-sm text-slate-500">Gli eventi principali del mese in ordine cronologico.</p>
+            </CardHeader>
+            <CardContent>
+              <div className="relative pl-6">
+                {/* Vertical line */}
+                <div className="absolute inset-y-0 left-2 w-px bg-gradient-to-b from-indigo-200 via-slate-200 to-transparent" />
+                <div className="space-y-4">
+                  {timeline.map((event, i) => {
+                    const cfg = timelineConfig[event.type] ?? { Icon: CalendarDays, colors: 'bg-slate-50 text-slate-600' }
+                    return (
+                      <div key={i} className="relative flex items-start gap-3">
+                        {/* Dot on timeline */}
+                        <div className={cn('absolute -left-6 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', cfg.colors)}>
+                          <cfg.Icon className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="min-w-0 flex-1 pl-4">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium text-slate-900">{event.label}</p>
+                            {event.amount != null && (
+                              <AmountDisplay
+                                amount={event.amount}
+                                type={event.type === 'biggest_income' ? 'income' : 'expense'}
+                                className="shrink-0 text-sm font-bold"
+                              />
+                            )}
+                          </div>
+                          <p className="mt-0.5 text-xs text-slate-400">{shortDate(event.date)}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      {/* Prossimi 30 giorni */}
+      {unifiedUpcoming30.length > 0 && (
+        <section>
+          <Card className="border-[#e5e7f0] bg-white shadow-sm">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg text-slate-950">
+                  <CalendarClock className="h-5 w-5 text-indigo-500" />
+                  Prossimi 30 giorni
+                </CardTitle>
+              </div>
+              <p className="text-sm text-slate-500">Movimenti attesi e prestiti in scadenza.</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+                {upcoming30Summary.uscite > 0 && (
+                  <span>
+                    <span className="font-medium text-slate-500">Uscite attese </span>
+                    <span className="font-bold tabular-nums text-red-600">{formatCurrency(upcoming30Summary.uscite)}</span>
+                  </span>
+                )}
+                {upcoming30Summary.entrate > 0 && (
+                  <span>
+                    <span className="font-medium text-slate-500">Entrate attese </span>
+                    <span className="font-bold tabular-nums text-emerald-600">{formatCurrency(upcoming30Summary.entrate)}</span>
+                  </span>
+                )}
+                {upcoming30Summary.rientri > 0 && (
+                  <span>
+                    <span className="font-medium text-slate-500">Rientri prestiti </span>
+                    <span className="font-bold tabular-nums text-indigo-600">{formatCurrency(upcoming30Summary.rientri)}</span>
+                  </span>
+                )}
+              </div>
+              <div className="divide-y divide-slate-100">
+                {unifiedUpcoming30.map((item) => {
+                  const isUrgent  = item.daysUntil <= 7
+                  const isLoan    = item.kind === 'loan-given' || item.kind === 'loan-received'
+                  const isExpense = item.kind === 'expense' || item.kind === 'loan-received'
+                  return (
+                    <div key={item.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0 sm:gap-4 sm:py-3">
+                      <div className={cn(
+                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl',
+                        isLoan ? 'bg-indigo-50 text-indigo-600' : isExpense ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600',
+                      )}>
+                        {isLoan ? <HandCoins className="h-4 w-4" /> : isExpense ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-slate-900">{item.label}</p>
+                        <p className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                          <span>{item.daysUntil === 0 ? 'Oggi' : `Tra ${item.daysUntil} ${item.daysUntil === 1 ? 'giorno' : 'giorni'}`}</span>
+                          <span className={cn('rounded-full px-1.5 py-0.5 font-medium', isUrgent ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500')}>
+                            {isUrgent ? '⚡ Urgente' : isLoan ? 'Prestito' : <Repeat className="inline h-3 w-3" />}
+                          </span>
+                        </p>
+                      </div>
+                      <AmountDisplay amount={item.amount} type={isExpense ? 'expense' : 'income'} className="shrink-0 text-sm font-bold" />
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      {/* Cash flow projection */}
+      <section>
+        <Card className="border-[#e5e7f0] bg-white shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg text-slate-950">Proiezione cash flow — prossimi 30 giorni</CardTitle>
+            <p className="text-sm text-slate-500">Andamento della liquidità disponibile (conti correnti e contanti).</p>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px] sm:h-[240px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={cashFlowProjection} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="#e5e7f0" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={10} interval={4} />
+                  <YAxis
+                    axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={10} width={68}
+                    tickFormatter={(v) => formatCurrency(Number(v)).replace(',00', '').replace('€ ', '€')}
+                  />
+                  <Tooltip content={<CashFlowTooltip />} cursor={{ stroke: '#e5e7f0' }} />
+                  <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="4 4" />
+                  <Line
+                    type="monotone" dataKey="balance" stroke="#6366f1" strokeWidth={2}
+                    dot={(props: any) => {
+                      const { cx, cy, payload } = props
+                      const neg = payload.balance < 0
+                      return (
+                        <circle
+                          key={`cf-${payload.dayIndex}`}
+                          cx={cx} cy={cy} r={neg ? 4 : 2.5}
+                          fill={neg ? '#ef4444' : '#6366f1'} stroke="white" strokeWidth={1}
+                        />
+                      )
+                    }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            {cashFlowProjection.length > 0 && (
+              <div className="mt-4 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                {cashFlowProjection.every((d) => d.balance === cashFlowProjection[0].balance) ? (
+                  <p className="text-sm text-slate-500">
+                    Nessun movimento futuro previsto — aggiungi regole ricorrenti per una proiezione più accurata.
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-sm text-slate-500">Saldo previsto tra 30 giorni</p>
+                    <p className={cn('text-lg font-bold tabular-nums', cashFlowProjection[cashFlowProjection.length - 1].balance >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                      {formatCurrency(cashFlowProjection[cashFlowProjection.length - 1].balance)}
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
       {/* Prossime scadenze (7 giorni) + Compleanni */}
       <section className="grid gap-6 xl:grid-cols-2">
         <Card className="border-[#e5e7f0] bg-white shadow-sm">
@@ -694,10 +957,7 @@ export default function DashboardPage() {
                   const isExpense = item.kind === 'expense'
                   return (
                     <div key={item.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0 sm:gap-4 sm:py-3">
-                      <div className={cn(
-                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl',
-                        isExpense ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600',
-                      )}>
+                      <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl', isExpense ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600')}>
                         {isExpense ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -709,11 +969,7 @@ export default function DashboardPage() {
                           )}
                         </p>
                       </div>
-                      <AmountDisplay
-                        amount={item.amount}
-                        type={isExpense ? 'expense' : 'income'}
-                        className="shrink-0 text-sm font-bold"
-                      />
+                      <AmountDisplay amount={item.amount} type={isExpense ? 'expense' : 'income'} className="shrink-0 text-sm font-bold" />
                     </div>
                   )
                 })}
