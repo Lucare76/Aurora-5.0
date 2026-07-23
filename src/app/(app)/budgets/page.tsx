@@ -1,13 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
-  AlertTriangle, CalendarDays, ChevronLeft, ChevronRight,
-  MoreHorizontal, Pencil, PiggyBank, Plus, Trash2,
+  AlertTriangle, ArrowRight, BarChart2, CalendarDays, ChevronLeft, ChevronRight,
+  Lightbulb, MoreHorizontal, Pencil, PiggyBank, Plus, TrendingDown, TrendingUp, Trash2,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
@@ -20,7 +21,7 @@ import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { useCategories } from '@/hooks/use-categories'
 import { cn, formatCurrency } from '@/lib/utils'
-import type { BudgetEntry, BudgetStatus } from '@/lib/budgets/service'
+import type { BudgetInsight, BudgetStatus, EnrichedBudgetEntry } from '@/lib/budgets/service'
 
 // ── Schema ─────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ type EditForm   = z.infer<typeof editSchema>
 
 function statusTone(status: BudgetStatus) {
   switch (status) {
-    case 'exceeded': return { bar: 'bg-red-500',    text: 'text-red-600',    badge: 'bg-red-100 text-red-700',    label: 'Sforato' }
+    case 'exceeded': return { bar: 'bg-red-500',    text: 'text-red-600',    badge: 'bg-red-100 text-red-700',      label: 'Sforato' }
     case 'critical': return { bar: 'bg-orange-500', text: 'text-orange-600', badge: 'bg-orange-100 text-orange-700', label: 'Critico' }
     case 'warning':  return { bar: 'bg-amber-500',  text: 'text-amber-600',  badge: 'bg-amber-100 text-amber-700',  label: 'Attenzione' }
     default:         return { bar: 'bg-emerald-500', text: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-700', label: 'Ok' }
@@ -59,17 +60,28 @@ function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   )
 }
 
+function InsightRow({ insight }: { insight: BudgetInsight }) {
+  const isPositive = insight.type === 'spending_down_vs_last_month' || insight.type === 'consistently_within_budget' || insight.type === 'best_month_in_period'
+  return (
+    <div className={cn('flex items-start gap-2 rounded-xl border px-3 py-2 text-xs font-medium', isPositive ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800')}>
+      <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      <span>{insight.message}</span>
+    </div>
+  )
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function BudgetsPage() {
   const { categories } = useCategories()
   const [selectedMonth, setSelectedMonth]     = useState(new Date())
-  const [entries, setEntries]                 = useState<BudgetEntry[]>([])
+  const [entries, setEntries]                 = useState<EnrichedBudgetEntry[]>([])
+  const [insights, setInsights]               = useState<BudgetInsight[]>([])
   const [loading, setLoading]                 = useState(true)
   const [openMenuId, setOpenMenuId]           = useState<string | null>(null)
   const [createOpen, setCreateOpen]           = useState(false)
-  const [editEntry, setEditEntry]             = useState<BudgetEntry | null>(null)
-  const [deleteEntry, setDeleteEntry]         = useState<BudgetEntry | null>(null)
+  const [editEntry, setEditEntry]             = useState<EnrichedBudgetEntry | null>(null)
+  const [deleteEntry, setDeleteEntry]         = useState<EnrichedBudgetEntry | null>(null)
   const [deleting, setDeleting]               = useState(false)
 
   const expenseCategories = useMemo(
@@ -83,12 +95,13 @@ export default function BudgetsPage() {
   )
 
   const totals = useMemo(() => {
-    const totalAmount    = entries.reduce((s, e) => s + e.amount, 0)
-    const totalSpent     = entries.reduce((s, e) => s + e.spent, 0)
-    const totalRemaining = entries.reduce((s, e) => s + e.remaining, 0)
-    const atRiskCount    = entries.filter((e) => e.status !== 'safe').length
-    const exceededCount  = entries.filter((e) => e.status === 'exceeded').length
-    return { totalAmount, totalSpent, totalRemaining, atRiskCount, exceededCount }
+    const totalAmount     = entries.reduce((s, e) => s + e.amount, 0)
+    const totalSpent      = entries.reduce((s, e) => s + e.spent, 0)
+    const totalRemaining  = entries.reduce((s, e) => s + e.remaining, 0)
+    const atRiskCount     = entries.filter((e) => e.status !== 'safe').length
+    const exceededCount   = entries.filter((e) => e.status === 'exceeded').length
+    const projectedOverrun = entries.reduce((s, e) => s + (e.forecast?.projectedOverrun ?? 0), 0)
+    return { totalAmount, totalSpent, totalRemaining, atRiskCount, exceededCount, projectedOverrun }
   }, [entries])
 
   // ── Data fetching ────────────────────────────────────────────────────────
@@ -97,13 +110,15 @@ export default function BudgetsPage() {
     setLoading(true)
     try {
       const p = new URLSearchParams({
-        year:  String(selectedMonth.getFullYear()),
-        month: String(selectedMonth.getMonth() + 1),
+        year:     String(selectedMonth.getFullYear()),
+        month:    String(selectedMonth.getMonth() + 1),
+        enriched: '1',
       })
       const res = await fetch(`/api/budgets?${p}`)
       if (!res.ok) { toast.error('Errore caricamento budget'); return }
-      const { data } = await res.json() as { data: BudgetEntry[] }
-      setEntries(data ?? [])
+      const body = await res.json() as { data: EnrichedBudgetEntry[]; insights?: BudgetInsight[] }
+      setEntries(body.data ?? [])
+      setInsights(body.insights ?? [])
     } catch {
       toast.error('Errore di rete')
     } finally {
@@ -146,7 +161,7 @@ export default function BudgetsPage() {
     defaultValues: { amount: 0 },
   })
 
-  const openEdit = (entry: BudgetEntry) => {
+  const openEdit = (entry: EnrichedBudgetEntry) => {
     setOpenMenuId(null)
     setEditEntry(entry)
     editForm.reset({ amount: entry.amount })
@@ -225,7 +240,7 @@ export default function BudgetsPage() {
         </header>
 
         {/* Summary cards */}
-        <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
           <Card className="border-[#e5e7f0] bg-white shadow-sm">
             <CardContent className="p-4 sm:p-5">
               <p className="text-xs font-medium text-slate-500 sm:text-sm">Budget totale</p>
@@ -238,11 +253,19 @@ export default function BudgetsPage() {
               <p className="mt-2 text-xl font-bold tabular-nums text-red-600 sm:text-2xl">{formatCurrency(totals.totalSpent)}</p>
             </CardContent>
           </Card>
-          <Card className="col-span-2 border-[#e5e7f0] bg-gradient-to-br from-indigo-50 to-white shadow-sm sm:col-span-1">
+          <Card className="border-[#e5e7f0] bg-white shadow-sm">
             <CardContent className="p-4 sm:p-5">
               <p className="text-xs font-medium text-slate-500 sm:text-sm">Rimanente</p>
               <p className={cn('mt-2 text-xl font-bold tabular-nums sm:text-2xl', totals.totalRemaining >= 0 ? 'text-indigo-600' : 'text-red-600')}>
                 {formatCurrency(totals.totalRemaining)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className={cn('border-[#e5e7f0] bg-white shadow-sm', totals.projectedOverrun > 0 && 'border-amber-200 bg-amber-50')}>
+            <CardContent className="p-4 sm:p-5">
+              <p className="text-xs font-medium text-slate-500 sm:text-sm">Superamento previsto</p>
+              <p className={cn('mt-2 text-xl font-bold tabular-nums sm:text-2xl', totals.projectedOverrun > 0 ? 'text-amber-600' : 'text-slate-400')}>
+                {totals.projectedOverrun > 0 ? formatCurrency(totals.projectedOverrun) : '—'}
               </p>
             </CardContent>
           </Card>
@@ -263,11 +286,20 @@ export default function BudgetsPage() {
           </div>
         )}
 
+        {/* Insights */}
+        {!loading && insights.length > 0 && (
+          <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {insights.slice(0, 5).map((ins, i) => (
+              <InsightRow key={i} insight={ins} />
+            ))}
+          </section>
+        )}
+
         {/* Budget list */}
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-28 animate-pulse rounded-2xl border border-[#e5e7f0] bg-white" />
+              <div key={i} className="h-36 animate-pulse rounded-2xl border border-[#e5e7f0] bg-white" />
             ))}
           </div>
         ) : entries.length === 0 ? (
@@ -288,9 +320,12 @@ export default function BudgetsPage() {
           <div className="space-y-3">
             {entries.map((entry) => {
               const tone = statusTone(entry.status)
+              const fc   = entry.forecast
+              const cmp  = entry.comparison
               return (
                 <Card key={entry.budgetId} className="border-[#e5e7f0] bg-white shadow-sm">
                   <CardContent className="p-4 sm:p-5">
+                    {/* Header row */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -326,7 +361,15 @@ export default function BudgetsPage() {
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                           {openMenuId === entry.budgetId && (
-                            <div className="absolute right-0 top-10 z-20 w-40 rounded-xl border border-[#e5e7f0] bg-white p-1 shadow-xl shadow-slate-200">
+                            <div className="absolute right-0 top-10 z-20 w-44 rounded-xl border border-[#e5e7f0] bg-white p-1 shadow-xl shadow-slate-200">
+                              <Link
+                                href={`/budgets/${entry.budgetId}`}
+                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                                onClick={() => setOpenMenuId(null)}
+                              >
+                                <BarChart2 className="h-4 w-4" />
+                                Dettagli
+                              </Link>
                               <button
                                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                                 onClick={() => openEdit(entry)}
@@ -347,11 +390,57 @@ export default function BudgetsPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                    {/* Progress bar */}
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
                       <div
                         className={cn('h-full rounded-full transition-all', tone.bar)}
                         style={{ width: `${Math.min(entry.percentage, 100)}%` }}
                       />
+                    </div>
+
+                    {/* Forecast + comparison row */}
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">
+                      {fc.hasEnoughData ? (
+                        <span className="flex items-center gap-1">
+                          <BarChart2 className="h-3 w-3" />
+                          Prev. {formatCurrency(fc.projectedSpent)}
+                          {fc.projectedOverrun > 0 && (
+                            <span className="ml-1 font-semibold text-amber-600">
+                              (+{formatCurrency(fc.projectedOverrun)})
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">Previsione: dati insufficienti</span>
+                      )}
+
+                      {cmp && cmp.trend !== 'unavailable' && (
+                        <span className={cn('flex items-center gap-0.5', cmp.trend === 'down' ? 'text-emerald-600' : cmp.trend === 'up' ? 'text-red-500' : 'text-slate-400')}>
+                          {cmp.trend === 'up'   && <TrendingUp   className="h-3 w-3" />}
+                          {cmp.trend === 'down' && <TrendingDown className="h-3 w-3" />}
+                          {cmp.trend === 'stable'
+                            ? 'Stabile vs. mese scorso'
+                            : `${cmp.trend === 'down' ? '-' : '+'}${Math.abs(cmp.percentageDiff)}% vs. mese scorso`}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Top alert */}
+                    {entry.topAlert && (
+                      <div className={cn('mt-3 flex items-start gap-2 rounded-xl border px-3 py-2 text-xs font-medium', entry.topAlert.priority <= 2 ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-700')}>
+                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>{entry.topAlert.message}</span>
+                      </div>
+                    )}
+
+                    {/* Detail link */}
+                    <div className="mt-3 flex justify-end">
+                      <Link
+                        href={`/budgets/${entry.budgetId}`}
+                        className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline"
+                      >
+                        Dettagli <ArrowRight className="h-3 w-3" />
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>

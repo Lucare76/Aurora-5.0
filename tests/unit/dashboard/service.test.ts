@@ -26,6 +26,8 @@ function makeTx(overrides: Partial<{
 const emptyBudgetSummary = {
   totalBudgets: 0, totalAmount: 0, totalSpent: 0,
   totalRemaining: 0, atRiskCount: 0, exceededCount: 0, topRiskBudgets: [],
+  projectedTotalSpent: 0, projectedTotalOverrun: 0, projectedAtRiskCount: 0,
+  topProjectedRisks: [], budgetAlerts: [], budgetInsights: [],
 }
 
 const baseInsightParams = {

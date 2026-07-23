@@ -1,6 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { computeBudgetEntries, computeBudgetSummary } from '@/lib/budgets/service'
-import type { BudgetSummary } from '@/lib/budgets/service'
+import {
+  buildBudgetAlerts,
+  buildBudgetForecast,
+  buildBudgetInsights,
+  computeBudgetEntries,
+  computeEnrichedBudgetSummary,
+  computeBudgetSummary,
+} from '@/lib/budgets/service'
+import type { EnrichedBudgetEntry, EnrichedBudgetSummary } from '@/lib/budgets/service'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -183,7 +190,7 @@ export type DashboardPayload = {
   insights: DashboardInsight[]
 
   // Budget del mese
-  budgetSummary: BudgetSummary
+  budgetSummary: EnrichedBudgetSummary
 
   // Timeline finanziaria
   timeline: DashboardTimelineEvent[]
@@ -571,7 +578,7 @@ export function generateInsights(params: {
   chart: DashboardChartPoint[]
   currentKey: string
   netWorthTrend: DashboardNetWorthPoint[]
-  budgetSummary: BudgetSummary
+  budgetSummary: EnrichedBudgetSummary
   monthStats: DashboardMonthStats
   prevMonth: { year: number; month: number }
 }): DashboardInsight[] {
@@ -760,7 +767,50 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
   const budgetEntries = computeBudgetEntries(
     budgets, categories, curTxs.filter(isPureExpense), currentMonth.year, currentMonth.month,
   )
-  const budgetSummary = computeBudgetSummary(budgetEntries)
+  const baseBudgetSummary = computeBudgetSummary(budgetEntries)
+
+  // Enrich budget entries with forecast + comparison (prev month already in allTxs)
+  const { childrenOf: bChildrenOf, catById: bCatById } = (() => {
+    const co = new Map<string, string[]>()
+    for (const c of categories) {
+      if ((c as any).parent_id) {
+        const arr = co.get((c as any).parent_id) ?? []
+        arr.push(c.id)
+        co.set((c as any).parent_id, arr)
+      }
+    }
+    return { childrenOf: co, catById: new Map(categories.map((c) => [c.id, c])) }
+  })()
+
+  const prevExpTxs = prevTxs.filter(isPureExpense)
+  const prevSpentByRawCat: Record<string, number> = {}
+  for (const tx of prevExpTxs) {
+    if (!tx.category_id) continue
+    prevSpentByRawCat[tx.category_id] = (prevSpentByRawCat[tx.category_id] ?? 0) + Number(tx.amount)
+  }
+
+  const budgetForecasts = new Map()
+  const budgetEnriched: EnrichedBudgetEntry[] = budgetEntries.map((entry) => {
+    const forecast = buildBudgetForecast(entry.spent, entry.amount, entry.year, entry.month, now)
+    budgetForecasts.set(entry.categoryId, forecast)
+
+    const cat    = bCatById.get(entry.categoryId) as any
+    const isRoot = !cat?.parent_id
+
+    let prevSpent = prevSpentByRawCat[entry.categoryId] ?? 0
+    if (isRoot) {
+      for (const childId of bChildrenOf.get(entry.categoryId) ?? []) {
+        prevSpent += prevSpentByRawCat[childId] ?? 0
+      }
+    }
+
+    const comparison = { prevMonthSpent: prevSpent, currentMonthSpent: entry.spent, absoluteDiff: entry.spent - prevSpent, percentageDiff: prevSpent > 0 ? Math.round(((entry.spent - prevSpent) / prevSpent) * 100) : 0, trend: (prevSpent === 0 ? (entry.spent === 0 ? 'stable' : 'unavailable') : Math.abs(entry.spent - prevSpent) / prevSpent < 0.03 ? 'stable' : entry.spent > prevSpent ? 'up' : 'down') as 'up' | 'down' | 'stable' | 'unavailable' }
+    return { ...entry, forecast, comparison, topAlert: null }
+  })
+
+  const budgetAlerts   = buildBudgetAlerts(budgetEnriched, budgetForecasts)
+  const budgetInsights = buildBudgetInsights(budgetEnriched, 3)
+  const budgetSummary  = computeEnrichedBudgetSummary(baseBudgetSummary, budgetEnriched, budgetAlerts, budgetInsights)
 
   // ── New Sprint 7W computations ──────────────────────────────────────────
 

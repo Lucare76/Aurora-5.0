@@ -545,6 +545,12 @@ export default function DashboardPage() {
                   </p>
                 </div>
               </div>
+              {budgetSummary.projectedTotalOverrun > 0 && (
+                <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  Superamento previsto totale: <span className="font-bold">{formatCurrency(budgetSummary.projectedTotalOverrun)}</span>
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
                 {budgetSummary.exceededCount > 0 && (
                   <span className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600">
@@ -552,12 +558,17 @@ export default function DashboardPage() {
                     {budgetSummary.exceededCount} {budgetSummary.exceededCount === 1 ? 'sforato' : 'sforati'}
                   </span>
                 )}
+                {budgetSummary.projectedAtRiskCount > 0 && (
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-600">
+                    {budgetSummary.projectedAtRiskCount} a rischio (prev.)
+                  </span>
+                )}
                 {budgetSummary.atRiskCount - budgetSummary.exceededCount > 0 && (
                   <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-600">
                     {budgetSummary.atRiskCount - budgetSummary.exceededCount} a rischio
                   </span>
                 )}
-                {budgetSummary.atRiskCount === 0 && (
+                {budgetSummary.atRiskCount === 0 && budgetSummary.projectedAtRiskCount === 0 && (
                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600">
                     Tutti nella norma
                   </span>
@@ -566,15 +577,28 @@ export default function DashboardPage() {
                   {budgetSummary.totalBudgets} budget
                 </span>
               </div>
-              {budgetSummary.topRiskBudgets.length > 0 && (
+              {(budgetSummary.topProjectedRisks.length > 0 ? budgetSummary.topProjectedRisks : budgetSummary.topRiskBudgets).length > 0 && (
                 <div className="space-y-3">
-                  {budgetSummary.topRiskBudgets.map((b) => {
+                  {(budgetSummary.topProjectedRisks.length > 0
+                    ? budgetSummary.topProjectedRisks.map((b) => ({
+                        categoryName: b.categoryName,
+                        amount:       b.amount,
+                        spent:        b.projectedSpent,
+                        percentage:   b.projectedPercentage,
+                        status:       b.projectedPercentage >= 100 ? 'exceeded' : b.projectedPercentage >= 90 ? 'critical' : 'warning',
+                        isProjected:  true,
+                      }))
+                    : budgetSummary.topRiskBudgets.map((b) => ({ ...b, isProjected: false }))
+                  ).map((b) => {
                     const isExceeded = b.status === 'exceeded'
                     const isCritical = b.status === 'critical'
                     return (
                       <div key={b.categoryName} className="space-y-1.5">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium text-slate-900">{b.categoryName}</p>
+                          <p className="text-sm font-medium text-slate-900">
+                            {b.categoryName}
+                            {(b as any).isProjected && <span className="ml-1.5 text-xs text-slate-400">(prev.)</span>}
+                          </p>
                           <span className={cn('text-xs font-bold tabular-nums', isExceeded ? 'text-red-600' : 'text-amber-600')}>
                             {b.percentage}%
                           </span>

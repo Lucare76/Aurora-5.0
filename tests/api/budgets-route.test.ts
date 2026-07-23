@@ -256,3 +256,184 @@ describe('DELETE /api/budgets/[id]', () => {
     expect(await res.json()).toEqual({ error: 'BUDGET_NOT_FOUND' })
   })
 })
+
+// ── GET /api/budgets/[id] ──────────────────────────────────────────────────
+
+describe('GET /api/budgets/[id]', () => {
+  beforeEach(() => { vi.resetModules(); vi.clearAllMocks() })
+
+  it('returns 401 when not authenticated', async () => {
+    createClientMock.mockResolvedValue({
+      ...mockAuth(false),
+      from: vi.fn(() => makeBuilder()),
+    } as never)
+    const { GET } = await import('@/app/api/budgets/[id]/route')
+    const req = new Request(`http://localhost/api/budgets/${budgetId}`)
+    const res = await GET(req, { params: Promise.resolve({ id: budgetId }) })
+    expect(res.status).toBe(401)
+    expect(await res.json()).toEqual({ error: 'UNAUTHORIZED' })
+  })
+
+  it('returns 400 for invalid UUID', async () => {
+    createClientMock.mockResolvedValue({
+      ...mockAuth(),
+      from: vi.fn(() => makeBuilder()),
+    } as never)
+    const { GET } = await import('@/app/api/budgets/[id]/route')
+    const req = new Request('http://localhost/api/budgets/not-a-uuid')
+    const res = await GET(req, { params: Promise.resolve({ id: 'not-a-uuid' }) })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: 'INVALID_ID' })
+  })
+
+  it('returns 404 when budget not found', async () => {
+    createClientMock.mockResolvedValue({
+      ...mockAuth(),
+      from: vi.fn(() => makeBuilder(null)),
+    } as never)
+    const { GET } = await import('@/app/api/budgets/[id]/route')
+    const req = new Request(`http://localhost/api/budgets/${budgetId}`)
+    const res = await GET(req, { params: Promise.resolve({ id: budgetId }) })
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'BUDGET_NOT_FOUND' })
+  })
+
+  it('returns 200 with full detail payload when budget exists', async () => {
+    const budgetRow = { id: budgetId, category_id: categoryId, year: 2026, month: 7, amount: 400 }
+    const categoryRow = { id: categoryId, name: 'Alimentari', icon: '🛒', parent_id: null }
+    createClientMock.mockResolvedValue({
+      ...mockAuth(),
+      from: vi.fn((table: string) => {
+        if (table === 'budgets') {
+          const b = makeBuilder(budgetRow)
+          b.maybeSingle = vi.fn(() => Promise.resolve({ data: budgetRow, error: null }))
+          return b
+        }
+        if (table === 'categories') return makeBuilder([categoryRow])
+        return makeBuilder([])
+      }),
+    } as never)
+    const { GET } = await import('@/app/api/budgets/[id]/route')
+    const req = new Request(`http://localhost/api/budgets/${budgetId}`)
+    const res = await GET(req, { params: Promise.resolve({ id: budgetId }) })
+    expect(res.status).toBe(200)
+    const body = await res.json() as { data: Record<string, unknown> }
+    expect(body.data).toHaveProperty('budget')
+    expect(body.data).toHaveProperty('forecast')
+    expect(body.data).toHaveProperty('comparison')
+    expect(body.data).toHaveProperty('history')
+    expect(body.data).toHaveProperty('alerts')
+    expect(body.data).toHaveProperty('insights')
+    expect(body.data).toHaveProperty('transactions')
+    expect(Array.isArray(body.data.history)).toBe(true)
+    expect((body.data.history as unknown[]).length).toBe(12)
+  })
+
+  it('includes Cache-Control: no-store header', async () => {
+    createClientMock.mockResolvedValue({
+      ...mockAuth(),
+      from: vi.fn(() => makeBuilder(null)),
+    } as never)
+    const { GET } = await import('@/app/api/budgets/[id]/route')
+    const req = new Request(`http://localhost/api/budgets/${budgetId}`)
+    const res = await GET(req, { params: Promise.resolve({ id: budgetId }) })
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+  })
+
+  it('does not expose user_id or stack traces', async () => {
+    const budgetRow = { id: budgetId, category_id: categoryId, year: 2026, month: 7, amount: 400 }
+    createClientMock.mockResolvedValue({
+      ...mockAuth(),
+      from: vi.fn((table: string) => {
+        if (table === 'budgets') {
+          const b = makeBuilder(budgetRow)
+          b.maybeSingle = vi.fn(() => Promise.resolve({ data: budgetRow, error: null }))
+          return b
+        }
+        return makeBuilder([])
+      }),
+    } as never)
+    const { GET } = await import('@/app/api/budgets/[id]/route')
+    const req = new Request(`http://localhost/api/budgets/${budgetId}`)
+    const res = await GET(req, { params: Promise.resolve({ id: budgetId }) })
+    const bodyStr = JSON.stringify(await res.json())
+    expect(bodyStr).not.toContain('user_id')
+    expect(bodyStr).not.toContain(userId)
+    expect(bodyStr).not.toContain('stack')
+  })
+})
+
+// ── GET /api/budgets/[id]/history ─────────────────────────────────────────
+
+describe('GET /api/budgets/[id]/history', () => {
+  beforeEach(() => { vi.resetModules(); vi.clearAllMocks() })
+
+  it('returns 401 when not authenticated', async () => {
+    createClientMock.mockResolvedValue({
+      ...mockAuth(false),
+      from: vi.fn(() => makeBuilder()),
+    } as never)
+    const { GET } = await import('@/app/api/budgets/[id]/history/route')
+    const req = new Request(`http://localhost/api/budgets/${budgetId}/history`)
+    const res = await GET(req, { params: Promise.resolve({ id: budgetId }) })
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 400 for invalid UUID', async () => {
+    createClientMock.mockResolvedValue({
+      ...mockAuth(),
+      from: vi.fn(() => makeBuilder()),
+    } as never)
+    const { GET } = await import('@/app/api/budgets/[id]/history/route')
+    const req = new Request('http://localhost/api/budgets/invalid/history')
+    const res = await GET(req, { params: Promise.resolve({ id: 'invalid' }) })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: 'INVALID_ID' })
+  })
+
+  it('returns 404 when budget not found', async () => {
+    createClientMock.mockResolvedValue({
+      ...mockAuth(),
+      from: vi.fn(() => makeBuilder(null)),
+    } as never)
+    const { GET } = await import('@/app/api/budgets/[id]/history/route')
+    const req = new Request(`http://localhost/api/budgets/${budgetId}/history`)
+    const res = await GET(req, { params: Promise.resolve({ id: budgetId }) })
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 200 with 12-month history when budget found', async () => {
+    const budgetRow = { id: budgetId, category_id: categoryId, year: 2026, month: 7, amount: 400 }
+    createClientMock.mockResolvedValue({
+      ...mockAuth(),
+      from: vi.fn((table: string) => {
+        if (table === 'budgets') {
+          const b = makeBuilder(budgetRow)
+          b.maybeSingle = vi.fn(() => Promise.resolve({ data: budgetRow, error: null }))
+          return b
+        }
+        return makeBuilder([])
+      }),
+    } as never)
+    const { GET } = await import('@/app/api/budgets/[id]/history/route')
+    const req = new Request(`http://localhost/api/budgets/${budgetId}/history`)
+    const res = await GET(req, { params: Promise.resolve({ id: budgetId }) })
+    expect(res.status).toBe(200)
+    const body = await res.json() as { data: { history: unknown[]; categoryName: string } }
+    expect(body.data).toHaveProperty('history')
+    expect(body.data).toHaveProperty('categoryName')
+    expect(Array.isArray(body.data.history)).toBe(true)
+    expect(body.data.history.length).toBe(12)
+  })
+
+  it('includes Cache-Control: no-store', async () => {
+    createClientMock.mockResolvedValue({
+      ...mockAuth(),
+      from: vi.fn(() => makeBuilder(null)),
+    } as never)
+    const { GET } = await import('@/app/api/budgets/[id]/history/route')
+    const req = new Request(`http://localhost/api/budgets/${budgetId}/history`)
+    const res = await GET(req, { params: Promise.resolve({ id: budgetId }) })
+    expect(res.headers.get('Cache-Control')).toBe('no-store')
+  })
+})

@@ -1,15 +1,35 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { deleteMonthlyBudget, updateMonthlyBudget } from '@/lib/budgets/service'
+import { deleteMonthlyBudget, getBudgetDetail, updateMonthlyBudget } from '@/lib/budgets/service'
 
 export const dynamic = 'force-dynamic'
+
+const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const updateSchema = z.object({
   amount: z.number().positive(),
 })
 
 type RouteContext = { params: Promise<{ id: string }> }
+
+export async function GET(_request: Request, context: RouteContext) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return json({ error: 'UNAUTHORIZED' }, 401)
+
+  const { id } = await context.params
+  if (!uuidRe.test(id)) return json({ error: 'INVALID_ID' }, 400)
+
+  try {
+    const detail = await getBudgetDetail(supabase, id)
+    if (!detail) return json({ error: 'BUDGET_NOT_FOUND' }, 404)
+    return json({ data: detail }, 200)
+  } catch (err: unknown) {
+    console.error('[aurora-budgets] detail', { code: (err as { code?: string })?.code })
+    return json({ error: 'INTERNAL_ERROR' }, 500)
+  }
+}
 
 export async function PATCH(request: Request, context: RouteContext) {
   const supabase = await createClient()

@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { createMonthlyBudget, listMonthlyBudgets } from '@/lib/budgets/service'
+import {
+  buildBudgetAlerts,
+  buildBudgetInsights,
+  createMonthlyBudget,
+  listMonthlyBudgets,
+  listMonthlyBudgetsEnriched,
+} from '@/lib/budgets/service'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,14 +29,24 @@ export async function GET(request: Request) {
   if (!user) return json({ error: 'UNAUTHORIZED' }, 401)
 
   const { searchParams } = new URL(request.url)
-  const now = new Date()
+  const now    = new Date()
   const parsed = periodSchema.safeParse({
     year:  searchParams.get('year')  ?? now.getFullYear(),
     month: searchParams.get('month') ?? now.getMonth() + 1,
   })
   if (!parsed.success) return json({ error: 'INVALID_PERIOD' }, 400)
 
+  const enriched = searchParams.get('enriched') === '1'
+
   try {
+    if (enriched) {
+      const entries = await listMonthlyBudgetsEnriched(supabase, parsed.data.year, parsed.data.month, now)
+      const forecasts = new Map(entries.map((e) => [e.categoryId, e.forecast]))
+      const alerts    = buildBudgetAlerts(entries, forecasts)
+      const insights  = buildBudgetInsights(entries, 5)
+      return json({ data: entries, alerts, insights }, 200)
+    }
+
     const data = await listMonthlyBudgets(supabase, parsed.data.year, parsed.data.month)
     return json({ data }, 200)
   } catch {
@@ -55,7 +71,6 @@ export async function POST(request: Request) {
 
   const { categoryId, year, month, amount } = parsed.data
 
-  // Verify category exists and is accessible via RLS
   const { data: cat } = await supabase
     .from('categories')
     .select('id')
