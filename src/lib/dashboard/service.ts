@@ -8,6 +8,8 @@ import {
   computeBudgetSummary,
 } from '@/lib/budgets/service'
 import type { EnrichedBudgetEntry, EnrichedBudgetSummary } from '@/lib/budgets/service'
+import { buildGoalSummary } from '@/lib/goals/service'
+import type { GoalSummary } from '@/lib/goals/service'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -191,6 +193,9 @@ export type DashboardPayload = {
 
   // Budget del mese
   budgetSummary: EnrichedBudgetSummary
+
+  // Obiettivi di risparmio
+  goalsSummary: GoalSummary
 
   // Timeline finanziaria
   timeline: DashboardTimelineEvent[]
@@ -683,6 +688,7 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
     categoriesRes,
     txRes,
     budgetsRes,
+    goalsRes,
     rulesRes,
     loansRes,
     birthdaysRes,
@@ -704,6 +710,10 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
       .select('id,category_id,amount')
       .eq('month', currentMonth.month)
       .eq('year', currentMonth.year),
+    supabase
+      .from('savings_goals')
+      .select('id,user_id,name,target_amount,current_amount,target_date,icon,color,notes,status,archived,created_at,updated_at')
+      .neq('status', 'ARCHIVED'),
     supabase
       .from('recurring_rules')
       .select('id,description,amount,type,next_due_date,frequency,auto_create')
@@ -728,6 +738,7 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
   const categories  = (categoriesRes.data ?? []) as CatRow[]
   const allTxs      = (txRes.data ?? []) as TxRow[]
   const budgets     = (budgetsRes.data ?? []) as { id: string; category_id: string; amount: number }[]
+  const goals       = (goalsRes.data ?? []) as any[]
   const rules       = (rulesRes.data ?? []) as DashboardUpcomingRule[]
   const loans       = (loansRes.data ?? []) as DashboardUpcomingLoan[]
   const birthdaysRaw = (birthdaysRes.data ?? []) as { id: string; name: string; birth_date: string }[]
@@ -811,6 +822,7 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
   const budgetAlerts   = buildBudgetAlerts(budgetEnriched, budgetForecasts)
   const budgetInsights = buildBudgetInsights(budgetEnriched, 3)
   const budgetSummary  = computeEnrichedBudgetSummary(baseBudgetSummary, budgetEnriched, budgetAlerts, budgetInsights)
+  const goalsSummary   = buildGoalSummary(goals)
 
   // ── New Sprint 7W computations ──────────────────────────────────────────
 
@@ -870,6 +882,7 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
     monthlyChart: chart,
     insights,
     budgetSummary,
+    goalsSummary,
     timeline,
     upcoming30Rules:     rules,
     upcoming30Loans:     loans,

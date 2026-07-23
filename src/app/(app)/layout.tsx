@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   MoreHorizontal,
+  PiggyBank,
   Repeat,
   Settings,
   Sparkles,
@@ -37,6 +38,7 @@ const navItems: NavItem[] = [
   { path: '/accounts', label: 'Conti', icon: Wallet },
   { path: '/categories', label: 'Categorie', icon: Tag },
   { path: '/budgets', label: 'Budget', icon: Target },
+  { path: '/goals', label: 'Obiettivi', icon: PiggyBank },
   { path: '/reports', label: 'Report', icon: BarChart3 },
   { path: '/recurring', label: 'Ricorrenti', icon: Repeat },
   { path: '/loans', label: 'Prestiti', icon: HandCoins },
@@ -52,6 +54,7 @@ const bottomNavItems: NavItem[] = [
 ]
 
 const moreItems: NavItem[] = [
+  { path: '/goals', label: 'Obiettivi', icon: PiggyBank },
   { path: '/categories', label: 'Categorie', icon: Tag },
   { path: '/reports', label: 'Report', icon: BarChart3 },
   { path: '/recurring', label: 'Ricorrenti', icon: Repeat },

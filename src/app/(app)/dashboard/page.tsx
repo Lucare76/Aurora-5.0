@@ -19,6 +19,7 @@ import {
   Plus,
   Repeat,
   Star,
+  Target,
   Trophy,
   TrendingDown,
   TrendingUp,
@@ -318,7 +319,7 @@ export default function DashboardPage() {
     accounts, monthIncome, monthExpense, monthBalance,
     prevMonthIncome, prevMonthExpense,
     topCategories, recentTransactions,
-    monthlyChart, insights, budgetSummary,
+    monthlyChart, insights, budgetSummary, goalsSummary,
     endOfMonthForecast, monthStats, monthRecords, timeline,
     cashFlowProjection, upcomingBirthdays, firstUseStatus,
   } = data
@@ -409,6 +410,70 @@ export default function DashboardPage() {
           detail={monthBalance >= 0 ? 'Mese in positivo' : 'Mese in negativo'}
         />
       </section>
+
+      {goalsSummary.totalGoals > 0 && (
+        <section>
+          <Card className="border-[#e5e7f0] bg-white shadow-sm">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg text-slate-950">
+                    <Target className="h-5 w-5 text-indigo-500" />
+                    Obiettivi di risparmio
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-slate-500">Avanzamento dei traguardi personali separati dalla contabilità.</p>
+                </div>
+                <Link href="/goals" className="text-xs font-medium text-indigo-600 hover:underline">
+                  Vedi obiettivi →
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-3 gap-3 rounded-2xl bg-[#f8f9fc] px-4 py-3 text-sm">
+                <div>
+                  <p className="text-xs text-slate-500">Target</p>
+                  <p className="mt-0.5 font-bold tabular-nums text-slate-900">{formatCurrency(goalsSummary.targetAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Accumulato</p>
+                  <p className="mt-0.5 font-bold tabular-nums text-indigo-600">{formatCurrency(goalsSummary.savedAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Residuo</p>
+                  <p className="mt-0.5 font-bold tabular-nums text-slate-900">{formatCurrency(goalsSummary.remainingAmount)}</p>
+                </div>
+              </div>
+              <div>
+                <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-slate-500">
+                  <span>{goalsSummary.activeGoals} attivi · {goalsSummary.completedGoals} completati</span>
+                  <span>{goalsSummary.completionPercentage}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
+                    style={{ width: `${Math.min(goalsSummary.completionPercentage, 100)}%` }}
+                  />
+                </div>
+              </div>
+              {goalsSummary.nearestGoal && (
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-indigo-950">
+                      {goalsSummary.nearestGoal.icon ? `${goalsSummary.nearestGoal.icon} ` : ''}{goalsSummary.nearestGoal.name}
+                    </p>
+                    <p className="mt-0.5 text-xs text-indigo-700">
+                      Prossima scadenza {goalsSummary.nearestGoal.target_date ? formatDate(goalsSummary.nearestGoal.target_date) : ''}
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-sm font-bold tabular-nums text-indigo-700">
+                    {goalsSummary.nearestGoal.completionPercentage}%
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {/* Saldo previsto + Statistiche del mese */}
       <section className="grid gap-4 sm:grid-cols-2">

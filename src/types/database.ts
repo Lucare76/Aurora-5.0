@@ -3,6 +3,7 @@ export type TransactionType = 'income' | 'expense' | 'transfer'
 export type CategoryType = 'income' | 'expense' | 'both'
 export type RecurringFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly'
 export type LoanType = 'given' | 'received'
+export type SavingsGoalStatus = 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'
 
 export interface Profile {
   id: string
@@ -91,6 +92,32 @@ export interface Budget {
   year: number
   created_at: string
   updated_at: string
+}
+
+export interface SavingsGoal {
+  id: string
+  user_id: string
+  name: string
+  target_amount: number
+  current_amount: number
+  target_date: string | null
+  icon: string | null
+  color: string | null
+  notes: string | null
+  status: SavingsGoalStatus
+  archived: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface GoalContribution {
+  id: string
+  goal_id: string
+  user_id: string
+  amount: number
+  date: string
+  note: string | null
+  created_at: string
 }
 
 export interface Loan {
@@ -417,6 +444,84 @@ export type Database = {
           year?: number
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      savings_goals: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          target_amount: number
+          current_amount: number
+          target_date: string | null
+          icon: string | null
+          color: string | null
+          notes: string | null
+          status: SavingsGoalStatus
+          archived: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          target_amount: number
+          current_amount?: number
+          target_date?: string | null
+          icon?: string | null
+          color?: string | null
+          notes?: string | null
+          status?: SavingsGoalStatus
+          archived?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          target_amount?: number
+          current_amount?: number
+          target_date?: string | null
+          icon?: string | null
+          color?: string | null
+          notes?: string | null
+          status?: SavingsGoalStatus
+          archived?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      goal_contributions: {
+        Row: {
+          id: string
+          goal_id: string
+          user_id: string
+          amount: number
+          date: string
+          note: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          goal_id: string
+          user_id: string
+          amount: number
+          date?: string
+          note?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          goal_id?: string
+          user_id?: string
+          amount?: number
+          date?: string
+          note?: string | null
+          created_at?: string
         }
         Relationships: []
       }

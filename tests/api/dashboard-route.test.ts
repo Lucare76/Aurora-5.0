@@ -10,7 +10,7 @@ const userId = '11111111-1111-4111-8111-111111111111'
 
 function makeBuilder(data: unknown[] = []) {
   const builder: Record<string, unknown> = {}
-  const methods = ['select', 'eq', 'gte', 'lte', 'not', 'in', 'order', 'limit', 'is']
+  const methods = ['select', 'eq', 'neq', 'gte', 'lte', 'not', 'in', 'order', 'limit', 'is']
   for (const m of methods) {
     builder[m] = vi.fn(() => builder)
   }
@@ -65,6 +65,7 @@ describe('GET /api/dashboard', () => {
     expect(body).toHaveProperty('recentTransactions')
     expect(body).toHaveProperty('insights')
     expect(body).toHaveProperty('budgetSummary')
+    expect(body).toHaveProperty('goalsSummary')
     expect(body).toHaveProperty('netWorthTrend')
     expect(body).toHaveProperty('endOfMonthForecast')
     expect(body).toHaveProperty('monthStats')
@@ -87,6 +88,7 @@ describe('GET /api/dashboard', () => {
     expect(body.topCategories).toEqual([])
     expect(body.insights).toEqual([])
     expect(body.budgetSummary).toMatchObject({ totalBudgets: 0, atRiskCount: 0, exceededCount: 0, topRiskBudgets: [] })
+    expect(body.goalsSummary).toMatchObject({ totalGoals: 0, activeGoals: 0, completedGoals: 0 })
     expect(body.netWorthTrend).toHaveLength(12)
     expect(body.endOfMonthForecast).toHaveProperty('hasEnoughData')
     expect(body.monthStats).toHaveProperty('txCount')
