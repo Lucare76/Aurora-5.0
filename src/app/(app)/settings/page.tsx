@@ -118,6 +118,7 @@ type RestoreResult = {
   restore: {
     restoreId: string
     counts: Record<string, number>
+    reconciledCategories?: number
     verified: boolean
   }
   checksum: string
@@ -628,9 +629,16 @@ export default function SettingsPage() {
                     <p className="text-sm font-semibold text-emerald-900">Ripristino completato e verificato.</p>
                     <div className="mt-3 grid gap-3 md:grid-cols-4">
                       <ReportMetric label="Restore ID" value={`${restoreResult.restore.restoreId.slice(0, 8)}...`} />
-                      <ReportMetric label="Stato integrità" value={restoreResult.restore.verified ? 'Verificato' : 'Da verificare'} />
+                      <ReportMetric label="Integrità" value={restoreResult.restore.verified ? 'Verificata' : 'Da verificare'} />
                       <ReportMetric label="Conti" value={String(restoreResult.restore.counts.accounts ?? 0)} />
+                      <ReportMetric label="Categorie" value={String(restoreResult.restore.counts.categories ?? 0)} />
                       <ReportMetric label="Transazioni" value={String(restoreResult.restore.counts.transactions ?? 0)} />
+                      {(restoreResult.restore.reconciledCategories ?? 0) > 0 && (
+                        <ReportMetric
+                          label="Riconciliate"
+                          value={`${restoreResult.restore.reconciledCategories} cat. default`}
+                        />
+                      )}
                     </div>
                   </div>
                 ) : null}

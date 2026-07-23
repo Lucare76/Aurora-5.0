@@ -27,6 +27,7 @@ const requestSchema = z.object({
 }).strict()
 
 export async function POST(request: Request) {
+  const startedAt = Date.now()
   try {
     if (process.env.ENABLE_BACKUP_RESTORE_REAL !== 'true') return json(error('RESTORE_DISABLED'), 403)
 
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (tokenError) {
-      console.error('[aurora-restore]', tokenError.message)
+      console.error('[aurora-restore] token-lookup-error', { pgCode: tokenError.code })
       return json(error('INTERNAL_ERROR'), 500)
     }
     if (!tokenRow) return json(error('TOKEN_INVALID'), 403)
@@ -82,9 +83,23 @@ export async function POST(request: Request) {
 
     if (rpcError) {
       const mappedCode = mapRpcError(rpcError.message)
-      console.error('[aurora-restore-rpc]', mappedCode, '|', rpcError.code, '|', rpcError.message)
+      console.error('[aurora-restore]', {
+        uid: user.id.slice(0, 8),
+        code: mappedCode,
+        pgCode: rpcError.code,
+        duration: Date.now() - startedAt,
+      })
       return json(error(mappedCode), 409)
     }
+
+    const rpcData = data as { counts?: Record<string, number>; reconciledCategories?: number } | null
+    console.info('[aurora-restore]', {
+      uid: user.id.slice(0, 8),
+      checksum: validated.checksum.slice(0, 16),
+      records: Object.values(rpcData?.counts ?? {}).reduce((acc, v) => acc + v, 0),
+      reconciled: rpcData?.reconciledCategories ?? 0,
+      duration: Date.now() - startedAt,
+    })
 
     return json({
       status: 'completed',
@@ -94,7 +109,7 @@ export async function POST(request: Request) {
   } catch (err) {
     if (err instanceof RestoreNotReadyError) return json(error('RESTORE_NOT_READY'), 409)
     if (err instanceof RestorePreparationError) return json(error(err.code), err.code === 'INVALID_BACKUP' ? 400 : 409)
-    if (err instanceof Error) console.error('[aurora-restore]', err.name, err.message)
+    if (err instanceof Error) console.error('[aurora-restore]', { name: err.name, duration: Date.now() - startedAt })
     return json(error('INTERNAL_ERROR'), 500)
   }
 }

@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       .single()
 
     if (insertError) {
-      console.error('[aurora-restore-prepare]', insertError.message)
+      console.error('[aurora-restore-prepare] insert-error', { pgCode: insertError.code })
       return json(error('INTERNAL_ERROR'), 500)
     }
 
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       return json(error(err.code), err.code === 'INVALID_BACKUP' ? 400 : 409)
     }
     if (err instanceof Error) {
-      console.error('[aurora-restore-prepare]', err.name, err.message)
+      console.error('[aurora-restore-prepare]', { name: err.name })
     }
     return json(error('INTERNAL_ERROR'), 500)
   }

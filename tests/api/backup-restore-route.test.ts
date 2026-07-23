@@ -178,6 +178,59 @@ describe('backup restore prepare/restore API routes', () => {
     expect(response.status).toBe(409)
     expect(await response.json()).toEqual({ error: 'RESTORE_ROLLED_BACK' })
   })
+
+  // ── FASE 5D: hardening ────────────────────────────────────────────────────
+
+  it('restore blocca estensione file non json', async () => {
+    mockSupabase()
+    const { POST } = await import('@/app/api/backup/restore/route')
+
+    const response = await POST(restoreRequest(validBackup(), { filename: 'aurora-backup.csv' }))
+
+    expect(response.status).toBe(415)
+    expect(await response.json()).toEqual({ error: 'INVALID_BACKUP_FILE_TYPE' })
+  })
+
+  it('restore restituisce TOKEN_INVALID se il checksum del token non corrisponde al backup', async () => {
+    mockSupabase({ token: { backup_checksum: 'sha256-wrong-checksum-does-not-match-backup' } })
+    const { POST } = await import('@/app/api/backup/restore/route')
+
+    const response = await POST(restoreRequest(validBackup()))
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'TOKEN_INVALID' })
+  })
+
+  it('restore non espone dettagli SQL grezzi nei log di errore RPC', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSupabase({ rpcError: 'ERROR: duplicate key value violates unique constraint "accounts_pkey"' })
+    const { POST } = await import('@/app/api/backup/restore/route')
+
+    await POST(restoreRequest(validBackup()))
+
+    const logged = consoleSpy.mock.calls.flat().map(String).join(' ')
+    expect(logged).not.toContain('accounts_pkey')
+    expect(logged).not.toContain('duplicate key')
+    consoleSpy.mockRestore()
+  })
+
+  it('restore include conteggi completi e categorie riconciliate nel risultato', async () => {
+    mockSupabase({
+      rpcResult: {
+        counts: { accounts: 3, categories: 12, transactions: 150, budgets: 5 },
+        reconciledCategories: 4,
+      },
+    })
+    const { POST } = await import('@/app/api/backup/restore/route')
+
+    const response = await POST(restoreRequest(validBackup()))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.restore.counts.accounts).toBe(3)
+    expect(body.restore.counts.transactions).toBe(150)
+    expect(body.restore.reconciledCategories).toBe(4)
+  })
 })
 
 function validBackup(): AuroraBackupV1 {
