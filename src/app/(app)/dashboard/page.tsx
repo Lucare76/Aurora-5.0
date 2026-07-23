@@ -62,17 +62,17 @@ function StatCard({
 }) {
   return (
     <Card className="border-[#e5e7f0] bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-4">
+      <CardContent className="p-3 sm:p-5">
+        <div className="flex items-start justify-between gap-2 sm:gap-4">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-slate-500">{title}</p>
-            <p className="mt-3 truncate text-2xl font-bold tabular-nums text-slate-950">{value}</p>
+            <p className="text-xs font-medium text-slate-500 sm:text-sm">{title}</p>
+            <p className="mt-1.5 truncate text-lg font-bold tabular-nums text-slate-950 sm:mt-3 sm:text-2xl">{value}</p>
           </div>
-          <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl', toneClasses[tone])}>
+          <div className={cn('hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl', toneClasses[tone])}>
             <Icon className="h-5 w-5" />
           </div>
         </div>
-        <p className="mt-4 text-xs font-medium text-slate-400">{detail}</p>
+        <p className="mt-2 text-xs font-medium text-slate-400 sm:mt-4">{detail}</p>
       </CardContent>
     </Card>
   )
@@ -117,14 +117,14 @@ function TxIcon({ tx }: { tx: DashboardTransaction }) {
   const isTransfer = tx.type === 'transfer' || tx.transferPeerId !== null
   if (isTransfer) {
     return (
-      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 sm:h-10 sm:w-10 sm:rounded-2xl">
         <ArrowLeftRight className="h-4 w-4" />
       </div>
     )
   }
   const isIncome = tx.type === 'income'
   return (
-    <div className={cn('flex h-10 w-10 items-center justify-center rounded-2xl', isIncome ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600')}>
+    <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl', isIncome ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600')}>
       {isIncome ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
     </div>
   )
@@ -133,8 +133,8 @@ function TxIcon({ tx }: { tx: DashboardTransaction }) {
 function AccountRow({ account, total }: { account: DashboardAccount; total: number }) {
   const percent = total > 0 ? Math.min((Math.abs(account.balance) / total) * 100, 100) : 0
   return (
-    <div className="rounded-2xl border border-[#e5e7f0] bg-white p-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="rounded-xl border border-[#e5e7f0] bg-white p-3 sm:rounded-2xl sm:p-4">
+      <div className="flex items-center justify-between gap-3 sm:gap-4">
         <div className="min-w-0">
           <p className="truncate font-semibold text-slate-900">{account.name}</p>
           <p className="mt-1 text-xs text-slate-400">{ACCOUNT_TYPE_LABELS[account.type as AccountType] ?? account.type}</p>
@@ -300,22 +300,23 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-5 sm:space-y-7">
       {/* Greeting banner */}
-      <section className="rounded-[2rem] border border-[#e5e7f0] bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-          <div>
-            <p className="text-sm font-medium capitalize text-slate-500">{today}</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+      <section className="rounded-[2rem] border border-[#e5e7f0] bg-white p-5 shadow-sm sm:p-8">
+        <div className="flex items-start justify-between gap-4 lg:items-end">
+          <div className="min-w-0">
+            <p className="text-xs font-medium capitalize text-slate-500 sm:text-sm">{today}</p>
+            <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-950 sm:mt-2 sm:text-4xl">
               {getGreeting()}{displayName ? `, ${displayName}` : ''}!
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+            <p className="mt-2 hidden max-w-2xl text-sm leading-6 text-slate-500 sm:block">
               Una vista chiara sui tuoi movimenti reali: patrimonio, flussi mensili e conti attivi.
             </p>
           </div>
-          <Link href="/transactions" className={cn(buttonVariants(), 'h-11 gap-2 self-start lg:self-auto')}>
-            Nuovo movimento
-            <ArrowRight className="h-4 w-4" />
+          <Link href="/transactions" className={cn(buttonVariants({ size: 'sm' }), 'shrink-0 gap-1.5 sm:h-11 sm:px-4 sm:text-sm')}>
+            <Plus className="h-4 w-4 sm:hidden" />
+            <span className="hidden sm:inline">Nuovo movimento</span>
+            <ArrowRight className="hidden h-4 w-4 sm:inline" />
           </Link>
         </div>
       </section>
@@ -323,7 +324,7 @@ export default function DashboardPage() {
       <FirstUseChecklist status={firstUseStatus} />
 
       {/* Stat cards */}
-      <section className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
           title="Patrimonio totale"
           value={formatCurrency(netWorth)}
@@ -442,9 +443,9 @@ export default function DashboardPage() {
                   const isLoan = item.kind === 'loan-given' || item.kind === 'loan-received'
                   const isExpense = item.kind === 'expense' || item.kind === 'loan-received'
                   return (
-                    <div key={item.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                    <div key={item.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0 sm:gap-4 sm:py-3">
                       <div className={cn(
-                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl',
+                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl',
                         isLoan ? 'bg-indigo-50 text-indigo-600' : isExpense ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600',
                       )}>
                         {isLoan ? <HandCoins className="h-4 w-4" /> : isExpense ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
@@ -483,14 +484,14 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-500">Andamento della liquidità disponibile (conti correnti e contanti).</p>
           </CardHeader>
           <CardContent>
-            <div className="h-[240px]">
+            <div className="h-[200px] sm:h-[240px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={cashFlowProjection} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke="#e5e7f0" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={11} interval={4} />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={10} interval={4} />
                   <YAxis
-                    axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={11} width={90}
-                    tickFormatter={(v) => formatCurrency(Number(v)).replace(',00', '')}
+                    axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={10} width={68}
+                    tickFormatter={(v) => formatCurrency(Number(v)).replace(',00', '').replace('€ ', '€')}
                   />
                   <Tooltip content={<CashFlowTooltip />} cursor={{ stroke: '#e5e7f0' }} />
                   <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="4 4" />
@@ -540,14 +541,14 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-500">Entrate e uscite aggregate dai movimenti.</p>
           </CardHeader>
           <CardContent>
-            <div className="h-[330px]">
+            <div className="h-[240px] sm:h-[330px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthlyChart} barGap={8}>
                   <CartesianGrid stroke="#e5e7f0" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={12} />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={11} />
                   <YAxis
-                    axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={12}
-                    tickFormatter={(v) => formatCurrency(Number(v)).replace(',00', '')}
+                    axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={11} width={68}
+                    tickFormatter={(v) => formatCurrency(Number(v)).replace(',00', '').replace('€ ', '€')}
                   />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f8f9fc' }} />
                   <Bar dataKey="entrate" name="Entrate" fill="#10b981" radius={[8, 8, 0, 0]} />
@@ -635,9 +636,9 @@ export default function DashboardPage() {
                 {upcomingRules7.map((item) => {
                   const isExpense = item.kind === 'expense'
                   return (
-                    <div key={item.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+                    <div key={item.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0 sm:gap-4 sm:py-3">
                       <div className={cn(
-                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl',
+                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl',
                         isExpense ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600',
                       )}>
                         {isExpense ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownLeft className="h-4 w-4" />}
@@ -677,8 +678,8 @@ export default function DashboardPage() {
             ) : (
               <div className="divide-y divide-slate-100">
                 {upcomingBirthdays.map((b) => (
-                  <div key={b.id} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
+                  <div key={b.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0 sm:gap-4 sm:py-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 sm:h-10 sm:w-10 sm:rounded-2xl">
                       <Cake className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -717,7 +718,7 @@ export default function DashboardPage() {
               {recentTransactions.map((tx) => {
                 const isIncome = tx.type === 'income' && !tx.transferPeerId
                 return (
-                  <div key={tx.id} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0">
+                  <div key={tx.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0 sm:gap-4 sm:py-4">
                     <TxIcon tx={tx} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-slate-900">
