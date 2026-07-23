@@ -455,19 +455,56 @@ export default function DashboardPage() {
                   />
                 </div>
               </div>
-              {goalsSummary.nearestGoal && (
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="rounded-xl bg-slate-50 px-3 py-2">
+                  <p className="text-xs text-slate-500">In ritardo</p>
+                  <p className={cn('mt-0.5 font-bold tabular-nums', goalsSummary.goalsBehind + goalsSummary.overdueGoals > 0 ? 'text-red-600' : 'text-emerald-600')}>
+                    {goalsSummary.goalsBehind + goalsSummary.overdueGoals}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-slate-50 px-3 py-2">
+                  <p className="text-xs text-slate-500">Quota mensile</p>
+                  <p className="mt-0.5 font-bold tabular-nums text-indigo-600">{formatCurrency(goalsSummary.totalRequiredMonthlyContribution)}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 px-3 py-2">
+                  <p className="text-xs text-slate-500">In linea</p>
+                  <p className="mt-0.5 font-bold tabular-nums text-emerald-600">{goalsSummary.goalsOnTrack}</p>
+                </div>
+              </div>
+              {goalsSummary.nearestCompletionGoal && (
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-emerald-950">
+                      {goalsSummary.nearestCompletionGoal.icon ? `${goalsSummary.nearestCompletionGoal.icon} ` : ''}{goalsSummary.nearestCompletionGoal.name}
+                    </p>
+                    <p className="mt-0.5 text-xs text-emerald-700">
+                      Obiettivo più vicino al completamento
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-sm font-bold tabular-nums text-emerald-700">
+                    {formatCurrency(goalsSummary.nearestCompletionGoal.remainingAmount)}
+                  </p>
+                </div>
+              )}
+              {goalsSummary.nearestDeadlineGoal && (
                 <div className="flex items-center justify-between gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-indigo-950">
-                      {goalsSummary.nearestGoal.icon ? `${goalsSummary.nearestGoal.icon} ` : ''}{goalsSummary.nearestGoal.name}
+                      {goalsSummary.nearestDeadlineGoal.icon ? `${goalsSummary.nearestDeadlineGoal.icon} ` : ''}{goalsSummary.nearestDeadlineGoal.name}
                     </p>
                     <p className="mt-0.5 text-xs text-indigo-700">
-                      Prossima scadenza {goalsSummary.nearestGoal.target_date ? formatDate(goalsSummary.nearestGoal.target_date) : ''}
+                      Prossima scadenza {goalsSummary.nearestDeadlineGoal.target_date ? formatDate(goalsSummary.nearestDeadlineGoal.target_date) : ''}
                     </p>
                   </div>
                   <p className="shrink-0 text-sm font-bold tabular-nums text-indigo-700">
-                    {goalsSummary.nearestGoal.completionPercentage}%
+                    {goalsSummary.nearestDeadlineGoal.completionPercentage}%
                   </p>
+                </div>
+              )}
+              {goalsSummary.primaryGoalsInsight && (
+                <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  <span className="font-bold">{goalsSummary.primaryGoalsInsight.title}: </span>
+                  {goalsSummary.primaryGoalsInsight.message}
                 </div>
               )}
             </CardContent>

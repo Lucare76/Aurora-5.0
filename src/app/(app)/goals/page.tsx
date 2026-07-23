@@ -66,6 +66,20 @@ function statusLabel(status: GoalProgress['status']) {
   return 'Attivo'
 }
 
+function intelligentStatusLabel(status?: GoalProgress['intelligentStatus']) {
+  switch (status) {
+    case 'COMPLETED': return { label: 'Completato', cls: 'bg-emerald-100 text-emerald-700' }
+    case 'AHEAD': return { label: 'In anticipo', cls: 'bg-emerald-100 text-emerald-700' }
+    case 'ON_TRACK': return { label: 'In linea', cls: 'bg-indigo-50 text-indigo-700' }
+    case 'SLIGHTLY_BEHIND': return { label: 'Leggermente in ritardo', cls: 'bg-amber-100 text-amber-700' }
+    case 'BEHIND': return { label: 'In ritardo', cls: 'bg-red-100 text-red-700' }
+    case 'OVERDUE': return { label: 'Scaduto', cls: 'bg-red-100 text-red-700' }
+    case 'NO_DEADLINE': return { label: 'Senza scadenza', cls: 'bg-slate-100 text-slate-600' }
+    case 'INSUFFICIENT_DATA': return { label: 'Dati insufficienti', cls: 'bg-slate-100 text-slate-600' }
+    default: return { label: 'Attivo', cls: 'bg-indigo-50 text-indigo-700' }
+  }
+}
+
 function GoalCard({
   goal,
   onEdit,
@@ -83,6 +97,7 @@ function GoalCard({
   const percent = Math.min(goal.completionPercentage, 100)
   const isArchived = goal.status === 'ARCHIVED' || goal.archived
   const isComplete = goal.status === 'COMPLETED'
+  const smart = intelligentStatusLabel(goal.intelligentStatus)
 
   return (
     <Card className="border-[#e5e7f0] bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
@@ -95,8 +110,8 @@ function GoalCard({
             <div className="min-w-0">
               <h2 className="truncate text-base font-bold text-slate-950">{goal.name}</h2>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                <span className={cn('rounded-full px-2 py-0.5 font-semibold', isArchived ? 'bg-slate-100 text-slate-500' : isComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-50 text-indigo-700')}>
-                  {statusLabel(goal.status)}
+                <span className={cn('rounded-full px-2 py-0.5 font-semibold', isArchived ? 'bg-slate-100 text-slate-500' : isComplete ? 'bg-emerald-100 text-emerald-700' : smart.cls)}>
+                  {isArchived ? statusLabel(goal.status) : smart.label}
                 </span>
                 {goal.target_date && (
                   <span className="flex items-center gap-1">
@@ -169,6 +184,29 @@ function GoalCard({
             <p className="mt-2 text-xs font-medium text-emerald-600">Obiettivo superato: ottimo margine extra.</p>
           )}
         </div>
+
+        <div className="mt-4 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
+          <div className="rounded-xl bg-slate-50 px-3 py-2">
+            <span className="font-medium text-slate-700">Previsione: </span>
+            {goal.estimatedCompletionDate ? formatDate(goal.estimatedCompletionDate) : 'servono altri versamenti'}
+          </div>
+          <div className="rounded-xl bg-slate-50 px-3 py-2">
+            <span className="font-medium text-slate-700">Quota/mese: </span>
+            {goal.requiredMonthlyContribution != null ? formatCurrency(goal.requiredMonthlyContribution) : 'non necessaria'}
+          </div>
+        </div>
+
+        {goal.primaryInsight && (
+          <div className={cn(
+            'mt-3 rounded-xl border px-3 py-2 text-xs font-medium',
+            goal.primaryInsight.severity === 'DANGER' ? 'border-red-200 bg-red-50 text-red-700'
+              : goal.primaryInsight.severity === 'WARNING' ? 'border-amber-200 bg-amber-50 text-amber-800'
+              : goal.primaryInsight.severity === 'SUCCESS' ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              : 'border-indigo-100 bg-indigo-50 text-indigo-800',
+          )}>
+            <span className="font-bold">{goal.primaryInsight.title}: </span>{goal.primaryInsight.message}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync('supabase/migrations/00017_savings_goals.sql', 'utf8')
+const statusSql = readFileSync('supabase/migrations/00018_savings_goals_intelligence_status.sql', 'utf8')
 
 describe('savings goals migration', () => {
   it('creates goals and contributions tables with required constraints', () => {
@@ -24,5 +25,12 @@ describe('savings goals migration', () => {
     expect(sql).toContain('apply_goal_contribution_delta')
     expect(sql).toContain('current_amount = current_amount + new.amount')
     expect(sql).toContain('current_amount = greatest(0, current_amount - old.amount)')
+  })
+
+  it('keeps archived goals archived and reopens automatic completed goals below target', () => {
+    expect(statusSql).toContain("old.status = 'ARCHIVED'")
+    expect(statusSql).toContain("new.status := 'COMPLETED'")
+    expect(statusSql).toContain("new.status = 'COMPLETED' and new.current_amount < new.target_amount")
+    expect(statusSql).toContain("new.status := 'ACTIVE'")
   })
 })

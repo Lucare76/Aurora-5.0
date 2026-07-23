@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, CalendarDays, PiggyBank, Plus, Trash2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import type { Resolver, SubmitHandler } from 'react-hook-form'
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { AmountDisplay } from '@/components/shared/AmountDisplay'
@@ -38,17 +38,17 @@ function ChartTooltip({ active, payload, label }: any) {
   )
 }
 
-function buildContributionChart(detail: GoalDetail) {
-  const sorted = [...detail.contributions].sort((a, b) => a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at))
-  let running = detail.goal.current_amount - sorted.reduce((sum, row) => sum + row.amount, 0)
-  return sorted.map((row) => {
-    running += row.amount
-    return {
-      date: formatDate(row.date),
-      amount: row.amount,
-      total: Math.max(0, Math.round(running * 100) / 100),
-    }
-  })
+function smartStatusLabel(status: GoalDetail['pace']['intelligentStatus']) {
+  switch (status) {
+    case 'COMPLETED': return 'Completato'
+    case 'AHEAD': return 'In anticipo'
+    case 'ON_TRACK': return 'In linea'
+    case 'SLIGHTLY_BEHIND': return 'Leggermente in ritardo'
+    case 'BEHIND': return 'In ritardo'
+    case 'OVERDUE': return 'Scaduto'
+    case 'NO_DEADLINE': return 'Senza scadenza'
+    case 'INSUFFICIENT_DATA': return 'Dati insufficienti'
+  }
 }
 
 export default function GoalDetailPage() {
@@ -82,7 +82,7 @@ export default function GoalDetailPage() {
 
   useEffect(() => { fetchDetail() }, [fetchDetail])
 
-  const chartData = useMemo(() => detail ? buildContributionChart(detail) : [], [detail])
+  const chartData = useMemo(() => detail?.history ?? [], [detail])
 
   const onSubmit: SubmitHandler<ContributionForm> = async (values) => {
     const res = await fetch(`/api/goals/${params.id}/contributions`, {
@@ -119,7 +119,7 @@ export default function GoalDetailPage() {
     )
   }
 
-  const { goal, contributions, contributionCount } = detail
+  const { goal, contributions, contributionCount, forecast, pace, insights } = detail
   const percent = Math.min(goal.completionPercentage, 100)
   const canAdd = goal.status !== 'ARCHIVED' && !goal.archived
 
@@ -159,7 +159,7 @@ export default function GoalDetailPage() {
                 </div>
               </div>
               <div className={cn('rounded-full px-3 py-1 text-sm font-semibold', goal.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : goal.status === 'ARCHIVED' ? 'bg-slate-100 text-slate-500' : 'bg-indigo-50 text-indigo-700')}>
-                {goal.status === 'COMPLETED' ? 'Completato' : goal.status === 'ARCHIVED' ? 'Archiviato' : 'Attivo'}
+                {goal.status === 'ARCHIVED' ? 'Archiviato' : smartStatusLabel(pace.intelligentStatus)}
               </div>
             </div>
 
@@ -179,6 +179,53 @@ export default function GoalDetailPage() {
           <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-5"><p className="text-sm text-slate-500">Residuo</p><p className="mt-2 text-2xl font-bold tabular-nums text-slate-950">{formatCurrency(goal.remainingAmount)}</p></CardContent></Card>
         </section>
 
+        <section className="grid gap-4 lg:grid-cols-2">
+          <Card className="border-[#e5e7f0] bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg text-slate-950">Previsione</CardTitle>
+              <p className="text-sm text-slate-500">
+                {forecast.hasEnoughData ? 'Stima basata sul ritmo medio reale.' : 'Servono altri versamenti per stimare la data di completamento.'}
+              </p>
+            </CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-[#f8f9fc] p-4"><p className="text-xs text-slate-500">Completamento stimato</p><p className="mt-1 font-bold text-slate-950">{forecast.estimatedCompletionDate ? formatDate(forecast.estimatedCompletionDate) : 'Non disponibile'}</p></div>
+              <div className="rounded-2xl bg-[#f8f9fc] p-4"><p className="text-xs text-slate-500">Mesi rimanenti stimati</p><p className="mt-1 font-bold tabular-nums text-slate-950">{forecast.estimatedMonthsRemaining ?? '—'}</p></div>
+              <div className="rounded-2xl bg-[#f8f9fc] p-4"><p className="text-xs text-slate-500">Media mensile reale</p><p className="mt-1 font-bold tabular-nums text-indigo-600">{formatCurrency(forecast.averageMonthlyContribution)}</p></div>
+              <div className="rounded-2xl bg-[#f8f9fc] p-4"><p className="text-xs text-slate-500">Affidabilità</p><p className="mt-1 font-bold text-slate-950">{forecast.hasEnoughData ? 'Buona' : 'Insufficiente'}</p></div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-[#e5e7f0] bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg text-slate-950">Scadenza</CardTitle>
+              <p className="text-sm text-slate-500">{goal.target_date ? 'Ritmo necessario per rispettare la data obiettivo.' : 'Questo obiettivo non ha una scadenza.'}</p>
+            </CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-[#f8f9fc] p-4"><p className="text-xs text-slate-500">Giorni residui</p><p className="mt-1 font-bold tabular-nums text-slate-950">{pace.daysRemaining ?? '—'}</p></div>
+              <div className="rounded-2xl bg-[#f8f9fc] p-4"><p className="text-xs text-slate-500">Quota mensile</p><p className="mt-1 font-bold tabular-nums text-indigo-600">{pace.requiredMonthlyContribution != null ? formatCurrency(pace.requiredMonthlyContribution) : '—'}</p></div>
+              <div className="rounded-2xl bg-[#f8f9fc] p-4"><p className="text-xs text-slate-500">Quota settimanale</p><p className="mt-1 font-bold tabular-nums text-indigo-600">{pace.requiredWeeklyContribution != null ? formatCurrency(pace.requiredWeeklyContribution) : '—'}</p></div>
+              <div className="rounded-2xl bg-[#f8f9fc] p-4"><p className="text-xs text-slate-500">Ammanco previsto</p><p className="mt-1 font-bold tabular-nums text-red-600">{pace.projectedShortfall != null ? formatCurrency(pace.projectedShortfall) : '—'}</p></div>
+            </CardContent>
+          </Card>
+        </section>
+
+        {insights.length > 0 && (
+          <section className="grid gap-3 lg:grid-cols-3">
+            {insights.map((insight) => (
+              <div key={insight.type} className={cn(
+                'rounded-2xl border p-4 text-sm',
+                insight.severity === 'DANGER' ? 'border-red-200 bg-red-50 text-red-800'
+                  : insight.severity === 'WARNING' ? 'border-amber-200 bg-amber-50 text-amber-800'
+                  : insight.severity === 'SUCCESS' ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                  : 'border-indigo-100 bg-indigo-50 text-indigo-800',
+              )}>
+                <p className="font-bold">{insight.severity} · {insight.title}</p>
+                <p className="mt-1 leading-6">{insight.message}</p>
+              </div>
+            ))}
+          </section>
+        )}
+
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
           <Card className="border-[#e5e7f0] bg-white shadow-sm">
             <CardHeader>
@@ -186,7 +233,7 @@ export default function GoalDetailPage() {
               <p className="text-sm text-slate-500">Crescita cumulata dello storico registrato.</p>
             </CardHeader>
             <CardContent>
-              {chartData.length === 0 ? (
+              {chartData.every((p) => p.contributedAmount === 0) ? (
                 <div className="flex h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#e5e7f0] bg-[#f8f9fc] text-center">
                   <PiggyBank className="h-9 w-9 text-slate-300" />
                   <p className="mt-3 text-sm font-semibold text-slate-700">Nessun versamento registrato</p>
@@ -195,7 +242,7 @@ export default function GoalDetailPage() {
               ) : (
                 <div className="h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData}>
+                    <ComposedChart data={chartData}>
                       <defs>
                         <linearGradient id="goalTotal" x1="0" x2="0" y1="0" y2="1">
                           <stop offset="5%" stopColor="#6366f1" stopOpacity={0.28} />
@@ -203,11 +250,13 @@ export default function GoalDetailPage() {
                         </linearGradient>
                       </defs>
                       <CartesianGrid stroke="#e5e7f0" strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={11} />
+                      <XAxis dataKey="month" axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={11} />
                       <YAxis axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={11} width={70} tickFormatter={(v) => formatCurrency(Number(v)).replace(',00', '')} />
                       <Tooltip content={<ChartTooltip />} />
-                      <Area type="monotone" dataKey="total" stroke="#6366f1" strokeWidth={2} fill="url(#goalTotal)" />
-                    </AreaChart>
+                      <Bar dataKey="contributedAmount" name="Versamenti" fill="#10b981" radius={[8, 8, 0, 0]} />
+                      <Area type="monotone" dataKey="cumulativeAmount" name="Cumulato" stroke="#6366f1" strokeWidth={2} fill="url(#goalTotal)" />
+                      <Line type="monotone" dataKey="targetAmount" name="Target" stroke="#94a3b8" strokeDasharray="4 4" dot={false} />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 </div>
               )}

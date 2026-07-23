@@ -11,7 +11,7 @@ const goalId = '22222222-2222-4222-8222-222222222222'
 
 function makeBuilder(data: unknown = null, error: unknown = null, count?: number) {
   const b: Record<string, any> = {}
-  for (const method of ['select', 'eq', 'neq', 'order', 'limit', 'insert', 'update', 'delete']) b[method] = vi.fn(() => b)
+  for (const method of ['select', 'eq', 'neq', 'in', 'order', 'limit', 'insert', 'update', 'delete']) b[method] = vi.fn(() => b)
   b.single = vi.fn(() => Promise.resolve({ data, error }))
   b.maybeSingle = vi.fn(() => Promise.resolve({ data, error }))
   b.then = (resolve: (value: unknown) => void) => resolve({ data: Array.isArray(data) ? data : data ? [data] : [], error, count })
