@@ -170,7 +170,7 @@ describe('Aurora Backup restore dry-run core', () => {
         ...backup.data.transactions[0],
         id: '30000000-0000-4000-8000-000000000011',
         type: 'transfer',
-        account_id: ids.account2,
+        account_id: ids.savings,
         category_id: null,
         transfer_peer_id: '30000000-0000-4000-8000-000000000010',
         amount: 25,

@@ -67,7 +67,7 @@ describe('backup restore prepare/restore API routes', () => {
   it('prepare blocca backup con warning', async () => {
     mockSupabase()
     const backup = validBackup()
-    backup.integrity.recordCounts.unknown = 1
+    ;(backup.integrity.recordCounts as Record<string, number>).unknown = 1
     backup.integrity.checksum = computeBackupChecksum(backup)
     const { POST } = await import('@/app/api/backup/restore/prepare/route')
 

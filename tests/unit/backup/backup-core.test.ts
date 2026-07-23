@@ -175,7 +175,7 @@ describe('Aurora Backup v1 core', () => {
 
     it('segnala conteggi aggiuntivi non riconosciuti come warning', () => {
       const backup = withChecksum(createCompleteBackup())
-      backup.integrity.recordCounts.unknown = 1
+      ;(backup.integrity.recordCounts as Record<string, number>).unknown = 1
       backup.integrity.checksum = computeBackupChecksum(backup)
 
       const result = inspectAuroraBackup(backup)
@@ -385,7 +385,7 @@ describe('Aurora Backup v1 core', () => {
 
     it('warning non rende automaticamente invalido il backup', () => {
       const backup = withChecksum(createCompleteBackup())
-      backup.integrity.recordCounts.unknown = 1
+      ;(backup.integrity.recordCounts as Record<string, number>).unknown = 1
       backup.integrity.checksum = computeBackupChecksum(backup)
 
       const result = inspectAuroraBackup(backup)
