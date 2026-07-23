@@ -1,11 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, PiggyBank, Plus, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle, CalendarDays, ChevronLeft, ChevronRight,
+  MoreHorizontal, Pencil, PiggyBank, Plus, Trash2,
+} from 'lucide-react'
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -15,269 +18,266 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/shared/EmptyState'
-import { isCountableExpense } from '@/domain/accounting/aggregations'
-import { adaptTransactionRows } from '@/domain/accounting/transaction-adapter'
-import { createClient } from '@/lib/supabase/client'
-import { cn, formatCurrency } from '@/lib/utils'
 import { useCategories } from '@/hooks/use-categories'
-import type { Budget, Transaction } from '@/types/database'
+import { cn, formatCurrency } from '@/lib/utils'
+import type { BudgetEntry, BudgetStatus } from '@/lib/budgets/service'
 
-const BORDER = '#e5e7f0'
-const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
+// ── Schema ─────────────────────────────────────────────────────────────────
 
-const budgetSchema = z.object({
-  category_id: z.string().min(1, 'Seleziona una categoria'),
-  amount: z.coerce.number({ error: 'Inserisci un importo valido' }).positive('L’importo deve essere positivo'),
-  month: z.coerce.number().min(1).max(12),
-  year: z.coerce.number().min(2000).max(2100),
+const createSchema = z.object({
+  categoryId: z.string().min(1, 'Seleziona una categoria'),
+  amount: z.coerce.number({ message: 'Importo non valido' }).positive('L\'importo deve essere positivo'),
 })
 
-type BudgetForm = z.infer<typeof budgetSchema>
+const editSchema = z.object({
+  amount: z.coerce.number({ message: 'Importo non valido' }).positive('L\'importo deve essere positivo'),
+})
+
+type CreateForm = z.infer<typeof createSchema>
+type EditForm   = z.infer<typeof editSchema>
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function statusTone(status: BudgetStatus) {
+  switch (status) {
+    case 'exceeded': return { bar: 'bg-red-500',    text: 'text-red-600',    badge: 'bg-red-100 text-red-700',    label: 'Sforato' }
+    case 'critical': return { bar: 'bg-orange-500', text: 'text-orange-600', badge: 'bg-orange-100 text-orange-700', label: 'Critico' }
+    case 'warning':  return { bar: 'bg-amber-500',  text: 'text-amber-600',  badge: 'bg-amber-100 text-amber-700',  label: 'Attenzione' }
+    default:         return { bar: 'bg-emerald-500', text: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-700', label: 'Ok' }
+  }
+}
 
 function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
       className={cn(
-        'h-11 w-full rounded-xl border bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100',
+        'h-11 w-full rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100',
         props.className,
       )}
-      style={{ borderColor: BORDER }}
     />
   )
 }
 
-function monthRange(date: Date) {
-  const start = new Date(date.getFullYear(), date.getMonth(), 1)
-  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0)
-  return {
-    month: date.getMonth() + 1,
-    year: date.getFullYear(),
-    start: start.toLocaleDateString('en-CA'),
-    end: end.toLocaleDateString('en-CA'),
-  }
-}
-
-function progressTone(percent: number) {
-  if (percent >= 100) return { bar: 'bg-red-500', text: 'text-red-600', bg: 'bg-red-50' }
-  if (percent >= 80) return { bar: 'bg-amber-500', text: 'text-amber-600', bg: 'bg-amber-50' }
-  return { bar: 'bg-emerald-500', text: 'text-emerald-600', bg: 'bg-emerald-50' }
-}
+// ── Page ───────────────────────────────────────────────────────────────────
 
 export default function BudgetsPage() {
-  const supabase = createClient()
-  const db = supabase
   const { categories } = useCategories()
-  const [selectedMonth, setSelectedMonth] = useState(new Date())
-  const [budgets, setBudgets] = useState<Budget[]>([])
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingBudget, setEditingBudget] = useState<Budget | null>(null)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [selectedMonth, setSelectedMonth]     = useState(new Date())
+  const [entries, setEntries]                 = useState<BudgetEntry[]>([])
+  const [loading, setLoading]                 = useState(true)
+  const [openMenuId, setOpenMenuId]           = useState<string | null>(null)
+  const [createOpen, setCreateOpen]           = useState(false)
+  const [editEntry, setEditEntry]             = useState<BudgetEntry | null>(null)
+  const [deleteEntry, setDeleteEntry]         = useState<BudgetEntry | null>(null)
+  const [deleting, setDeleting]               = useState(false)
 
-  const range = useMemo(() => monthRange(selectedMonth), [selectedMonth])
   const expenseCategories = useMemo(
-    () => categories.filter((category) => category.type === 'expense' || category.type === 'both'),
+    () => categories.filter((c) => c.type === 'expense' || c.type === 'both'),
     [categories],
   )
-  const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
 
-  const form = useForm<BudgetForm>({
-    resolver: zodResolver(budgetSchema) as Resolver<BudgetForm>,
-    defaultValues: { category_id: '', amount: 0, month: range.month, year: range.year },
-  })
-
-  const fetchData = async () => {
-    setLoading(true)
-    const [{ data: budgetRows, error: budgetError }, { data: transactionRows, error: transactionError }] = await Promise.all([
-      db.from('budgets').select('id,user_id,category_id,amount,month,year,created_at,updated_at').eq('month', range.month).eq('year', range.year),
-      db
-        .from('transactions')
-        .select(TRANSACTION_SELECT)
-        .eq('type', 'expense')
-        .gte('date', range.start)
-        .lte('date', range.end),
-    ])
-
-    if (budgetError || transactionError) {
-      toast.error('Errore nel caricamento dei budget')
-    }
-
-    setBudgets((budgetRows ?? []) as Budget[])
-    setTransactions((transactionRows ?? []) as Transaction[])
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    form.reset({ category_id: '', amount: 0, month: range.month, year: range.year })
-    fetchData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range.month, range.year])
-
-  const spentByCategory = useMemo(() => {
-    return adaptTransactionRows(transactions)
-      .filter(isCountableExpense)
-      .reduce<Record<string, number>>((totals, transaction) => {
-        if (!transaction.categoryId) return totals
-        totals[transaction.categoryId] = (totals[transaction.categoryId] ?? 0) + transaction.amount
-        return totals
-      }, {})
-  }, [transactions])
+  const budgetedCatIds = useMemo(
+    () => new Set(entries.map((e) => e.categoryId)),
+    [entries],
+  )
 
   const totals = useMemo(() => {
-    const budgetTotal = budgets.reduce((sum, budget) => sum + budget.amount, 0)
-    const spentTotal = budgets.reduce((sum, budget) => sum + (spentByCategory[budget.category_id] ?? 0), 0)
-    return { budgetTotal, spentTotal, remaining: budgetTotal - spentTotal }
-  }, [budgets, spentByCategory])
+    const totalAmount    = entries.reduce((s, e) => s + e.amount, 0)
+    const totalSpent     = entries.reduce((s, e) => s + e.spent, 0)
+    const totalRemaining = entries.reduce((s, e) => s + e.remaining, 0)
+    const atRiskCount    = entries.filter((e) => e.status !== 'safe').length
+    const exceededCount  = entries.filter((e) => e.status === 'exceeded').length
+    return { totalAmount, totalSpent, totalRemaining, atRiskCount, exceededCount }
+  }, [entries])
 
-  const atRiskBudgets = useMemo(() => {
-    return budgets
-      .filter((b) => {
-        const spent = spentByCategory[b.category_id] ?? 0
-        return b.amount > 0 && spent / b.amount >= 0.8
+  // ── Data fetching ────────────────────────────────────────────────────────
+
+  const fetchEntries = useCallback(async () => {
+    setLoading(true)
+    try {
+      const p = new URLSearchParams({
+        year:  String(selectedMonth.getFullYear()),
+        month: String(selectedMonth.getMonth() + 1),
       })
-      .map((b) => ({
-        name: categoryById.get(b.category_id)?.name ?? 'Categoria',
-        percent: Math.round(((spentByCategory[b.category_id] ?? 0) / b.amount) * 100),
-      }))
-      .sort((a, b) => b.percent - a.percent)
-  }, [budgets, spentByCategory, categoryById])
-
-  const onSubmit: SubmitHandler<BudgetForm> = async (values) => {
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser()
-      if (userError || !user) throw new Error('Sessione scaduta. Accedi di nuovo.')
-
-      const { error } = await db.from('budgets').upsert({
-        user_id: user.id,
-        category_id: values.category_id,
-        amount: values.amount,
-        month: values.month,
-        year: values.year,
-      }, { onConflict: 'user_id,category_id,month,year' })
-
-      if (error) throw error
-      toast.success('Budget salvato')
-      setDialogOpen(false)
-      form.reset({ category_id: '', amount: 0, month: range.month, year: range.year })
-      await fetchData()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Errore durante il salvataggio del budget')
+      const res = await fetch(`/api/budgets?${p}`)
+      if (!res.ok) { toast.error('Errore caricamento budget'); return }
+      const { data } = await res.json() as { data: BudgetEntry[] }
+      setEntries(data ?? [])
+    } catch {
+      toast.error('Errore di rete')
+    } finally {
+      setLoading(false)
     }
+  }, [selectedMonth])
+
+  useEffect(() => { fetchEntries() }, [fetchEntries])
+
+  // ── Create ───────────────────────────────────────────────────────────────
+
+  const createForm = useForm<CreateForm>({
+    resolver: zodResolver(createSchema) as Resolver<CreateForm>,
+    defaultValues: { categoryId: '', amount: 0 },
+  })
+
+  const onCreateSubmit: SubmitHandler<CreateForm> = async (values) => {
+    const res = await fetch('/api/budgets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        categoryId: values.categoryId,
+        year:  selectedMonth.getFullYear(),
+        month: selectedMonth.getMonth() + 1,
+        amount: values.amount,
+      }),
+    })
+    if (res.status === 409) { toast.error('Esiste già un budget per questa categoria nel mese'); return }
+    if (!res.ok) { toast.error('Errore durante il salvataggio'); return }
+    toast.success('Budget creato')
+    setCreateOpen(false)
+    createForm.reset()
+    await fetchEntries()
   }
 
-  const openEdit = (budget: Budget) => {
+  // ── Edit ─────────────────────────────────────────────────────────────────
+
+  const editForm = useForm<EditForm>({
+    resolver: zodResolver(editSchema) as Resolver<EditForm>,
+    defaultValues: { amount: 0 },
+  })
+
+  const openEdit = (entry: BudgetEntry) => {
     setOpenMenuId(null)
-    setEditingBudget(budget)
-    form.reset({ category_id: budget.category_id, amount: budget.amount, month: budget.month, year: budget.year })
-    setDialogOpen(true)
+    setEditEntry(entry)
+    editForm.reset({ amount: entry.amount })
   }
 
-  const deleteBudget = async (budget: Budget) => {
+  const onEditSubmit: SubmitHandler<EditForm> = async (values) => {
+    if (!editEntry) return
+    const res = await fetch(`/api/budgets/${editEntry.budgetId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: values.amount }),
+    })
+    if (!res.ok) { toast.error('Errore durante il salvataggio'); return }
+    toast.success('Budget aggiornato')
+    setEditEntry(null)
+    await fetchEntries()
+  }
+
+  // ── Delete ───────────────────────────────────────────────────────────────
+
+  const confirmDelete = async () => {
+    if (!deleteEntry) return
+    setDeleting(true)
     try {
-      const { error } = await db.from('budgets').delete().eq('id', budget.id)
-      if (error) throw error
+      const res = await fetch(`/api/budgets/${deleteEntry.budgetId}`, { method: 'DELETE' })
+      if (!res.ok) { toast.error('Errore durante l\'eliminazione'); return }
       toast.success('Budget eliminato')
-      setOpenMenuId(null)
-      await fetchData()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Errore durante l\'eliminazione')
+      setDeleteEntry(null)
+      await fetchEntries()
+    } finally {
+      setDeleting(false)
     }
   }
 
   const shiftMonth = (delta: number) => {
-    setSelectedMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1))
+    setSelectedMonth((cur) => new Date(cur.getFullYear(), cur.getMonth() + delta, 1))
   }
+
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-[#f8f9fc] text-slate-950">
-      <div className="mx-auto max-w-7xl space-y-7">
-        <header className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+      <div className="mx-auto max-w-7xl space-y-6">
+
+        {/* Header */}
+        <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <p className="text-sm font-medium text-indigo-600">Pianificazione</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight">Budget</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Il budget ti aiuta a monitorare quanto hai speso rispetto all'obiettivo del mese.
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Budget</h1>
+            <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-500">
+              Monitora quanto hai speso rispetto all&apos;obiettivo mensile.
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center rounded-2xl border border-[#e5e7f0] bg-white p-1 shadow-sm">
               <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => shiftMonth(-1)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="flex min-w-44 items-center justify-center gap-2 px-3 text-sm font-semibold capitalize">
-                <CalendarDays className="h-4 w-4 text-indigo-500" />
+              <div className="flex min-w-36 items-center justify-center gap-2 px-3 text-sm font-semibold capitalize sm:min-w-44">
+                <CalendarDays className="h-4 w-4 shrink-0 text-indigo-500" />
                 {format(selectedMonth, 'MMMM yyyy', { locale: it })}
               </div>
               <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => shiftMonth(1)}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            <Button onClick={() => { setEditingBudget(null); form.reset({ category_id: '', amount: 0, month: range.month, year: range.year }); setDialogOpen(true) }} className="h-11 gap-2">
+            <Button
+              onClick={() => { createForm.reset({ categoryId: '', amount: 0 }); setCreateOpen(true) }}
+              className="h-11 gap-2"
+            >
               <Plus className="h-4 w-4" />
-              Nuovo budget
+              <span className="hidden sm:inline">Nuovo budget</span>
+              <span className="sm:hidden">Nuovo</span>
             </Button>
           </div>
         </header>
 
-        {!loading && atRiskBudgets.length > 0 && (
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-            <p className="text-sm text-amber-800">
-              <span className="font-semibold">
-                {atRiskBudgets.length === 1 ? '1 categoria vicina' : `${atRiskBudgets.length} categorie vicine`} o oltre il limite:
-              </span>{' '}
-              {atRiskBudgets.map((b, i) => (
-                <span key={i}>
-                  {b.name} <span className="font-semibold">({b.percent}%)</span>
-                  {i < atRiskBudgets.length - 1 ? ', ' : ''}
-                </span>
-              ))}
-            </p>
-          </div>
-        )}
-
-        <section className="grid gap-4 md:grid-cols-3">
+        {/* Summary cards */}
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
           <Card className="border-[#e5e7f0] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <p className="text-sm text-slate-500">Budget totale mese</p>
-              <p className="mt-3 text-3xl font-semibold tabular-nums">{formatCurrency(totals.budgetTotal)}</p>
+            <CardContent className="p-4 sm:p-5">
+              <p className="text-xs font-medium text-slate-500 sm:text-sm">Budget totale</p>
+              <p className="mt-2 text-xl font-bold tabular-nums sm:text-2xl">{formatCurrency(totals.totalAmount)}</p>
             </CardContent>
           </Card>
           <Card className="border-[#e5e7f0] bg-white shadow-sm">
-            <CardContent className="p-5">
-              <p className="text-sm text-slate-500">Speso totale</p>
-              <p className="mt-3 text-3xl font-semibold tabular-nums text-red-600">{formatCurrency(totals.spentTotal)}</p>
+            <CardContent className="p-4 sm:p-5">
+              <p className="text-xs font-medium text-slate-500 sm:text-sm">Speso</p>
+              <p className="mt-2 text-xl font-bold tabular-nums text-red-600 sm:text-2xl">{formatCurrency(totals.totalSpent)}</p>
             </CardContent>
           </Card>
-          <Card className="border-[#e5e7f0] bg-gradient-to-br from-indigo-50 to-white shadow-sm">
-            <CardContent className="p-5">
-              <p className="text-sm text-slate-500">Rimanente</p>
-              <p className={cn('mt-3 text-3xl font-semibold tabular-nums', totals.remaining >= 0 ? 'text-indigo-600' : 'text-red-600')}>
-                {formatCurrency(totals.remaining)}
+          <Card className="col-span-2 border-[#e5e7f0] bg-gradient-to-br from-indigo-50 to-white shadow-sm sm:col-span-1">
+            <CardContent className="p-4 sm:p-5">
+              <p className="text-xs font-medium text-slate-500 sm:text-sm">Rimanente</p>
+              <p className={cn('mt-2 text-xl font-bold tabular-nums sm:text-2xl', totals.totalRemaining >= 0 ? 'text-indigo-600' : 'text-red-600')}>
+                {formatCurrency(totals.totalRemaining)}
               </p>
             </CardContent>
           </Card>
         </section>
 
+        {/* Alert banner */}
+        {!loading && totals.atRiskCount > 0 && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <p className="text-sm text-amber-800">
+              {totals.exceededCount > 0 && (
+                <span className="font-semibold">{totals.exceededCount} {totals.exceededCount === 1 ? 'budget sforato' : 'budget sforati'}. </span>
+              )}
+              {totals.atRiskCount - totals.exceededCount > 0 && (
+                <span>{totals.atRiskCount - totals.exceededCount} {totals.atRiskCount - totals.exceededCount === 1 ? 'categoria a rischio' : 'categorie a rischio'}.</span>
+              )}
+            </p>
+          </div>
+        )}
+
+        {/* Budget list */}
         {loading ? (
           <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="h-28 animate-pulse rounded-2xl border border-[#e5e7f0] bg-white" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-28 animate-pulse rounded-2xl border border-[#e5e7f0] bg-white" />
             ))}
           </div>
-        ) : budgets.length === 0 ? (
+        ) : entries.length === 0 ? (
           <div className="rounded-3xl border border-[#e5e7f0] bg-white p-8 shadow-sm">
             <EmptyState
               icon={PiggyBank}
               title="Nessun budget"
-              description="Imposta un obiettivo mensile per una categoria: Aurora confrontera' automaticamente speso e rimanente."
+              description="Imposta un obiettivo mensile per categoria: Aurora confronterà speso e rimanente automaticamente."
               action={
-                <Button onClick={() => { setEditingBudget(null); setDialogOpen(true) }} className="gap-2">
+                <Button onClick={() => { createForm.reset(); setCreateOpen(true) }} className="gap-2">
                   <Plus className="h-4 w-4" />
                   Crea budget
                 </Button>
@@ -285,44 +285,59 @@ export default function BudgetsPage() {
             />
           </div>
         ) : (
-          <div className="space-y-4">
-            {budgets.map((budget) => {
-              const category = categoryById.get(budget.category_id)
-              const spent = spentByCategory[budget.category_id] ?? 0
-              const percent = budget.amount > 0 ? Math.round((spent / budget.amount) * 100) : 0
-              const tone = progressTone(percent)
-
+          <div className="space-y-3">
+            {entries.map((entry) => {
+              const tone = statusTone(entry.status)
               return (
-                <Card key={budget.id} className="border-[#e5e7f0] bg-white shadow-sm">
-                  <CardContent className="p-5">
-                    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                <Card key={entry.budgetId} className="border-[#e5e7f0] bg-white shadow-sm">
+                  <CardContent className="p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-3">
-                          <span
-                            className="h-3 w-3 shrink-0 rounded-full"
-                            style={{ backgroundColor: category?.color ?? '#6366f1' }}
-                          />
-                          <h2 className="font-semibold text-slate-950">{category?.name ?? 'Categoria'}</h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-slate-950">
+                            {entry.categoryIcon ? `${entry.categoryIcon} ` : ''}{entry.categoryName}
+                          </span>
+                          {entry.parentCategoryName && (
+                            <span className="text-xs text-slate-400">in {entry.parentCategoryName}</span>
+                          )}
+                          <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', tone.badge)}>
+                            {tone.label}
+                          </span>
                         </div>
-                        <p className="mt-2 text-sm text-slate-500">
-                          {formatCurrency(spent)} spesi su {formatCurrency(budget.amount)}
+                        <p className="mt-1 text-sm text-slate-500">
+                          {formatCurrency(entry.spent)} / {formatCurrency(entry.amount)}
+                          <span className={cn('ml-2 font-medium', entry.remaining >= 0 ? 'text-slate-600' : 'text-red-600')}>
+                            ({entry.remaining >= 0
+                              ? `${formatCurrency(entry.remaining)} rimanente`
+                              : `${formatCurrency(Math.abs(entry.remaining))} sforato`})
+                          </span>
                         </p>
                       </div>
+
                       <div className="flex shrink-0 items-center gap-2">
-                        <span className={cn('rounded-full px-3 py-1 text-sm font-semibold tabular-nums', tone.bg, tone.text)}>
-                          {percent}%
+                        <span className={cn('text-sm font-bold tabular-nums sm:text-base', tone.text)}>
+                          {entry.percentage}%
                         </span>
                         <div className="relative">
-                          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setOpenMenuId(openMenuId === budget.id ? null : budget.id)}>
+                          <Button
+                            variant="ghost" size="icon" className="h-9 w-9"
+                            onClick={() => setOpenMenuId(openMenuId === entry.budgetId ? null : entry.budgetId)}
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                          {openMenuId === budget.id && (
+                          {openMenuId === entry.budgetId && (
                             <div className="absolute right-0 top-10 z-20 w-40 rounded-xl border border-[#e5e7f0] bg-white p-1 shadow-xl shadow-slate-200">
-                              <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50" onClick={() => openEdit(budget)}>
+                              <button
+                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                                onClick={() => openEdit(entry)}
+                              >
                                 <Pencil className="h-4 w-4" />
                                 Modifica
                               </button>
-                              <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50" onClick={() => deleteBudget(budget)}>
+                              <button
+                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                                onClick={() => { setDeleteEntry(entry); setOpenMenuId(null) }}
+                              >
                                 <Trash2 className="h-4 w-4" />
                                 Elimina
                               </button>
@@ -331,10 +346,11 @@ export default function BudgetsPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100">
+
+                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
                       <div
                         className={cn('h-full rounded-full transition-all', tone.bar)}
-                        style={{ width: `${Math.min(percent, 140)}%` }}
+                        style={{ width: `${Math.min(entry.percentage, 100)}%` }}
                       />
                     </div>
                   </CardContent>
@@ -345,51 +361,91 @@ export default function BudgetsPage() {
         )}
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingBudget(null) }}>
+      {/* Create dialog */}
+      <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) createForm.reset() }}>
         <DialogContent className="max-w-xl border-[#e5e7f0] bg-white text-slate-950">
           <DialogHeader>
-            <DialogTitle>{editingBudget ? 'Modifica budget' : 'Nuovo budget'}</DialogTitle>
+            <DialogTitle>Nuovo budget</DialogTitle>
           </DialogHeader>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-5">
+          <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="mt-4 space-y-5">
             <div className="space-y-2">
-              <Label className="text-slate-700">Categoria</Label>
-              <SelectField {...form.register('category_id')} disabled={Boolean(editingBudget)}>
+              <Label>Categoria</Label>
+              <SelectField {...createForm.register('categoryId')}>
                 <option value="">Seleziona categoria</option>
-                {expenseCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
+                {expenseCategories
+                  .filter((c) => !budgetedCatIds.has(c.id))
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.icon ? `${c.icon} ` : ''}{c.name}
+                    </option>
+                  ))}
               </SelectField>
-              {form.formState.errors.category_id && (
-                <p className="text-sm text-red-600">{form.formState.errors.category_id.message}</p>
+              {createForm.formState.errors.categoryId && (
+                <p className="text-sm text-red-600">{createForm.formState.errors.categoryId.message}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-700">Importo</Label>
+              <Label>Importo mensile</Label>
               <Input
-                type="number"
-                step="0.01"
-                {...form.register('amount')}
+                type="number" step="0.01" min="0.01"
+                {...createForm.register('amount')}
                 className="h-14 border-[#e5e7f0] bg-white text-2xl font-semibold tabular-nums text-slate-950"
               />
+              {createForm.formState.errors.amount && (
+                <p className="text-sm text-red-600">{createForm.formState.errors.amount.message}</p>
+              )}
             </div>
-            {!editingBudget && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label className="text-slate-700">Mese</Label>
-                  <Input type="number" min={1} max={12} {...form.register('month')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-slate-700">Anno</Label>
-                  <Input type="number" {...form.register('year')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" />
-                </div>
-              </div>
-            )}
-            <Button type="submit" className="h-12 w-full" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Salvataggio...' : editingBudget ? 'Salva modifiche' : 'Salva budget'}
+            <Button type="submit" className="h-12 w-full" disabled={createForm.formState.isSubmitting}>
+              {createForm.formState.isSubmitting ? 'Salvataggio...' : 'Salva budget'}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={Boolean(editEntry)} onOpenChange={(open) => { if (!open) setEditEntry(null) }}>
+        <DialogContent className="max-w-xl border-[#e5e7f0] bg-white text-slate-950">
+          <DialogHeader>
+            <DialogTitle>Modifica budget — {editEntry?.categoryName}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="mt-4 space-y-5">
+            <div className="space-y-2">
+              <Label>Nuovo importo mensile</Label>
+              <Input
+                type="number" step="0.01" min="0.01"
+                {...editForm.register('amount')}
+                className="h-14 border-[#e5e7f0] bg-white text-2xl font-semibold tabular-nums text-slate-950"
+              />
+              {editForm.formState.errors.amount && (
+                <p className="text-sm text-red-600">{editForm.formState.errors.amount.message}</p>
+              )}
+            </div>
+            <Button type="submit" className="h-12 w-full" disabled={editForm.formState.isSubmitting}>
+              {editForm.formState.isSubmitting ? 'Salvataggio...' : 'Salva modifiche'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={Boolean(deleteEntry)} onOpenChange={(open) => { if (!open) setDeleteEntry(null) }}>
+        <DialogContent className="max-w-sm border-[#e5e7f0] bg-white text-slate-950">
+          <DialogHeader>
+            <DialogTitle>Elimina budget</DialogTitle>
+          </DialogHeader>
+          <p className="mt-2 text-sm text-slate-600">
+            Sei sicuro di voler eliminare il budget per{' '}
+            <span className="font-semibold">{deleteEntry?.categoryName}</span>?
+            Questa azione non può essere annullata.
+          </p>
+          <div className="mt-6 flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={() => setDeleteEntry(null)} disabled={deleting}>
+              Annulla
+            </Button>
+            <Button variant="destructive" className="flex-1" onClick={confirmDelete} disabled={deleting}>
+              {deleting ? 'Eliminazione...' : 'Elimina'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

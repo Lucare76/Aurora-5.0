@@ -266,7 +266,7 @@ export default function DashboardPage() {
     accounts, monthIncome, monthExpense, monthBalance,
     prevMonthIncome, prevMonthExpense,
     topCategories, recentTransactions,
-    monthlyChart, insights, budgetAlerts,
+    monthlyChart, insights, budgetSummary,
     cashFlowProjection, upcomingBirthdays,
     firstUseStatus,
   } = data
@@ -372,32 +372,89 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* Budget alerts */}
-      {budgetAlerts.length > 0 && (
+      {/* Budget del mese */}
+      {budgetSummary.totalBudgets > 0 && (
         <section>
           <Card className="border-[#e5e7f0] bg-white shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-base text-slate-950">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  Budget da tenere d&apos;occhio
+                  <PiggyBank className="h-4 w-4 text-indigo-500" />
+                  Budget del mese
                 </CardTitle>
                 <Link href="/budgets" className="text-xs font-medium text-indigo-600 hover:underline">
-                  Vai ai budget →
+                  Gestisci →
                 </Link>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-3">
-                {budgetAlerts.map((alert) => (
-                  <div key={alert.categoryId} className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                    <span className="text-sm font-medium text-amber-800">{alert.categoryName}</span>
-                    <span className={cn('text-sm font-bold tabular-nums', alert.percent >= 100 ? 'text-red-600' : 'text-amber-600')}>
-                      {alert.percent}%
-                    </span>
-                  </div>
-                ))}
+            <CardContent className="space-y-4">
+              {/* Totals */}
+              <div className="grid grid-cols-3 gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+                <div>
+                  <p className="text-xs text-slate-500">Budget totale</p>
+                  <p className="mt-0.5 font-bold tabular-nums text-slate-900">{formatCurrency(budgetSummary.totalAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Speso</p>
+                  <p className="mt-0.5 font-bold tabular-nums text-red-600">{formatCurrency(budgetSummary.totalSpent)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Rimanente</p>
+                  <p className={cn('mt-0.5 font-bold tabular-nums', budgetSummary.totalRemaining >= 0 ? 'text-emerald-600' : 'text-red-600')}>
+                    {formatCurrency(budgetSummary.totalRemaining)}
+                  </p>
+                </div>
               </div>
+
+              {/* Status badges */}
+              <div className="flex flex-wrap gap-2">
+                {budgetSummary.exceededCount > 0 && (
+                  <span className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600">
+                    <AlertTriangle className="h-3 w-3" />
+                    {budgetSummary.exceededCount} {budgetSummary.exceededCount === 1 ? 'sforato' : 'sforati'}
+                  </span>
+                )}
+                {budgetSummary.atRiskCount - budgetSummary.exceededCount > 0 && (
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-600">
+                    {budgetSummary.atRiskCount - budgetSummary.exceededCount} a rischio
+                  </span>
+                )}
+                {budgetSummary.atRiskCount === 0 && (
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600">
+                    Tutti nella norma
+                  </span>
+                )}
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
+                  {budgetSummary.totalBudgets} {budgetSummary.totalBudgets === 1 ? 'budget' : 'budget'}
+                </span>
+              </div>
+
+              {/* Top at-risk budgets */}
+              {budgetSummary.topRiskBudgets.length > 0 && (
+                <div className="space-y-3">
+                  {budgetSummary.topRiskBudgets.map((b) => {
+                    const isExceeded = b.status === 'exceeded'
+                    const isCritical = b.status === 'critical'
+                    return (
+                      <div key={b.categoryName} className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-slate-900">{b.categoryName}</p>
+                          <span className={cn('text-xs font-bold tabular-nums', isExceeded ? 'text-red-600' : 'text-amber-600')}>
+                            {b.percentage}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={cn('h-full rounded-full transition-all', isExceeded ? 'bg-red-500' : isCritical ? 'bg-orange-500' : 'bg-amber-400')}
+                            style={{ width: `${Math.min(b.percentage, 100)}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-slate-400">{formatCurrency(b.spent)} / {formatCurrency(b.amount)}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </section>

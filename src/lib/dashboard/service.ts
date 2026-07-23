@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { computeBudgetEntries, computeBudgetSummary } from '@/lib/budgets/service'
+import type { BudgetSummary } from '@/lib/budgets/service'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -52,14 +54,6 @@ export type DashboardInsightType =
 export type DashboardInsight = {
   type: DashboardInsightType
   message: string
-}
-
-export type DashboardBudgetAlert = {
-  categoryId: string
-  categoryName: string
-  budgetAmount: number
-  spent: number
-  percent: number
 }
 
 export type DashboardUpcomingRule = {
@@ -125,8 +119,8 @@ export type DashboardPayload = {
   // Insight automatici
   insights: DashboardInsight[]
 
-  // Budget alert
-  budgetAlerts: DashboardBudgetAlert[]
+  // Budget del mese
+  budgetSummary: BudgetSummary
 
   // Scadenze (prossimi 30 giorni)
   upcoming30Rules: DashboardUpcomingRule[]
@@ -168,6 +162,7 @@ type CatRow = {
   type: string
   color: string | null
   icon: string | null
+  parent_id: string | null
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -375,7 +370,7 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
       .eq('is_active', true),
     supabase
       .from('categories')
-      .select('id,name,type,color,icon'),
+      .select('id,name,type,color,icon,parent_id'),
     supabase
       .from('transactions')
       .select('id,account_id,category_id,type,amount,description,date,transfer_peer_id')
@@ -383,7 +378,7 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
       .order('date', { ascending: false }),
     supabase
       .from('budgets')
-      .select('category_id,amount')
+      .select('id,category_id,amount')
       .eq('month', currentMonth.month)
       .eq('year', currentMonth.year),
     supabase
@@ -409,7 +404,7 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
   const accounts = (accountsRes.data ?? []) as DashboardAccount[]
   const categories = (categoriesRes.data ?? []) as CatRow[]
   const allTxs = (txRes.data ?? []) as TxRow[]
-  const budgets = (budgetsRes.data ?? []) as { category_id: string; amount: number }[]
+  const budgets = (budgetsRes.data ?? []) as { id: string; category_id: string; amount: number }[]
   const rules = (rulesRes.data ?? []) as DashboardUpcomingRule[]
   const loans = (loansRes.data ?? []) as DashboardUpcomingLoan[]
   const birthdaysRaw = (birthdaysRes.data ?? []) as { id: string; name: string; birth_date: string }[]
@@ -451,21 +446,14 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
     transferPeerId: tx.transfer_peer_id,
   }))
 
-  const spentByCat: Record<string, number> = {}
-  for (const tx of curTxs) {
-    if (!isPureExpense(tx) || !tx.category_id) continue
-    spentByCat[tx.category_id] = (spentByCat[tx.category_id] ?? 0) + Number(tx.amount)
-  }
-  const budgetAlerts: DashboardBudgetAlert[] = budgets
-    .filter((b) => b.amount > 0 && (spentByCat[b.category_id] ?? 0) / b.amount >= 0.8)
-    .map((b) => ({
-      categoryId: b.category_id,
-      categoryName: catById.get(b.category_id)?.name ?? 'Categoria',
-      budgetAmount: b.amount,
-      spent: round2(spentByCat[b.category_id] ?? 0),
-      percent: Math.round(((spentByCat[b.category_id] ?? 0) / b.amount) * 100),
-    }))
-    .sort((a, b) => b.percent - a.percent)
+  const budgetEntries = computeBudgetEntries(
+    budgets,
+    categories,
+    curTxs.filter(isPureExpense),
+    currentMonth.year,
+    currentMonth.month,
+  )
+  const budgetSummary = computeBudgetSummary(budgetEntries)
 
   const today2 = new Date()
   today2.setHours(0, 0, 0, 0)
@@ -499,7 +487,7 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
     recentTransactions,
     monthlyChart: chart,
     insights,
-    budgetAlerts,
+    budgetSummary,
     upcoming30Rules: rules,
     upcoming30Loans: loans,
     cashFlowProjection: cashFlow,
