@@ -124,6 +124,33 @@ const defaultValues: TransactionForm = {
   notes: '',
 }
 
+function getInitialSearchParams() {
+  if (typeof window === 'undefined') return new URLSearchParams()
+  return new URLSearchParams(window.location.search)
+}
+
+function getInitialTypeFilter(): TypeFilter {
+  const value = getInitialSearchParams().get('type')
+  return value === 'income' || value === 'expense' || value === 'transfer' ? value : 'all'
+}
+
+function getInitialAccountFilter() {
+  return getInitialSearchParams().get('account') ?? 'all'
+}
+
+function getInitialCategoryFilters() {
+  const category = getInitialSearchParams().get('category')
+  return category ? [category] : []
+}
+
+function getInitialDateRange() {
+  const params = getInitialSearchParams()
+  const from = params.get('from')
+  const to = params.get('to')
+  const valid = Boolean(from && to && /^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to))
+  return { active: valid, from, to }
+}
+
 function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
@@ -198,30 +225,31 @@ async function transactionRequest(method: 'POST' | 'PATCH' | 'DELETE', body: Rec
 export default function TransactionsPage() {
   const [initialAction] = useState(() => typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('action'))
   const [initialType] = useState(() => typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('type'))
+  const [initialDateRange] = useState(() => getInitialDateRange())
   const supabase = createClient()
   const db = supabase
   const { accounts, refetch: refetchAccounts } = useAccounts()
   const { categories, getCategoryTree } = useCategories()
   const [transactions, setTransactions] = useState<TransactionWithPeer[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedMonth, setSelectedMonth] = useState(new Date())
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
-  const [accountFilter, setAccountFilter] = useState('all')
+  const [selectedMonth, setSelectedMonth] = useState(() => initialDateRange.from ? new Date(`${initialDateRange.from}T00:00:00`) : new Date())
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>(() => getInitialTypeFilter())
+  const [accountFilter, setAccountFilter] = useState(() => getInitialAccountFilter())
   const [createOpen, setCreateOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<TransactionWithPeer | null>(null)
   const [deletingTransaction, setDeletingTransaction] = useState<TransactionWithPeer | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [categoryFilters, setCategoryFilters] = useState<string[]>([])
+  const [categoryFilters, setCategoryFilters] = useState<string[]>(() => getInitialCategoryFilters())
   const [showCatDropdown, setShowCatDropdown] = useState(false)
   const [amountMin, setAmountMin] = useState('')
   const [amountMax, setAmountMax] = useState('')
-  const [useDateRange, setUseDateRange] = useState(false)
+  const [useDateRange, setUseDateRange] = useState(initialDateRange.active)
   const [dateRangeFrom, setDateRangeFrom] = useState(
-    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'),
+    () => initialDateRange.from ?? new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'),
   )
-  const [dateRangeTo, setDateRangeTo] = useState(() => new Date().toLocaleDateString('en-CA'))
+  const [dateRangeTo, setDateRangeTo] = useState(() => initialDateRange.to ?? new Date().toLocaleDateString('en-CA'))
   const [importOpen, setImportOpen] = useState(false)
   const [importStep, setImportStep] = useState<'upload' | 'preview'>('upload')
   const [importAccount, setImportAccount] = useState('')
