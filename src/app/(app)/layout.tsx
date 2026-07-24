@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -23,6 +23,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { GlobalCommandMenu } from '@/components/global-command-menu'
+import { GlobalSearchTrigger } from '@/components/global-search-trigger'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
 
@@ -150,11 +152,13 @@ function SidebarContent({
   email,
   onSignOut,
   onNavigate,
+  onSearchOpen,
 }: {
   displayName: string
   email?: string
   onSignOut: () => void
   onNavigate?: () => void
+  onSearchOpen: () => void
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -162,6 +166,7 @@ function SidebarContent({
         <Logo />
       </div>
       <div className="flex-1 overflow-y-auto py-4">
+        <GlobalSearchTrigger onClick={onSearchOpen} />
         <Navigation onNavigate={onNavigate} />
       </div>
       <UserFooter displayName={displayName} email={email} onSignOut={onSignOut} />
@@ -218,6 +223,7 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
+  const [commandOpen, setCommandOpen] = useState(false)
   const { profile, user, signOut } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
@@ -230,24 +236,39 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     router.push('/login')
   }
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onKeyDown = (event: KeyboardEvent) => {
+      const isSearchShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k'
+      if (!isSearchShortcut || event.altKey || event.shiftKey) return
+      event.preventDefault()
+      setCommandOpen(true)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   return (
     <div className="min-h-screen bg-[#f8f9fc] text-slate-950">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-[#e5e7f0] bg-white md:block">
-        <SidebarContent displayName={displayName} email={user?.email} onSignOut={handleSignOut} />
+        <SidebarContent displayName={displayName} email={user?.email} onSignOut={handleSignOut} onSearchOpen={() => setCommandOpen(true)} />
       </aside>
 
       <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-[#e5e7f0] bg-white/90 px-4 backdrop-blur md:hidden">
         <Logo compact />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-10 w-10 text-slate-600 hover:bg-slate-100"
-          onClick={() => setMobileMenuOpen(true)}
-          aria-label="Apri menu"
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <GlobalSearchTrigger compact onClick={() => setCommandOpen(true)} />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 text-slate-600 hover:bg-slate-100"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Apri menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </div>
       </header>
 
       <div
@@ -285,6 +306,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             displayName={displayName}
             email={user?.email}
             onSignOut={handleSignOut}
+            onSearchOpen={() => setCommandOpen(true)}
             onNavigate={() => setMobileMenuOpen(false)}
           />
         </aside>
@@ -331,6 +353,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
+      <GlobalCommandMenu open={commandOpen} onOpenChange={setCommandOpen} />
     </div>
   )
 }

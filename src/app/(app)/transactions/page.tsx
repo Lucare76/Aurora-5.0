@@ -196,6 +196,8 @@ async function transactionRequest(method: 'POST' | 'PATCH' | 'DELETE', body: Rec
 }
 
 export default function TransactionsPage() {
+  const [initialAction] = useState(() => typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('action'))
+  const [initialType] = useState(() => typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('type'))
   const supabase = createClient()
   const db = supabase
   const { accounts, refetch: refetchAccounts } = useAccounts()
@@ -231,6 +233,13 @@ export default function TransactionsPage() {
     resolver: zodResolver(transactionSchema) as Resolver<TransactionForm>,
     defaultValues,
   })
+
+  useEffect(() => {
+    if (initialAction !== 'create') return
+    const type = initialType === 'transfer' ? 'transfer' : 'expense'
+    form.reset({ ...defaultValues, type })
+    setCreateOpen(true)
+  }, [form, initialAction, initialType])
 
   const editForm = useForm<TransactionForm>({
     resolver: zodResolver(transactionSchema) as Resolver<TransactionForm>,

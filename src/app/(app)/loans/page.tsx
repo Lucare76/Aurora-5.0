@@ -49,6 +49,7 @@ function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 }
 
 export default function LoansPage() {
+  const [initialAction] = useState(() => typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('action'))
   const supabase = createClient()
   const db = supabase
   const [loans, setLoans] = useState<Loan[]>([])
@@ -95,6 +96,11 @@ export default function LoansPage() {
     loanForm.reset({ type: tab, counterpart: '', amount: 0, description: '', due_date: '' })
     setDialogOpen(true)
   }
+
+  useEffect(() => {
+    if (initialAction === 'create') openCreate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAction])
 
   const openEdit = (loan: Loan) => {
     setOpenMenuId(null)

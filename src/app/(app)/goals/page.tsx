@@ -213,6 +213,7 @@ function GoalCard({
 }
 
 export default function GoalsPage() {
+  const [initialAction] = useState(() => typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('action'))
   const [goals, setGoals] = useState<GoalProgress[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['key']>('ACTIVE')
@@ -333,6 +334,16 @@ export default function GoalsPage() {
     setDeleting(null)
     await fetchGoals()
   }
+
+  useEffect(() => {
+    if (initialAction === 'create') {
+      openCreate()
+    } else if (initialAction === 'contribution') {
+      const firstActiveGoal = goals.find((goal) => goal.status === 'ACTIVE' && !goal.archived)
+      if (firstActiveGoal) setContributionGoal(firstActiveGoal)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAction, goals])
 
   return (
     <div className="min-h-screen bg-[#f8f9fc] text-slate-950">

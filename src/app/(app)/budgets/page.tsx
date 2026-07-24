@@ -73,6 +73,7 @@ function InsightRow({ insight }: { insight: BudgetInsight }) {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function BudgetsPage() {
+  const [initialAction] = useState(() => typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('action'))
   const { categories } = useCategories()
   const [selectedMonth, setSelectedMonth]     = useState(new Date())
   const [entries, setEntries]                 = useState<EnrichedBudgetEntry[]>([])
@@ -134,6 +135,12 @@ export default function BudgetsPage() {
     resolver: zodResolver(createSchema) as Resolver<CreateForm>,
     defaultValues: { categoryId: '', amount: 0 },
   })
+
+  useEffect(() => {
+    if (initialAction !== 'create') return
+    createForm.reset({ categoryId: '', amount: 0 })
+    setCreateOpen(true)
+  }, [createForm, initialAction])
 
   const onCreateSubmit: SubmitHandler<CreateForm> = async (values) => {
     const res = await fetch('/api/budgets', {
