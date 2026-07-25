@@ -6,9 +6,11 @@ import {
   buildGoalPace,
   buildGoalSummary,
   calculateRequiredMonthlyContribution,
+  deleteContribution,
   determineGoalPaceStatus,
   getGoalDetail,
   listGoals,
+  replaceContribution,
 } from '@/lib/goals/service'
 import type { SavingsGoal } from '@/types/database'
 
@@ -30,8 +32,9 @@ const baseGoal: SavingsGoal = {
 
 function makeBuilder(data: unknown = null, error: unknown = null, count?: number) {
   const b: Record<string, any> = {}
-  for (const method of ['select', 'eq', 'neq', 'in', 'order', 'limit']) b[method] = vi.fn(() => b)
+  for (const method of ['select', 'eq', 'neq', 'in', 'order', 'limit', 'insert', 'delete']) b[method] = vi.fn(() => b)
   b.maybeSingle = vi.fn(() => Promise.resolve({ data, error }))
+  b.single = vi.fn(() => Promise.resolve({ data, error }))
   b.then = (resolve: (value: unknown) => void) => resolve({ data: Array.isArray(data) ? data : data ? [data] : [], error, count })
   return b
 }
@@ -149,5 +152,93 @@ describe('goals service', () => {
     expect(detail?.forecast).toBeDefined()
     expect(detail?.pace).toBeDefined()
     expect(detail?.history).toHaveLength(12)
+  })
+
+  it('keeps the chronological contribution list available in goal detail', async () => {
+    const contributions = [
+      { id: '44444444-4444-4444-8444-444444444444', goal_id: baseGoal.id, user_id: baseGoal.user_id, amount: 75, date: '2026-07-21', note: 'Secondo', created_at: '2026-07-21T09:00:00Z' },
+      { id: '55555555-5555-4555-8555-555555555555', goal_id: baseGoal.id, user_id: baseGoal.user_id, amount: 50, date: '2026-07-20', note: 'Primo', created_at: '2026-07-20T09:00:00Z' },
+    ]
+    const supabase = {
+      from: vi.fn((table: string) => table === 'savings_goals' ? makeBuilder(baseGoal) : makeBuilder(contributions, null, contributions.length)),
+    } as never
+
+    const detail = await getGoalDetail(supabase, baseGoal.id)
+
+    expect(detail?.contributionCount).toBe(2)
+    expect(detail?.contributions.map((row) => row.note)).toEqual(['Secondo', 'Primo'])
+    expect(detail?.contributions[0].created_at).toBe('2026-07-21T09:00:00Z')
+  })
+
+  it('reflects a refreshed active goal after a deleted contribution drops the amount below target', async () => {
+    const refreshed = { ...baseGoal, current_amount: 900, target_amount: 1000, status: 'ACTIVE' as const }
+    const supabase = { from: vi.fn((table: string) => table === 'savings_goals' ? makeBuilder(refreshed) : makeBuilder([], null, 0)) } as never
+
+    const detail = await getGoalDetail(supabase, refreshed.id)
+    const summary = buildGoalSummary([refreshed])
+
+    expect(detail?.goal.status).toBe('ACTIVE')
+    expect(detail?.goal.current_amount).toBe(900)
+    expect(detail?.goal.remainingAmount).toBe(100)
+    expect(detail?.goal.completionPercentage).toBe(90)
+    expect(summary.activeGoals).toBe(1)
+    expect(summary.completedGoals).toBe(0)
+  })
+
+  it('keeps a refreshed goal completed when the amount remains above target after deletion', async () => {
+    const refreshed = { ...baseGoal, current_amount: 1100, target_amount: 1000, status: 'COMPLETED' as const }
+    const supabase = { from: vi.fn((table: string) => table === 'savings_goals' ? makeBuilder(refreshed) : makeBuilder([], null, 0)) } as never
+
+    const detail = await getGoalDetail(supabase, refreshed.id)
+    const summary = buildGoalSummary([refreshed])
+
+    expect(detail?.goal.status).toBe('COMPLETED')
+    expect(detail?.goal.remainingAmount).toBe(0)
+    expect(detail?.goal.completionPercentage).toBe(110)
+    expect(summary.activeGoals).toBe(0)
+    expect(summary.completedGoals).toBe(1)
+  })
+
+  it('deletes contributions through the goal contribution table without touching transactions', async () => {
+    const builder = makeBuilder([])
+    const from = vi.fn(() => builder)
+    const supabase = { from } as never
+
+    await deleteContribution(supabase, '44444444-4444-4444-8444-444444444444')
+
+    expect(from).toHaveBeenCalledTimes(1)
+    expect(from).toHaveBeenCalledWith('goal_contributions')
+    expect(builder.delete).toHaveBeenCalledTimes(1)
+  })
+
+  it('replaces a contribution by deleting and inserting so existing database triggers recalculate the goal', async () => {
+    const calls: string[] = []
+    const insertedId = '55555555-5555-4555-8555-555555555555'
+    const builder = makeBuilder({ id: insertedId })
+    builder.delete.mockImplementation(() => { calls.push('delete'); return builder })
+    builder.insert.mockImplementation((payload: unknown) => {
+      calls.push('insert')
+      expect(payload).toMatchObject({
+        goal_id: baseGoal.id,
+        user_id: baseGoal.user_id,
+        amount: 75,
+        date: '2026-07-25',
+        note: 'Corretto',
+      })
+      return builder
+    })
+
+    const supabase = { from: vi.fn(() => builder) } as never
+    const result = await replaceContribution(supabase, {
+      contributionId: '44444444-4444-4444-8444-444444444444',
+      goalId: baseGoal.id,
+      userId: baseGoal.user_id,
+      amount: 75,
+      date: '2026-07-25',
+      note: 'Corretto',
+    })
+
+    expect(result.id).toBe(insertedId)
+    expect(calls).toEqual(['delete', 'insert'])
   })
 })

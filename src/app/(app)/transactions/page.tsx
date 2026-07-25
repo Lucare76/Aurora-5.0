@@ -42,6 +42,7 @@ import { useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
 import type { CategoryTreeNode } from '@/hooks/use-categories'
 import { createClient } from '@/lib/supabase/client'
+import { buildTransactionPayload, parseTransactionAmount } from '@/lib/transactions/form-contract'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { Account, Category, Transaction, TransactionType } from '@/types/database'
 
@@ -87,7 +88,7 @@ function parseCSV(text: string): string[][] {
 const transactionSchema = z
   .object({
     type: z.enum(['income', 'expense', 'transfer']),
-    amount: z.coerce.number({ error: 'Inserisci un importo valido' }).positive('L’importo deve essere positivo'),
+    amount: z.preprocess(parseTransactionAmount, z.number({ error: 'Inserisci un importo valido' }).finite('Inserisci un importo valido').positive('L’importo deve essere positivo')),
     description: z.string().trim().min(1, 'La descrizione è obbligatoria'),
     date: z.string().min(1, 'La data è obbligatoria'),
     account_id: z.string().min(1, 'Seleziona un conto'),
@@ -359,16 +360,7 @@ export default function TransactionsPage() {
   const onCreate: SubmitHandler<TransactionForm> = async (values) => {
     try {
       setBusy(true)
-      await transactionRequest('POST', {
-        account_id: values.account_id,
-        destination_account_id: values.type === 'transfer' ? values.destination_account_id : undefined,
-        category_id: values.type === 'transfer' || !values.category_id ? null : values.category_id,
-        type: values.type,
-        amount: values.amount,
-        description: values.description,
-        notes: values.notes || null,
-        date: values.date,
-      })
+      await transactionRequest('POST', buildTransactionPayload(values))
 
       toast.success('Transazione creata')
       form.reset(defaultValues)
@@ -430,16 +422,9 @@ export default function TransactionsPage() {
     try {
       setBusy(true)
       await transactionRequest('PATCH', {
+        ...buildTransactionPayload(values),
         transaction_id: editingTransaction.id,
-        account_id: values.account_id,
-        destination_account_id: values.type === 'transfer' ? values.destination_account_id : null,
-        category_id: values.type === 'transfer' || !values.category_id ? null : values.category_id,
         clear_category: values.type === 'transfer' || !values.category_id,
-        type: values.type,
-        amount: values.amount,
-        description: values.description,
-        notes: values.notes || null,
-        date: values.date,
       })
 
       toast.success('Transazione aggiornata')
@@ -565,7 +550,7 @@ export default function TransactionsPage() {
       <div className="space-y-2 text-center">
         <Label className="text-slate-600">Importo</Label>
         <Input
-          type="number"
+          type="text"
           step="0.01"
           inputMode="decimal"
           {...targetForm.register('amount')}

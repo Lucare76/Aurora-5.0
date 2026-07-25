@@ -98,6 +98,7 @@ describe('transactions API route', () => {
       const response = await POST(makeRequest(body))
 
       expect(response.status).toBe(400)
+      expect(await response.json()).toMatchObject({ field: 'account_id', error: 'Seleziona il conto di partenza' })
     })
 
     it('returns 400 for invalid transaction type', async () => {
@@ -116,6 +117,7 @@ describe('transactions API route', () => {
       const response = await POST(makeRequest({ ...validCreateBody(), amount: 0 }))
 
       expect(response.status).toBe(400)
+      expect(await response.json()).toMatchObject({ field: 'amount', error: 'Inserisci un importo maggiore di zero' })
     })
 
     it('returns 400 for negative amount', async () => {
@@ -172,9 +174,12 @@ describe('transactions API route', () => {
       const { POST } = await importRoute()
       const body = validCreateBody({
         type: 'transfer',
+        amount: 113.5,
+        description: 'marathonbet',
+        date: '2026-07-25',
         destination_account_id: destinationAccountId,
+        category_id: null,
       })
-      delete (body as { category_id?: string }).category_id
 
       const response = await POST(makeRequest(body))
 
@@ -183,9 +188,29 @@ describe('transactions API route', () => {
         name: 'create_transaction_atomic',
         params: {
           p_type: 'transfer',
+          p_account_id: accountId,
+          p_amount: 113.5,
+          p_date: '2026-07-25',
+          p_description: 'marathonbet',
+          p_category_id: null,
           p_destination_account_id: destinationAccountId,
         },
       })
+    })
+
+    it('allows a transfer without category_id', async () => {
+      const calls = mockSupabase()
+      const { POST } = await importRoute()
+      const body = validCreateBody({
+        type: 'transfer',
+        destination_account_id: destinationAccountId,
+      })
+      delete (body as { category_id?: string }).category_id
+
+      const response = await POST(makeRequest(body))
+
+      expect(response.status).toBe(201)
+      expect(calls[0].params.p_category_id).toBeNull()
     })
 
     it('maps not owned RPC errors to 403', async () => {
@@ -209,6 +234,7 @@ describe('transactions API route', () => {
       const response = await POST(makeRequest(body))
 
       expect(response.status).toBe(400)
+      expect(await response.json()).toMatchObject({ field: 'destination_account_id' })
       expect(calls).toHaveLength(0)
     })
 
@@ -267,6 +293,7 @@ describe('transactions API route', () => {
       const response = await POST(makeRequest(validCreateBody({ date: '2026-02-31' })))
 
       expect(response.status).toBe(400)
+      expect(await response.json()).toMatchObject({ field: 'date', error: 'La data non è valida' })
     })
 
     it('returns 400 for empty descriptions', async () => {
@@ -276,6 +303,37 @@ describe('transactions API route', () => {
       const response = await POST(makeRequest(validCreateBody({ description: '   ' })))
 
       expect(response.status).toBe(400)
+      expect(await response.json()).toMatchObject({ field: 'description', error: 'Inserisci una descrizione' })
+    })
+
+    it('maps destination ownership errors to 403 without exposing internal details', async () => {
+      mockSupabase({ rpcError: 'Destination account not owned by current user' })
+      const { POST } = await importRoute()
+      const body = validCreateBody({
+        type: 'transfer',
+        destination_account_id: destinationAccountId,
+        category_id: null,
+      })
+
+      const response = await POST(makeRequest(body))
+
+      expect(response.status).toBe(403)
+      expect(await response.json()).toEqual({ error: 'Destination account not owned by current user' })
+    })
+
+    it('returns a sanitized error when the atomic transfer RPC rolls back', async () => {
+      mockSupabase({ rpcError: 'rollback complete: internal transfer failure with stack trace' })
+      const { POST } = await importRoute()
+      const body = validCreateBody({
+        type: 'transfer',
+        destination_account_id: destinationAccountId,
+        category_id: null,
+      })
+
+      const response = await POST(makeRequest(body))
+
+      expect(response.status).toBe(500)
+      expect(await response.json()).toEqual({ error: 'Errore nella creazione della transazione' })
     })
 
     it('returns 400 for extra fields including user_id', async () => {

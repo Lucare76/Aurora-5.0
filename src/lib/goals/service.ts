@@ -687,6 +687,20 @@ export async function deleteContribution(supabase: SupabaseClient, contributionI
   if (error) throw error
 }
 
+export async function replaceContribution(
+  supabase: SupabaseClient,
+  input: { contributionId: string; goalId: string; userId: string; amount: number; date: string; note?: string | null },
+): Promise<{ id: string }> {
+  await deleteContribution(supabase, input.contributionId)
+  return addContribution(supabase, {
+    goalId: input.goalId,
+    userId: input.userId,
+    amount: input.amount,
+    date: input.date,
+    note: input.note ?? null,
+  })
+}
+
 export async function getGoalDetail(supabase: SupabaseClient, goalId: string): Promise<GoalDetail | null> {
   const [
     { data: goal, error: goalError },

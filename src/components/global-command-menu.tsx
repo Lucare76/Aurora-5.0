@@ -42,7 +42,7 @@ const typeIcons: Record<SearchResultType, LucideIcon> = {
   RECURRENCE: Repeat,
 }
 
-const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
+export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'new-transaction', group: 'Azioni rapide', title: 'Nuovo movimento', subtitle: 'Apri il form transazioni', href: '/transactions?action=create', keywords: ['nuova transazione', 'nuovo movimento', 'entrata', 'uscita'], icon: Plus },
   { id: 'new-transfer', group: 'Azioni rapide', title: 'Nuovo trasferimento', subtitle: 'Apri i movimenti e scegli Giroconto', href: '/transactions?action=create&type=transfer', keywords: ['giroconto', 'trasferimento'], icon: ArrowLeftRight },
   { id: 'new-budget', group: 'Azioni rapide', title: 'Nuovo budget', subtitle: 'Crea un budget mensile', href: '/budgets?action=create', keywords: ['budget', 'nuovo budget'], icon: Target },

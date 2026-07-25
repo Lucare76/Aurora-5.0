@@ -9,7 +9,7 @@ import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { EmptyState } from '@/components/shared/EmptyState'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -207,6 +207,18 @@ function GoalCard({
             <span className="font-bold">{goal.primaryInsight.title}: </span>{goal.primaryInsight.message}
           </div>
         )}
+
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+          <p className="text-xs text-slate-500">Apri il dettaglio per vedere e gestire i versamenti.</p>
+          <Link
+            href={`/goals/${goal.id}`}
+            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'shrink-0 gap-2 border-indigo-100 text-indigo-700 hover:bg-indigo-50')}
+            aria-label={`Apri dettaglio obiettivo ${goal.name}`}
+          >
+            Apri dettaglio
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
       </CardContent>
     </Card>
   )

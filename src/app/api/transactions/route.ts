@@ -42,6 +42,7 @@ const transferCreateSchema = z
     ...baseCreateSchema,
     type: z.literal('transfer'),
     destination_account_id: uuid,
+    category_id: z.null().optional(),
   })
   .strict()
   .refine((data) => data.account_id !== data.destination_account_id, {
@@ -114,8 +115,25 @@ function errorStatus(msg: string): number {
 }
 
 function validationError(error: z.ZodError) {
+  const firstIssue = error.issues[0]
+  const field = firstIssue?.path.join('.') || 'payload'
+  const messageByField: Record<string, string> = {
+    account_id: 'Seleziona il conto di partenza',
+    destination_account_id: 'Seleziona il conto di destinazione',
+    amount: 'Inserisci un importo maggiore di zero',
+    date: 'La data non è valida',
+    description: 'Inserisci una descrizione',
+    type: 'Tipo movimento non valido',
+    category_id: 'La categoria non è valida per questo movimento',
+  }
+  const safeMessage = messageByField[field] ?? 'Dati non validi'
   return NextResponse.json(
-    { error: 'Dati non validi', code: 'VALIDATION_ERROR', details: error.flatten() },
+    {
+      error: safeMessage,
+      code: 'VALIDATION_ERROR',
+      field,
+      ...(process.env.NODE_ENV !== 'production' ? { details: error.flatten() } : {}),
+    },
     { status: 400 },
   )
 }

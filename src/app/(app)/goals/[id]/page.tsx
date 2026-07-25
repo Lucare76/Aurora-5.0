@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, CalendarDays, PiggyBank, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Pencil, PiggyBank, Plus, Trash2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { Area, AreaChart, Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -57,6 +57,7 @@ export default function GoalDetailPage() {
   const [detail, setDetail] = useState<GoalDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [contributionOpen, setContributionOpen] = useState(false)
+  const [editingContribution, setEditingContribution] = useState<GoalDetail['contributions'][number] | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const form = useForm<ContributionForm>({
@@ -84,15 +85,35 @@ export default function GoalDetailPage() {
 
   const chartData = useMemo(() => detail?.history ?? [], [detail])
 
-  const onSubmit: SubmitHandler<ContributionForm> = async (values) => {
-    const res = await fetch(`/api/goals/${params.id}/contributions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: values.amount, date: values.date, note: values.note || null }),
+  const openContributionCreate = () => {
+    setEditingContribution(null)
+    form.reset({ amount: 0, date: new Date().toLocaleDateString('en-CA'), note: '' })
+    setContributionOpen(true)
+  }
+
+  const openContributionEdit = (contribution: GoalDetail['contributions'][number]) => {
+    setEditingContribution(contribution)
+    form.reset({
+      amount: contribution.amount,
+      date: contribution.date,
+      note: contribution.note ?? '',
     })
-    if (!res.ok) { toast.error('Errore durante il versamento'); return }
-    toast.success('Versamento registrato')
+    setContributionOpen(true)
+  }
+
+  const onSubmit: SubmitHandler<ContributionForm> = async (values) => {
+    const res = await fetch(
+      editingContribution ? `/api/goals/contributions/${editingContribution.id}` : `/api/goals/${params.id}/contributions`,
+      {
+        method: editingContribution ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: values.amount, date: values.date, note: values.note || null }),
+      },
+    )
+    if (!res.ok) { toast.error(editingContribution ? 'Errore durante la modifica del versamento' : 'Errore durante il versamento'); return }
+    toast.success(editingContribution ? 'Versamento aggiornato' : 'Versamento registrato')
     setContributionOpen(false)
+    setEditingContribution(null)
     form.reset({ amount: 0, date: new Date().toLocaleDateString('en-CA'), note: '' })
     await fetchDetail()
   }
@@ -132,7 +153,7 @@ export default function GoalDetailPage() {
             Obiettivi
           </Link>
           {canAdd && (
-            <Button className="gap-2" onClick={() => setContributionOpen(true)}>
+            <Button className="gap-2" onClick={openContributionCreate}>
               <Plus className="h-4 w-4" />
               Aggiungi versamento
             </Button>
@@ -265,13 +286,14 @@ export default function GoalDetailPage() {
 
           <Card className="border-[#e5e7f0] bg-white shadow-sm">
             <CardHeader>
-              <CardTitle className="text-lg text-slate-950">Storico versamenti</CardTitle>
-              <p className="text-sm text-slate-500">Mostrati gli ultimi {Math.min(contributionCount, 50)} di {contributionCount} versamenti.</p>
+              <CardTitle className="text-lg text-slate-950">Versamenti</CardTitle>
+              <p className="text-sm text-slate-500">Storico cronologico: mostrati gli ultimi {Math.min(contributionCount, 50)} di {contributionCount} versamenti.</p>
             </CardHeader>
             <CardContent>
               {contributions.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-[#e5e7f0] bg-[#f8f9fc] p-6 text-center">
                   <p className="text-sm font-semibold text-slate-700">Nessun versamento</p>
+                  <p className="mt-1 text-sm text-slate-500">Aggiungi un versamento per aggiornare accumulato, residuo, percentuale e stato dell’obiettivo.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
@@ -281,14 +303,20 @@ export default function GoalDetailPage() {
                         <Plus className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-slate-900">{formatDate(row.date)}</p>
+                        <p className="font-semibold text-slate-900">Versamento del {formatDate(row.date)}</p>
                         {row.note && <p className="mt-0.5 truncate text-xs text-slate-500">{row.note}</p>}
+                        <p className="mt-0.5 text-xs text-slate-400">Creato il {formatDate(row.created_at)}</p>
                       </div>
                       <AmountDisplay amount={row.amount} type="income" className="shrink-0 text-sm font-bold" />
                       {canAdd && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600" onClick={() => setDeleteId(row.id)} aria-label="Elimina versamento">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-indigo-600" onClick={() => openContributionEdit(row)} aria-label="Modifica versamento">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600" onClick={() => setDeleteId(row.id)} aria-label="Elimina versamento">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -299,9 +327,15 @@ export default function GoalDetailPage() {
         </section>
       </div>
 
-      <Dialog open={contributionOpen} onOpenChange={setContributionOpen}>
+      <Dialog open={contributionOpen} onOpenChange={(open) => {
+        setContributionOpen(open)
+        if (!open) {
+          setEditingContribution(null)
+          form.reset({ amount: 0, date: new Date().toLocaleDateString('en-CA'), note: '' })
+        }
+      }}>
         <DialogContent className="max-w-md border-[#e5e7f0] bg-white text-slate-950">
-          <DialogHeader><DialogTitle>Aggiungi versamento</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingContribution ? 'Modifica versamento' : 'Aggiungi versamento'}</DialogTitle></DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 space-y-5">
             <div className="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-800">
               Il denaro viene conteggiato solo nell’obiettivo, senza modificare i saldi dei conti.
@@ -320,7 +354,7 @@ export default function GoalDetailPage() {
               <Input {...form.register('note')} className="h-11 border-[#e5e7f0] bg-white" placeholder="Facoltativa" />
             </div>
             <Button type="submit" className="h-12 w-full" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Salvataggio...' : 'Registra versamento'}
+              {form.formState.isSubmitting ? 'Salvataggio...' : editingContribution ? 'Salva modifiche' : 'Registra versamento'}
             </Button>
           </form>
         </DialogContent>

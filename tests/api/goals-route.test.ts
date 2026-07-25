@@ -100,4 +100,57 @@ describe('goal detail routes', () => {
     expect(res.status).toBe(400)
     expect(await res.json()).toEqual({ error: 'INVALID_AMOUNT' })
   })
+
+  it('rejects invalid contribution update amounts', async () => {
+    createClientMock.mockResolvedValue({ ...mockAuth(), from: vi.fn(() => makeBuilder()) } as never)
+    const { PATCH } = await import('@/app/api/goals/contributions/[id]/route')
+    const res = await PATCH(new Request(`http://localhost/api/goals/contributions/${goalId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ amount: 0, date: '2026-07-23' }),
+    }), { params: Promise.resolve({ id: goalId }) })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: 'INVALID_AMOUNT' })
+  })
+
+  it('requires authentication before deleting a contribution', async () => {
+    createClientMock.mockResolvedValue({ ...mockAuth(false), from: vi.fn(() => makeBuilder()) } as never)
+    const { DELETE } = await import('@/app/api/goals/contributions/[id]/route')
+    const res = await DELETE(new Request(`http://localhost/api/goals/contributions/${goalId}`), { params: Promise.resolve({ id: goalId }) })
+
+    expect(res.status).toBe(401)
+    expect(await res.json()).toEqual({ error: 'UNAUTHORIZED' })
+  })
+
+  it('returns 404 when RLS hides a contribution owned by another user', async () => {
+    createClientMock.mockResolvedValue({ ...mockAuth(), from: vi.fn(() => makeBuilder(null)) } as never)
+    const { DELETE } = await import('@/app/api/goals/contributions/[id]/route')
+    const res = await DELETE(new Request(`http://localhost/api/goals/contributions/${goalId}`), { params: Promise.resolve({ id: goalId }) })
+
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'GOAL_NOT_FOUND' })
+  })
+
+  it('deletes an owned contribution through the existing endpoint', async () => {
+    const builder = makeBuilder({ id: goalId })
+    const from = vi.fn(() => builder)
+    createClientMock.mockResolvedValue({ ...mockAuth(), from } as never)
+    const { DELETE } = await import('@/app/api/goals/contributions/[id]/route')
+    const res = await DELETE(new Request(`http://localhost/api/goals/contributions/${goalId}`), { params: Promise.resolve({ id: goalId }) })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ data: { id: goalId } })
+    expect(from).toHaveBeenCalledWith('goal_contributions')
+    expect(builder.delete).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns an API error when deleting a contribution fails', async () => {
+    const builder = makeBuilder({ id: goalId }, { code: 'XX000' })
+    builder.maybeSingle.mockResolvedValueOnce({ data: { id: goalId }, error: null })
+    createClientMock.mockResolvedValue({ ...mockAuth(), from: vi.fn(() => builder) } as never)
+    const { DELETE } = await import('@/app/api/goals/contributions/[id]/route')
+    const res = await DELETE(new Request(`http://localhost/api/goals/contributions/${goalId}`), { params: Promise.resolve({ id: goalId }) })
+
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'INTERNAL_ERROR' })
+  })
 })
