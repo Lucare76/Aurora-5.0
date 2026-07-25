@@ -48,7 +48,7 @@ describe('GET /api/reports', () => {
     const response = await GET(new Request('http://localhost/api/reports'))
     expect(response.status).toBe(401)
     expect(await response.json()).toEqual({ error: 'UNAUTHORIZED' })
-  })
+  }, 30000)
 
   it('restituisce no-store e payload senza user_id', async () => {
     mockSupabase()

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   ArrowLeftRight,
   BarChart3,
+  CalendarDays,
   Cake,
   HandCoins,
   LayoutDashboard,
@@ -42,6 +43,7 @@ const navItems: NavItem[] = [
   { path: '/budgets', label: 'Budget', icon: Target },
   { path: '/goals', label: 'Obiettivi', icon: PiggyBank },
   { path: '/reports', label: 'Report', icon: BarChart3 },
+  { path: '/calendar', label: 'Calendario', icon: CalendarDays },
   { path: '/recurring', label: 'Ricorrenti', icon: Repeat },
   { path: '/loans', label: 'Prestiti', icon: HandCoins },
   { path: '/birthdays', label: 'Compleanni', icon: Cake },
@@ -59,6 +61,7 @@ const moreItems: NavItem[] = [
   { path: '/goals', label: 'Obiettivi', icon: PiggyBank },
   { path: '/categories', label: 'Categorie', icon: Tag },
   { path: '/reports', label: 'Report', icon: BarChart3 },
+  { path: '/calendar', label: 'Calendario', icon: CalendarDays },
   { path: '/recurring', label: 'Ricorrenti', icon: Repeat },
   { path: '/loans', label: 'Prestiti', icon: HandCoins },
   { path: '/birthdays', label: 'Compleanni', icon: Cake },
