@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   ArrowLeftRight,
   BarChart3,
+  Bell,
   CalendarDays,
   Cake,
   HandCoins,
@@ -26,6 +27,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { GlobalCommandMenu } from '@/components/global-command-menu'
 import { GlobalSearchTrigger } from '@/components/global-search-trigger'
+import { NotificationBell } from '@/components/notifications/notification-bell'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
 
@@ -47,6 +49,7 @@ const navItems: NavItem[] = [
   { path: '/automation', label: 'Automazioni', icon: Sparkles },
   { path: '/recurring', label: 'Ricorrenti', icon: Repeat },
   { path: '/loans', label: 'Prestiti', icon: HandCoins },
+  { path: '/notifications', label: 'Avvisi', icon: Bell },
   { path: '/birthdays', label: 'Compleanni', icon: Cake },
   { path: '/settings', label: 'Impostazioni', icon: Settings },
 ]
@@ -66,6 +69,7 @@ const moreItems: NavItem[] = [
   { path: '/automation', label: 'Automazioni', icon: Sparkles },
   { path: '/recurring', label: 'Ricorrenti', icon: Repeat },
   { path: '/loans', label: 'Prestiti', icon: HandCoins },
+  { path: '/notifications', label: 'Avvisi', icon: Bell },
   { path: '/birthdays', label: 'Compleanni', icon: Cake },
   { path: '/settings', label: 'Impostazioni', icon: Settings },
 ]
@@ -167,8 +171,9 @@ function SidebarContent({
 }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center border-b border-[#e5e7f0]">
+      <div className="flex h-16 items-center justify-between border-b border-[#e5e7f0] pr-3">
         <Logo />
+        <NotificationBell />
       </div>
       <div className="flex-1 overflow-y-auto py-4">
         <GlobalSearchTrigger onClick={onSearchOpen} />
@@ -263,6 +268,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Logo compact />
         <div className="flex items-center gap-1">
           <GlobalSearchTrigger compact onClick={() => setCommandOpen(true)} />
+          <NotificationBell />
           <Button
             type="button"
             variant="ghost"

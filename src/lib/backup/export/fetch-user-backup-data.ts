@@ -17,6 +17,7 @@ import type {
   RecurringRule,
   Transaction,
 } from '@/types/database'
+import type { Notification } from '@/lib/notifications/types'
 
 export const BACKUP_PROFILE_SELECT =
   'id,display_name,avatar_url,currency,locale,timezone,onboarding_done,created_at,updated_at'
@@ -68,6 +69,8 @@ export type UserBackupData = {
   automationRules?: AutomationRule[]
   automationApplicationBatches?: AutomationApplicationBatch[]
   automationRuleApplications?: AutomationRuleApplication[]
+  // Notifications: export-only since Sprint 13A; restore is deferred
+  notifications?: Notification[]
 }
 
 type BackupSupabaseClient = SupabaseClient<Database>
@@ -118,6 +121,7 @@ export async function fetchUserBackupData(
     automationRules,
     automationApplicationBatches,
     automationRuleApplications,
+    notifications,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -194,6 +198,13 @@ export async function fetchUserBackupData(
       .select(BACKUP_AUTOMATION_APPLICATION_SELECT)
       .eq('user_id', user.id)
       .order('applied_at', { ascending: true }) as unknown as Promise<QueryResult<AutomationRuleApplication>>,
+    // Notifications: export-only (restore deferred). Limit to 5000 to cap backup size.
+    (supabase as unknown as SupabaseClient)
+      .from('notifications')
+      .select('id, type, severity, title, message, dedupe_key, source_type, source_id, source_url, metadata, is_read, archived_at, resolved_at, first_detected_at, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(5000) as unknown as Promise<QueryResult<Notification>>,
   ])
 
   assertNoQueryError('profiles', profile.error)
@@ -210,6 +221,8 @@ export async function fetchUserBackupData(
   assertNoQueryError('automation_rules', automationRules.error)
   assertNoQueryError('automation_application_batches', automationApplicationBatches.error)
   assertNoQueryError('automation_rule_applications', automationRuleApplications.error)
+  // Notifications errors are non-fatal: backup proceeds even if the table is missing
+  // (e.g., before migration 00020 is applied to production)
 
   return {
     user,
@@ -227,6 +240,7 @@ export async function fetchUserBackupData(
     automationRules: automationRules.data ?? [],
     automationApplicationBatches: automationApplicationBatches.data ?? [],
     automationRuleApplications: automationRuleApplications.data ?? [],
+    notifications: notifications.error ? [] : (notifications.data ?? []),
   }
 }
 

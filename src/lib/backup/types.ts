@@ -188,6 +188,26 @@ export type AuroraBackupAuditLogV1 = {
   created_at?: string
 }
 
+// Notifications: export-only (restore is deferred to a future sprint).
+// Excluded from BACKUP_COLLECTION_KEYS to preserve backward compatibility with existing backups.
+export type AuroraBackupNotificationV1 = {
+  id: string
+  type: string
+  severity: 'INFO' | 'WARNING' | 'CRITICAL'
+  title: string
+  message: string
+  dedupe_key: string
+  source_type?: string | null
+  source_id?: string | null
+  source_url?: string | null
+  metadata?: Record<string, unknown>
+  is_read?: boolean
+  archived_at?: string | null
+  resolved_at?: string | null
+  first_detected_at?: string
+  created_at?: string
+}
+
 export type AuroraBackupAutomationRuleV1 = {
   id: string
   user_id?: string
@@ -250,6 +270,8 @@ export type AuroraBackupDataV1 = {
   automationRules: AuroraBackupAutomationRuleV1[]
   automationApplicationBatches: AuroraBackupAutomationApplicationBatchV1[]
   automationRuleApplications: AuroraBackupAutomationRuleApplicationV1[]
+  // Optional: included from Sprint 13A onwards; absent in earlier backups (restore deferred)
+  notifications?: AuroraBackupNotificationV1[]
 }
 
 export type AuroraBackupV1 = {

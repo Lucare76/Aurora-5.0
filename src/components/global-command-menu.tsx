@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   ArrowLeftRight,
   BarChart3,
+  Bell,
   Cake,
   CalendarDays,
   Command,
@@ -58,6 +59,8 @@ export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'calendar-30', group: 'Azioni rapide', title: 'Prossimi 30 giorni', subtitle: 'Apri l’agenda finanziaria', href: '/calendar?view=agenda&range=30', keywords: ['agenda', 'prossimi 30 giorni', 'previsioni'], icon: CalendarDays },
   { id: 'import', group: 'Azioni rapide', title: 'Importa movimenti', subtitle: 'Importa estratti e movimenti', href: '/import-estratti', keywords: ['importa', 'importazioni'], icon: Download },
   { id: 'backup', group: 'Azioni rapide', title: 'Crea backup', subtitle: 'Vai a backup e ripristino', href: '/settings#backup', keywords: ['backup', 'ripristino'], icon: DatabaseBackup },
+  { id: 'notifications-unread', group: 'Azioni rapide', title: 'Avvisi non letti', subtitle: 'Vedi avvisi non letti', href: '/notifications?status=unread', keywords: ['avvisi', 'notifiche', 'non letti', 'alert'], icon: Bell },
+  { id: 'notifications-critical', group: 'Azioni rapide', title: 'Avvisi critici', subtitle: 'Vedi avvisi critici', href: '/notifications?severity=CRITICAL', keywords: ['avvisi critici', 'critici'], icon: Bell },
   { id: 'dashboard', group: 'Navigazione', title: 'Dashboard', subtitle: 'Panoramica principale', href: '/dashboard', keywords: ['home', 'dashboard'], icon: LayoutDashboard },
   { id: 'transactions', group: 'Navigazione', title: 'Movimenti', subtitle: 'Transazioni e giroconti', href: '/transactions', keywords: ['transazioni', 'movimenti'], icon: ArrowLeftRight },
   { id: 'accounts', group: 'Navigazione', title: 'Conti', subtitle: 'Risorse e saldi', href: '/accounts', keywords: ['conti', 'risorse'], icon: Wallet },
@@ -71,6 +74,7 @@ export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'recurring', group: 'Navigazione', title: 'Ricorrenti', subtitle: 'Movimenti ricorrenti', href: '/recurring', keywords: ['ricorrenti', 'abbonamenti'], icon: Repeat },
   { id: 'birthdays', group: 'Navigazione', title: 'Compleanni', subtitle: 'Promemoria compleanni', href: '/birthdays', keywords: ['compleanni'], icon: Cake },
   { id: 'settings', group: 'Navigazione', title: 'Impostazioni', subtitle: 'Profilo, dati, backup', href: '/settings', keywords: ['impostazioni', 'backup'], icon: Settings },
+  { id: 'notifications', group: 'Navigazione', title: 'Avvisi', subtitle: 'Centro avvisi finanziari', href: '/notifications', keywords: ['avvisi', 'notifiche', 'alert'], icon: Bell },
 ]
 
 function commandScore(query: string, command: QuickCommand): number {

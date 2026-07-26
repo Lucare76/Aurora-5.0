@@ -222,6 +222,27 @@ export const automationRuleApplicationSchema = z.object({
   reverted_at: isoTimestamp.nullable().optional(),
 }).passthrough()
 
+// Notification schema — export only, restore deferred. Not in BACKUP_COLLECTION_KEYS.
+const notificationSeverity = z.enum(['INFO', 'WARNING', 'CRITICAL'])
+
+export const notificationSchema = z.object({
+  id: uuid,
+  type: shortString.min(1),
+  severity: notificationSeverity,
+  title: shortString.min(1),
+  message: notesString,
+  dedupe_key: shortString.min(1),
+  source_type: shortString.nullable().optional(),
+  source_id: uuid.nullable().optional(),
+  source_url: shortString.nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  is_read: z.boolean().optional(),
+  archived_at: isoTimestamp.nullable().optional(),
+  resolved_at: isoTimestamp.nullable().optional(),
+  first_detected_at: maybeTimestamp,
+  created_at: maybeTimestamp,
+}).passthrough()
+
 const collection = <T extends z.ZodType>(schema: T) =>
   z.array(schema).max(BACKUP_LIMITS.maxRecordsPerCollection)
 
@@ -257,6 +278,7 @@ export const auroraBackupV1Schema = z.object({
     automationRules: collection(automationRuleSchema).default([]),
     automationApplicationBatches: collection(automationApplicationBatchSchema).default([]),
     automationRuleApplications: collection(automationRuleApplicationSchema).default([]),
+    notifications: collection(notificationSchema).optional(),
   }).passthrough(),
   integrity: z.object({
     recordCounts: z.record(z.string(), z.number().int().min(0)),

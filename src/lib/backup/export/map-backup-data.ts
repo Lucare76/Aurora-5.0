@@ -1,3 +1,4 @@
+import type { Notification } from '@/lib/notifications/types'
 import type {
   Account,
   AuditLog,
@@ -28,6 +29,7 @@ import type {
   AuroraBackupDataV1,
   AuroraBackupLoanPaymentV1,
   AuroraBackupLoanV1,
+  AuroraBackupNotificationV1,
   AuroraBackupProfileV1,
   AuroraBackupRecurringRuleV1,
   AuroraBackupTransactionV1,
@@ -50,6 +52,7 @@ export function mapUserBackupDataToV1Data(input: UserBackupData): AuroraBackupDa
     automationRules: (input.automationRules ?? []).map(mapAutomationRule),
     automationApplicationBatches: (input.automationApplicationBatches ?? []).map(mapAutomationApplicationBatch),
     automationRuleApplications: (input.automationRuleApplications ?? []).map(mapAutomationRuleApplication),
+    notifications: (input.notifications ?? []).map(mapNotification),
   }
 }
 
@@ -257,5 +260,25 @@ export function mapAutomationRuleApplication(application: AutomationRuleApplicat
     error_code: application.error_code,
     applied_at: application.applied_at,
     reverted_at: application.reverted_at,
+  }
+}
+
+export function mapNotification(n: Notification): AuroraBackupNotificationV1 {
+  return {
+    id: n.id,
+    type: n.type,
+    severity: n.severity,
+    title: n.title,
+    message: n.message,
+    dedupe_key: n.dedupe_key,
+    source_type: n.source_type,
+    source_id: n.source_id ?? undefined,
+    source_url: n.source_url ?? undefined,
+    metadata: n.metadata ?? undefined,
+    is_read: n.is_read,
+    archived_at: n.archived_at ?? undefined,
+    resolved_at: n.resolved_at ?? undefined,
+    first_detected_at: n.first_detected_at,
+    created_at: n.created_at,
   }
 }
