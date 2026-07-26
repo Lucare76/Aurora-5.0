@@ -170,7 +170,7 @@ function TextareaField(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>)
     <textarea
       {...props}
       className={cn(
-        'min-h-24 w-full rounded-xl border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100',
+        'min-h-16 w-full rounded-xl border bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100',
         props.className,
       )}
       style={{ borderColor: BORDER }}
@@ -524,7 +524,7 @@ export default function TransactionsPage() {
             type="button"
             onClick={() => targetForm.setValue('type', item.value as TransactionType, { shouldValidate: true })}
             className={cn(
-              'flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-medium transition',
+              'flex h-10 items-center justify-center gap-2 rounded-xl text-sm font-medium transition',
               currentType === item.value ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900',
             )}
           >
@@ -543,18 +543,21 @@ export default function TransactionsPage() {
     selectedType: TransactionType,
     selectedAccount: string,
     categoryTree: CategoryTreeNode[],
-  ) => (
-    <form onSubmit={targetForm.handleSubmit(onSubmit)} className="mt-6 space-y-5">
+  ) => {
+    const descriptionField = targetForm.register('description')
+
+    return (
+    <form onSubmit={targetForm.handleSubmit(onSubmit)} className="mt-4 space-y-3">
       {renderTypeToggle(targetForm)}
 
-      <div className="space-y-2 text-center">
+      <div className="space-y-1.5 text-center">
         <Label className="text-slate-600">Importo</Label>
         <Input
           type="text"
           step="0.01"
           inputMode="decimal"
           {...targetForm.register('amount')}
-          className="h-20 border-[#e5e7f0] bg-white text-center text-4xl font-semibold tabular-nums text-slate-950 placeholder:text-slate-300"
+          className="h-14 border-[#e5e7f0] bg-white text-center text-3xl font-semibold tabular-nums text-slate-950 placeholder:text-slate-300"
           placeholder="0,00"
         />
         {targetForm.formState.errors.amount && (
@@ -562,32 +565,36 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
           <Label className="text-slate-700">Descrizione</Label>
           <Input
-            {...targetForm.register('description')}
-            placeholder="Es. Spesa supermercato"
-            className="h-11 border-[#e5e7f0] bg-white text-slate-900 placeholder:text-slate-400"
+            {...descriptionField}
+            onChange={(event) => {
+              event.target.value = event.target.value.toLocaleUpperCase('it-IT')
+              descriptionField.onChange(event)
+            }}
+            placeholder="ES. SPESA SUPERMERCATO"
+            className="h-10 border-[#e5e7f0] bg-white uppercase text-slate-900 placeholder:text-slate-400"
           />
           {targetForm.formState.errors.description && (
             <p className="text-sm text-red-600">{targetForm.formState.errors.description.message}</p>
           )}
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label className="text-slate-700">Data</Label>
           <Input
             type="date"
             {...targetForm.register('date')}
-            className="h-11 border-[#e5e7f0] bg-white text-slate-900"
+            className="h-10 border-[#e5e7f0] bg-white text-slate-900"
           />
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
           <Label className="text-slate-700">{selectedType === 'transfer' ? 'Conto da' : 'Conto'}</Label>
-          <SelectField {...targetForm.register('account_id')}>
+          <SelectField {...targetForm.register('account_id')} className="h-10">
             <option value="">Seleziona conto</option>
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>
@@ -601,9 +608,9 @@ export default function TransactionsPage() {
         </div>
 
         {selectedType === 'transfer' ? (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label className="text-slate-700">Conto a</Label>
-            <SelectField {...targetForm.register('destination_account_id')}>
+            <SelectField {...targetForm.register('destination_account_id')} className="h-10">
               <option value="">Seleziona conto</option>
               {accounts
                 .filter((account) => account.id !== selectedAccount)
@@ -618,9 +625,9 @@ export default function TransactionsPage() {
             )}
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label className="text-slate-700">Categoria</Label>
-            <SelectField {...targetForm.register('category_id')}>
+            <SelectField {...targetForm.register('category_id')} className="h-10">
               <option value="">Nessuna categoria</option>
               {categoryTree.map(({ category, children }) => (
                 children.length > 0 ? (
@@ -642,16 +649,17 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <Label className="text-slate-700">Note</Label>
         <TextareaField {...targetForm.register('notes')} placeholder="Aggiungi una nota opzionale" />
       </div>
 
-      <Button type="submit" className="h-12 w-full" disabled={busy || targetForm.formState.isSubmitting}>
+      <Button type="submit" className="h-10 w-full" disabled={busy || targetForm.formState.isSubmitting}>
         {busy || targetForm.formState.isSubmitting ? 'Salvataggio...' : submitLabel}
       </Button>
     </form>
-  )
+    )
+  }
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -1058,7 +1066,7 @@ export default function TransactionsPage() {
       </div>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border-[#e5e7f0] bg-white text-slate-950">
+        <DialogContent className="max-w-xl border-[#e5e7f0] bg-white text-slate-950">
           <DialogHeader>
             <DialogTitle>Nuovo movimento</DialogTitle>
           </DialogHeader>
@@ -1067,7 +1075,7 @@ export default function TransactionsPage() {
       </Dialog>
 
       <Dialog open={Boolean(editingTransaction)} onOpenChange={(open) => !open && setEditingTransaction(null)}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border-[#e5e7f0] bg-white text-slate-950">
+        <DialogContent className="max-w-xl border-[#e5e7f0] bg-white text-slate-950">
           <DialogHeader>
             <DialogTitle>Modifica movimento</DialogTitle>
           </DialogHeader>

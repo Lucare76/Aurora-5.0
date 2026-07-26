@@ -35,7 +35,7 @@ export function buildTransactionPayload(values: TransactionFormValues): Transact
     account_id: values.account_id,
     type: values.type,
     amount: parseTransactionAmount(values.amount),
-    description: values.description,
+    description: values.description.trim().toLocaleUpperCase('it-IT'),
     notes: values.notes || null,
     date: values.date,
   }

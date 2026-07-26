@@ -30,7 +30,7 @@ describe('transaction form contract', () => {
       account_id: sourceAccountId,
       type: 'transfer',
       amount: 113.5,
-      description: 'marathonbet',
+      description: 'MARATHONBET',
       notes: null,
       date: '2026-07-25',
       destination_account_id: destinationAccountId,
@@ -77,6 +77,16 @@ describe('transaction form contract', () => {
     })
 
     expect(payload.description).toBe('')
+  })
+
+  it('normalizes typed descriptions to uppercase before saving', () => {
+    expect(buildTransactionPayload({
+      type: 'expense',
+      amount: '12',
+      description: 'Deco supermercato',
+      date: '2026-07-26',
+      account_id: sourceAccountId,
+    }).description).toBe('DECO SUPERMERCATO')
   })
 
   it('opens transfer creation from the command menu with the same form contract', () => {
