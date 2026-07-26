@@ -14,6 +14,9 @@ export function calculateRecordCounts(backup: Pick<AuroraBackupV1, 'data'>): Aur
     birthdays: backup.data.birthdays.length,
     birthdayReminderLog: backup.data.birthdayReminderLog.length,
     auditLogs: backup.data.auditLogs.length,
+    automationRules: backup.data.automationRules.length,
+    automationApplicationBatches: backup.data.automationApplicationBatches.length,
+    automationRuleApplications: backup.data.automationRuleApplications.length,
   }
 }
 

@@ -4,6 +4,9 @@ export type CategoryType = 'income' | 'expense' | 'both'
 export type RecurringFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly'
 export type LoanType = 'given' | 'received'
 export type SavingsGoalStatus = 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'
+export type AutomationMatchMode = 'ALL' | 'ANY'
+export type AutomationApplicationMode = 'SUGGESTED' | 'MANUAL' | 'AUTOMATIC' | 'BULK'
+export type AutomationApplicationResult = 'APPLIED' | 'SKIPPED' | 'CONFLICT' | 'FAILED' | 'REVERTED'
 
 export interface Profile {
   id: string
@@ -62,6 +65,53 @@ export interface Transaction {
   receipt_data: Record<string, unknown> | null
   created_at: string
   updated_at: string
+}
+
+export interface AutomationRule {
+  id: string
+  user_id: string
+  name: string
+  description: string | null
+  is_active: boolean
+  priority: number
+  match_mode: AutomationMatchMode
+  stop_processing: boolean
+  apply_to_new_transactions: boolean
+  archived: boolean
+  conditions: unknown[]
+  actions: unknown[]
+  created_at: string
+  updated_at: string
+}
+
+export interface AutomationApplicationBatch {
+  id: string
+  user_id: string
+  rule_id: string | null
+  mode: 'BULK'
+  status: 'COMPLETED' | 'PARTIAL' | 'FAILED' | 'REVERTED' | 'REVERT_CONFLICT'
+  transaction_count: number
+  applied_count: number
+  skipped_count: number
+  conflict_count: number
+  failed_count: number
+  created_at: string
+  reverted_at: string | null
+}
+
+export interface AutomationRuleApplication {
+  id: string
+  user_id: string
+  rule_id: string | null
+  transaction_id: string | null
+  application_batch_id: string | null
+  application_mode: AutomationApplicationMode
+  previous_values: Record<string, unknown>
+  applied_values: Record<string, unknown>
+  result: AutomationApplicationResult
+  error_code: string | null
+  applied_at: string
+  reverted_at: string | null
 }
 
 export interface RecurringRule {

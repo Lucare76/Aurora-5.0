@@ -6,6 +6,7 @@ export type SearchResultType =
   | 'GOAL'
   | 'LOAN'
   | 'RECURRENCE'
+  | 'AUTOMATION_RULE'
 
 export type SearchResult = {
   id: string

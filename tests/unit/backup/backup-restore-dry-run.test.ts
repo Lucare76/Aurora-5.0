@@ -500,5 +500,8 @@ function emptySnapshot(): CurrentUserDataSnapshot {
     birthdays: [],
     birthdayReminderLog: [],
     auditLogs: [],
+    automationRules: [],
+    automationApplicationBatches: [],
+    automationRuleApplications: [],
   }
 }

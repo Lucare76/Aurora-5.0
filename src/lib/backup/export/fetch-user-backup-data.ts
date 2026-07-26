@@ -3,6 +3,9 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type {
   Account,
   AuditLog,
+  AutomationApplicationBatch,
+  AutomationRule,
+  AutomationRuleApplication,
   Birthday,
   BirthdayReminderLog,
   Budget,
@@ -37,6 +40,12 @@ export const BACKUP_BIRTHDAY_REMINDER_LOG_SELECT =
   'id,birthday_id,user_id,days_before,year,sent_at'
 export const BACKUP_AUDIT_LOG_SELECT =
   'id,user_id,action,table_name,record_id,old_data,new_data,created_at'
+export const BACKUP_AUTOMATION_RULE_SELECT =
+  'id,user_id,name,description,is_active,priority,match_mode,stop_processing,apply_to_new_transactions,archived,conditions,actions,created_at,updated_at'
+export const BACKUP_AUTOMATION_BATCH_SELECT =
+  'id,user_id,rule_id,mode,status,transaction_count,applied_count,skipped_count,conflict_count,failed_count,created_at,reverted_at'
+export const BACKUP_AUTOMATION_APPLICATION_SELECT =
+  'id,user_id,rule_id,transaction_id,application_batch_id,application_mode,previous_values,applied_values,result,error_code,applied_at,reverted_at'
 
 export type BackupAuthenticatedUser = {
   id: string
@@ -56,6 +65,9 @@ export type UserBackupData = {
   birthdays: Birthday[]
   birthdayReminderLog: BirthdayReminderLog[]
   auditLogs: AuditLog[]
+  automationRules?: AutomationRule[]
+  automationApplicationBatches?: AutomationApplicationBatch[]
+  automationRuleApplications?: AutomationRuleApplication[]
 }
 
 type BackupSupabaseClient = SupabaseClient<Database>
@@ -103,6 +115,9 @@ export async function fetchUserBackupData(
     birthdays,
     birthdayReminderLog,
     auditLogs,
+    automationRules,
+    automationApplicationBatches,
+    automationRuleApplications,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -163,6 +178,22 @@ export async function fetchUserBackupData(
       .select(BACKUP_AUDIT_LOG_SELECT)
       .eq('user_id', user.id)
       .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<AuditLog>>,
+    (supabase as unknown as SupabaseClient)
+      .from('automation_rules')
+      .select(BACKUP_AUTOMATION_RULE_SELECT)
+      .eq('user_id', user.id)
+      .order('priority', { ascending: true })
+      .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<AutomationRule>>,
+    (supabase as unknown as SupabaseClient)
+      .from('automation_application_batches')
+      .select(BACKUP_AUTOMATION_BATCH_SELECT)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<AutomationApplicationBatch>>,
+    (supabase as unknown as SupabaseClient)
+      .from('automation_rule_applications')
+      .select(BACKUP_AUTOMATION_APPLICATION_SELECT)
+      .eq('user_id', user.id)
+      .order('applied_at', { ascending: true }) as unknown as Promise<QueryResult<AutomationRuleApplication>>,
   ])
 
   assertNoQueryError('profiles', profile.error)
@@ -176,6 +207,9 @@ export async function fetchUserBackupData(
   assertNoQueryError('birthdays', birthdays.error)
   assertNoQueryError('birthday_reminder_log', birthdayReminderLog.error)
   assertNoQueryError('audit_logs', auditLogs.error)
+  assertNoQueryError('automation_rules', automationRules.error)
+  assertNoQueryError('automation_application_batches', automationApplicationBatches.error)
+  assertNoQueryError('automation_rule_applications', automationRuleApplications.error)
 
   return {
     user,
@@ -190,6 +224,9 @@ export async function fetchUserBackupData(
     birthdays: birthdays.data ?? [],
     birthdayReminderLog: birthdayReminderLog.data ?? [],
     auditLogs: auditLogs.data ?? [],
+    automationRules: automationRules.data ?? [],
+    automationApplicationBatches: automationApplicationBatches.data ?? [],
+    automationRuleApplications: automationRuleApplications.data ?? [],
   }
 }
 

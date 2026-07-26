@@ -17,6 +17,9 @@ export function normalizeAuroraBackup(backup: AuroraBackupV1): AuroraBackupV1 {
       birthdays: sortById(backup.data.birthdays),
       birthdayReminderLog: sortById(backup.data.birthdayReminderLog),
       auditLogs: sortById(backup.data.auditLogs),
+      automationRules: sortById(backup.data.automationRules ?? []),
+      automationApplicationBatches: sortById(backup.data.automationApplicationBatches ?? []),
+      automationRuleApplications: sortById(backup.data.automationRuleApplications ?? []),
     },
   }) as AuroraBackupV1
 }

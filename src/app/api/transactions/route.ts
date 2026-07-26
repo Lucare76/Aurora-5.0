@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { diffPatch } from '@/lib/automation/actions'
+import { evaluateTransactionDraft, recordAutomaticApplications } from '@/lib/automation/service'
 import { z } from 'zod'
 
 const isoDate = z
@@ -165,7 +167,36 @@ export async function POST(request: Request) {
       return validationError(parsed.error)
     }
 
-    const d = parsed.data
+    const original = parsed.data
+    let d = original
+    let automationResult: Awaited<ReturnType<typeof evaluateTransactionDraft>> | null = null
+
+    try {
+      automationResult = await evaluateTransactionDraft(supabase, user.id, {
+        account_id: original.account_id,
+        category_id: original.type === 'transfer' ? null : original.category_id ?? null,
+        type: original.type,
+        amount: original.amount,
+        date: original.date,
+        description: original.description,
+        notes: original.notes ?? null,
+        transfer_peer_id: original.type === 'transfer' ? original.destination_account_id : null,
+      }, { automaticOnly: true })
+
+      const next = { ...original, ...automationResult.suggestedChanges }
+      if (next.type === 'transfer') {
+        d = { ...original, description: next.description ?? original.description, notes: next.notes ?? original.notes ?? null }
+      } else {
+        d = createSchema.parse({ ...next, category_id: next.category_id ?? null })
+      }
+    } catch (automationError) {
+      console.warn('[aurora-automation] automatic-classification-skipped', {
+        name: automationError instanceof Error ? automationError.name : 'unknown',
+      })
+      automationResult = null
+      d = original
+    }
+
     const categoryId = d.type === 'transfer' ? null : d.category_id ?? null
     const destinationAccountId = d.type === 'transfer' ? d.destination_account_id : null
 
@@ -186,7 +217,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: msg }, { status: errorStatus(error.message ?? msg) })
     }
 
-    return NextResponse.json({ data }, { status: 201 })
+    if (automationResult?.appliedRules.length && data) {
+      const created = Array.isArray(data) ? data[0] : data
+      const { previousValues, appliedValues } = diffPatch({
+        id: created.id,
+        user_id: user.id,
+        account_id: original.account_id,
+        category_id: original.type === 'transfer' ? null : original.category_id ?? null,
+        type: original.type,
+        amount: original.amount,
+        date: original.date,
+        description: original.description,
+        notes: original.notes ?? null,
+        transfer_peer_id: original.type === 'transfer' ? original.destination_account_id : null,
+        created_at: created.created_at ?? '',
+        updated_at: created.updated_at ?? '',
+      }, automationResult.suggestedChanges)
+      try {
+        await recordAutomaticApplications(supabase, user.id, created, automationResult.appliedRules, previousValues, appliedValues)
+      } catch (recordError) {
+        console.warn('[aurora-automation] application-log-skipped', { name: recordError instanceof Error ? recordError.name : 'unknown' })
+      }
+    }
+
+    const responseBody = automationResult?.appliedRules.length
+      ? { data, automation: { appliedRules: automationResult.appliedRules.map((rule) => ({ id: rule.id, name: rule.name })) } }
+      : { data }
+    return NextResponse.json(responseBody, { status: 201 })
   } catch {
     return NextResponse.json({ error: 'Errore interno del server' }, { status: 500 })
   }

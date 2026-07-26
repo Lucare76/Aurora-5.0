@@ -41,6 +41,9 @@ export async function fetchCurrentUserDataSnapshot(
     birthdays,
     birthdayReminderLog,
     auditLogs,
+    automationRules,
+    automationApplicationBatches,
+    automationRuleApplications,
   ] = await Promise.all([
     supabase.from('profiles').select('id').eq('id', user.id).maybeSingle() as unknown as Promise<SingleQueryResult<{ id: string }>>,
     supabase.from('accounts').select('id,name,type').eq('user_id', user.id) as unknown as Promise<QueryResult<SnapshotRecord>>,
@@ -53,6 +56,9 @@ export async function fetchCurrentUserDataSnapshot(
     supabase.from('birthdays').select('id,name,birth_date').eq('user_id', user.id) as unknown as Promise<QueryResult<SnapshotRecord>>,
     supabase.from('birthday_reminder_log').select('id,birthday_id,days_before,year').eq('user_id', user.id) as unknown as Promise<QueryResult<SnapshotRecord>>,
     supabase.from('audit_logs').select('id').eq('user_id', user.id) as unknown as Promise<QueryResult<SnapshotRecord>>,
+    (supabase as unknown as SupabaseClient).from('automation_rules').select('id,name').eq('user_id', user.id) as unknown as Promise<QueryResult<SnapshotRecord>>,
+    (supabase as unknown as SupabaseClient).from('automation_application_batches').select('id').eq('user_id', user.id) as unknown as Promise<QueryResult<SnapshotRecord>>,
+    (supabase as unknown as SupabaseClient).from('automation_rule_applications').select('id').eq('user_id', user.id) as unknown as Promise<QueryResult<SnapshotRecord>>,
   ])
 
   assertNoSnapshotError('profiles', profile.error)
@@ -66,6 +72,9 @@ export async function fetchCurrentUserDataSnapshot(
   assertNoSnapshotError('birthdays', birthdays.error)
   assertNoSnapshotError('birthday_reminder_log', birthdayReminderLog.error)
   assertNoSnapshotError('audit_logs', auditLogs.error)
+  assertNoSnapshotError('automation_rules', automationRules.error)
+  assertNoSnapshotError('automation_application_batches', automationApplicationBatches.error)
+  assertNoSnapshotError('automation_rule_applications', automationRuleApplications.error)
 
   return {
     profileExists: Boolean(profile.data),
@@ -79,6 +88,9 @@ export async function fetchCurrentUserDataSnapshot(
     birthdays: birthdays.data ?? [],
     birthdayReminderLog: birthdayReminderLog.data ?? [],
     auditLogs: auditLogs.data ?? [],
+    automationRules: automationRules.data ?? [],
+    automationApplicationBatches: automationApplicationBatches.data ?? [],
+    automationRuleApplications: automationRuleApplications.data ?? [],
   }
 }
 

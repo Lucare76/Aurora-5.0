@@ -24,6 +24,9 @@ const transactionType = z.enum(['income', 'expense', 'transfer'])
 const categoryType = z.enum(['income', 'expense', 'both'])
 const recurringFrequency = z.enum(['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'])
 const loanType = z.enum(['given', 'received'])
+const automationMatchMode = z.enum(['ALL', 'ANY'])
+const automationApplicationMode = z.enum(['SUGGESTED', 'MANUAL', 'AUTOMATIC', 'BULK'])
+const automationApplicationResult = z.enum(['APPLIED', 'SKIPPED', 'CONFLICT', 'FAILED', 'REVERTED'])
 
 export const profileSchema = z.object({
   id: uuid.optional(),
@@ -172,6 +175,53 @@ export const auditLogSchema = z.object({
   created_at: maybeTimestamp,
 }).passthrough()
 
+export const automationRuleSchema = z.object({
+  id: uuid,
+  user_id: uuid.optional(),
+  name: shortString.min(1).max(120),
+  description: descriptionString.nullable().optional(),
+  is_active: z.boolean(),
+  priority: z.number().int().min(1).max(10000),
+  match_mode: automationMatchMode,
+  stop_processing: z.boolean(),
+  apply_to_new_transactions: z.boolean(),
+  archived: z.boolean(),
+  conditions: z.array(z.record(z.string(), z.unknown())).max(10),
+  actions: z.array(z.record(z.string(), z.unknown())).max(10),
+  created_at: maybeTimestamp,
+  updated_at: maybeTimestamp,
+}).passthrough()
+
+export const automationApplicationBatchSchema = z.object({
+  id: uuid,
+  user_id: uuid.optional(),
+  rule_id: uuid.nullable(),
+  mode: z.literal('BULK'),
+  status: z.enum(['COMPLETED', 'PARTIAL', 'FAILED', 'REVERTED', 'REVERT_CONFLICT']),
+  transaction_count: z.number().int().min(0),
+  applied_count: z.number().int().min(0),
+  skipped_count: z.number().int().min(0),
+  conflict_count: z.number().int().min(0),
+  failed_count: z.number().int().min(0),
+  created_at: maybeTimestamp,
+  reverted_at: isoTimestamp.nullable().optional(),
+}).passthrough()
+
+export const automationRuleApplicationSchema = z.object({
+  id: uuid,
+  user_id: uuid.optional(),
+  rule_id: uuid.nullable(),
+  transaction_id: uuid.nullable(),
+  application_batch_id: uuid.nullable(),
+  application_mode: automationApplicationMode,
+  previous_values: z.record(z.string(), z.unknown()),
+  applied_values: z.record(z.string(), z.unknown()),
+  result: automationApplicationResult,
+  error_code: shortString.nullable().optional(),
+  applied_at: maybeTimestamp,
+  reverted_at: isoTimestamp.nullable().optional(),
+}).passthrough()
+
 const collection = <T extends z.ZodType>(schema: T) =>
   z.array(schema).max(BACKUP_LIMITS.maxRecordsPerCollection)
 
@@ -204,6 +254,9 @@ export const auroraBackupV1Schema = z.object({
     birthdays: collection(birthdaySchema),
     birthdayReminderLog: collection(birthdayReminderLogSchema),
     auditLogs: collection(auditLogSchema),
+    automationRules: collection(automationRuleSchema).default([]),
+    automationApplicationBatches: collection(automationApplicationBatchSchema).default([]),
+    automationRuleApplications: collection(automationRuleApplicationSchema).default([]),
   }).passthrough(),
   integrity: z.object({
     recordCounts: z.record(z.string(), z.number().int().min(0)),

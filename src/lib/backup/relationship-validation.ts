@@ -6,6 +6,8 @@ export function validateBackupRelationships(backup: AuroraBackupV1): BackupValid
   const accountIds = new Set(backup.data.accounts.map((account) => account.id))
   const categoryIds = new Set(backup.data.categories.map((category) => category.id))
   const transactionIds = new Set(backup.data.transactions.map((transaction) => transaction.id))
+  const automationRuleIds = new Set(backup.data.automationRules.map((rule) => rule.id))
+  const automationBatchIds = new Set(backup.data.automationApplicationBatches.map((batch) => batch.id))
   const loanIds = new Set(backup.data.loans.map((loan) => loan.id))
   const birthdayIds = new Set(backup.data.birthdays.map((birthday) => birthday.id))
 
@@ -65,6 +67,35 @@ export function validateBackupRelationships(backup: AuroraBackupV1): BackupValid
   backup.data.birthdayReminderLog.forEach((row, index) => {
     if (!birthdayIds.has(row.birthday_id)) {
       issues.push(issue('BIRTHDAY_REMINDER_BIRTHDAY_MISSING', 'error', ['data', 'birthdayReminderLog', index, 'birthday_id'], 'Compleanno del reminder mancante.'))
+    }
+  })
+
+  backup.data.automationRules.forEach((rule, index) => {
+    rule.actions.forEach((action, actionIndex) => {
+      if (action.type === 'set_account' && !accountIds.has(action.account_id)) {
+        issues.push(issue('AUTOMATION_ACCOUNT_MISSING', 'error', ['data', 'automationRules', index, 'actions', actionIndex, 'account_id'], 'Conto della regola automazione mancante.'))
+      }
+      if (action.type === 'set_category' && action.category_id && !categoryIds.has(action.category_id)) {
+        issues.push(issue('AUTOMATION_CATEGORY_MISSING', 'error', ['data', 'automationRules', index, 'actions', actionIndex, 'category_id'], 'Categoria della regola automazione mancante.'))
+      }
+    })
+  })
+
+  backup.data.automationApplicationBatches.forEach((batch, index) => {
+    if (batch.rule_id && !automationRuleIds.has(batch.rule_id)) {
+      issues.push(issue('AUTOMATION_BATCH_RULE_MISSING', 'warning', ['data', 'automationApplicationBatches', index, 'rule_id'], 'Regola del batch automazione mancante.'))
+    }
+  })
+
+  backup.data.automationRuleApplications.forEach((application, index) => {
+    if (application.rule_id && !automationRuleIds.has(application.rule_id)) {
+      issues.push(issue('AUTOMATION_APPLICATION_RULE_MISSING', 'warning', ['data', 'automationRuleApplications', index, 'rule_id'], 'Regola dell’applicazione automazione mancante.'))
+    }
+    if (application.transaction_id && !transactionIds.has(application.transaction_id)) {
+      issues.push(issue('AUTOMATION_APPLICATION_TRANSACTION_MISSING', 'warning', ['data', 'automationRuleApplications', index, 'transaction_id'], 'Movimento dell’applicazione automazione mancante.'))
+    }
+    if (application.application_batch_id && !automationBatchIds.has(application.application_batch_id)) {
+      issues.push(issue('AUTOMATION_APPLICATION_BATCH_MISSING', 'warning', ['data', 'automationRuleApplications', index, 'application_batch_id'], 'Batch dell’applicazione automazione mancante.'))
     }
   })
 

@@ -5,6 +5,7 @@ import type {
   RecurringFrequency,
   TransactionType,
 } from '@/types/database'
+import type { AutomationAction, AutomationCondition } from '@/lib/automation/types'
 
 import type { BACKUP_COLLECTION_KEYS } from './constants'
 
@@ -187,6 +188,53 @@ export type AuroraBackupAuditLogV1 = {
   created_at?: string
 }
 
+export type AuroraBackupAutomationRuleV1 = {
+  id: string
+  user_id?: string
+  name: string
+  description?: string | null
+  is_active: boolean
+  priority: number
+  match_mode: 'ALL' | 'ANY'
+  stop_processing: boolean
+  apply_to_new_transactions: boolean
+  archived: boolean
+  conditions: AutomationCondition[]
+  actions: AutomationAction[]
+  created_at?: string
+  updated_at?: string
+}
+
+export type AuroraBackupAutomationApplicationBatchV1 = {
+  id: string
+  user_id?: string
+  rule_id: string | null
+  mode: 'BULK'
+  status: 'COMPLETED' | 'PARTIAL' | 'FAILED' | 'REVERTED' | 'REVERT_CONFLICT'
+  transaction_count: number
+  applied_count: number
+  skipped_count: number
+  conflict_count: number
+  failed_count: number
+  created_at?: string
+  reverted_at?: string | null
+}
+
+export type AuroraBackupAutomationRuleApplicationV1 = {
+  id: string
+  user_id?: string
+  rule_id: string | null
+  transaction_id: string | null
+  application_batch_id: string | null
+  application_mode: 'SUGGESTED' | 'MANUAL' | 'AUTOMATIC' | 'BULK'
+  previous_values: Record<string, unknown>
+  applied_values: Record<string, unknown>
+  result: 'APPLIED' | 'SKIPPED' | 'CONFLICT' | 'FAILED' | 'REVERTED'
+  error_code?: string | null
+  applied_at?: string
+  reverted_at?: string | null
+}
+
 export type AuroraBackupDataV1 = {
   profile: AuroraBackupProfileV1
   accounts: AuroraBackupAccountV1[]
@@ -199,6 +247,9 @@ export type AuroraBackupDataV1 = {
   birthdays: AuroraBackupBirthdayV1[]
   birthdayReminderLog: AuroraBackupBirthdayReminderLogV1[]
   auditLogs: AuroraBackupAuditLogV1[]
+  automationRules: AuroraBackupAutomationRuleV1[]
+  automationApplicationBatches: AuroraBackupAutomationApplicationBatchV1[]
+  automationRuleApplications: AuroraBackupAutomationRuleApplicationV1[]
 }
 
 export type AuroraBackupV1 = {

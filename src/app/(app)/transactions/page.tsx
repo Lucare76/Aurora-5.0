@@ -60,6 +60,11 @@ interface ImportRow {
   error?: string
 }
 
+type AutomationSuggestion = {
+  ruleNames: string[]
+  changes: Partial<Pick<Transaction, 'account_id' | 'category_id' | 'type' | 'description' | 'notes'>>
+}
+
 function parseCSV(text: string): string[][] {
   const cleaned = text.replace(/^﻿/, '')
   const rows: string[][] = []
@@ -257,6 +262,8 @@ export default function TransactionsPage() {
   const [importRows, setImportRows] = useState<ImportRow[]>([])
   const [importBusy, setImportBusy] = useState(false)
   const [importProgress, setImportProgress] = useState(0)
+  const [automationSuggestion, setAutomationSuggestion] = useState<AutomationSuggestion | null>(null)
+  const [automationIgnored, setAutomationIgnored] = useState(false)
 
   const form = useForm<TransactionForm>({
     resolver: zodResolver(transactionSchema) as Resolver<TransactionForm>,
@@ -267,6 +274,8 @@ export default function TransactionsPage() {
     if (initialAction !== 'create') return
     const type = initialType === 'transfer' ? 'transfer' : 'expense'
     form.reset({ ...defaultValues, type })
+    setAutomationSuggestion(null)
+    setAutomationIgnored(false)
     setCreateOpen(true)
   }, [form, initialAction, initialType])
 
@@ -279,6 +288,10 @@ export default function TransactionsPage() {
   const watchedEditType = editForm.watch('type')
   const watchedAccount = form.watch('account_id')
   const watchedEditAccount = editForm.watch('account_id')
+  const watchedAmount = form.watch('amount')
+  const watchedDescription = form.watch('description')
+  const watchedDate = form.watch('date')
+  const watchedCategory = form.watch('category_id')
 
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts])
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
@@ -299,6 +312,65 @@ export default function TransactionsPage() {
     () => (watchedEditType === 'transfer' ? [] : getCategoryTree(watchedEditType)),
     [getCategoryTree, watchedEditType],
   )
+
+  useEffect(() => {
+    if (!createOpen || automationIgnored) return
+    const amount = parseTransactionAmount(watchedAmount)
+    if (!watchedDescription?.trim() || !watchedAccount || !watchedDate || amount <= 0) {
+      setAutomationSuggestion(null)
+      return
+    }
+    const controller = new AbortController()
+    const timeout = window.setTimeout(async () => {
+      try {
+        const response = await fetch('/api/automation/evaluate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: watchedDescription,
+            amount,
+            type: watchedType,
+            account_id: watchedAccount,
+            category_id: watchedType === 'transfer' ? null : watchedCategory || null,
+            date: watchedDate,
+            notes: form.getValues('notes') || null,
+            transfer_peer_id: watchedType === 'transfer' ? form.getValues('destination_account_id') || null : null,
+          }),
+          signal: controller.signal,
+        })
+        const body = await response.json().catch(() => ({}))
+        if (!response.ok) return
+        const changes = body.result?.suggestedChanges ?? {}
+        const ruleNames = (body.result?.appliedRules ?? []).map((rule: { name: string }) => rule.name)
+        setAutomationSuggestion(Object.keys(changes).length > 0 ? { changes, ruleNames } : null)
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return
+      }
+    }, 450)
+    return () => {
+      window.clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [automationIgnored, createOpen, form, watchedAccount, watchedAmount, watchedCategory, watchedDate, watchedDescription, watchedType])
+
+  function applyAutomationSuggestion() {
+    if (!automationSuggestion) return
+    const changes = automationSuggestion.changes
+    if (changes.type && changes.type !== 'transfer') form.setValue('type', changes.type, { shouldValidate: true })
+    if (changes.account_id) form.setValue('account_id', changes.account_id, { shouldValidate: true })
+    if (Object.prototype.hasOwnProperty.call(changes, 'category_id')) form.setValue('category_id', changes.category_id ?? '', { shouldValidate: true })
+    if (changes.description) form.setValue('description', changes.description, { shouldValidate: true })
+    if (changes.notes) form.setValue('notes', changes.notes, { shouldValidate: true })
+    setAutomationSuggestion(null)
+    setAutomationIgnored(true)
+    toast.success('Suggerimento applicato')
+  }
+
+  function openCreateDialog() {
+    setAutomationSuggestion(null)
+    setAutomationIgnored(false)
+    setCreateOpen(true)
+  }
 
   const fetchTransactions = async () => {
     setLoading(true)
@@ -364,6 +436,8 @@ export default function TransactionsPage() {
 
       toast.success('Transazione creata')
       form.reset(defaultValues)
+      setAutomationSuggestion(null)
+      setAutomationIgnored(false)
       setCreateOpen(false)
       await fetchTransactions()
       await refetchAccounts()
@@ -654,6 +728,24 @@ export default function TransactionsPage() {
         <TextareaField {...targetForm.register('notes')} placeholder="Aggiungi una nota opzionale" />
       </div>
 
+      {targetForm === form && automationSuggestion && (
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+          <p className="text-sm font-bold text-indigo-900">Regola trovata: {automationSuggestion.ruleNames.join(', ') || 'Automazione'}</p>
+          <p className="mt-1 text-sm text-indigo-700">Aurora ha trovato una classificazione deterministica. Puoi applicarla o ignorarla.</p>
+          <div className="mt-3 grid gap-2 text-xs text-indigo-900 sm:grid-cols-2">
+            {Object.entries(automationSuggestion.changes).map(([field, value]) => (
+              <div key={field} className="rounded-xl bg-white/70 p-2">
+                <span className="font-semibold">{field}</span>: {String(field === 'category_id' ? categoryById.get(String(value))?.name ?? value : field === 'account_id' ? accountById.get(String(value))?.name ?? value : value)}
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <Button type="button" size="sm" onClick={applyAutomationSuggestion}>Applica suggerimento</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => { setAutomationSuggestion(null); setAutomationIgnored(true) }}>Ignora</Button>
+          </div>
+        </div>
+      )}
+
       <Button type="submit" className="h-10 w-full" disabled={busy || targetForm.formState.isSubmitting}>
         {busy || targetForm.formState.isSubmitting ? 'Salvataggio...' : submitLabel}
       </Button>
@@ -797,7 +889,7 @@ export default function TransactionsPage() {
               <Upload className="h-4 w-4" />
               Importa CSV
             </Button>
-            <Button onClick={() => setCreateOpen(true)} className="h-11 gap-2">
+            <Button onClick={openCreateDialog} className="h-11 gap-2">
               <Plus className="h-4 w-4" />
               Nuovo movimento
             </Button>
@@ -965,7 +1057,7 @@ export default function TransactionsPage() {
                     Rimuovi tutti i filtri
                   </Button>
                 ) : (
-                  <Button onClick={() => setCreateOpen(true)} className="gap-2">
+                  <Button onClick={openCreateDialog} className="gap-2">
                     <Plus className="h-4 w-4" />
                     Nuovo movimento
                   </Button>

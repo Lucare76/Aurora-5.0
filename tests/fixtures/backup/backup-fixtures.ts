@@ -74,6 +74,9 @@ export function createMinimalBackup(overrides: Partial<AuroraBackupV1> = {}): Au
       birthdays: [],
       birthdayReminderLog: [],
       auditLogs: [],
+      automationRules: [],
+      automationApplicationBatches: [],
+      automationRuleApplications: [],
     },
     integrity: {
       recordCounts: {
@@ -87,6 +90,9 @@ export function createMinimalBackup(overrides: Partial<AuroraBackupV1> = {}): Au
         birthdays: 0,
         birthdayReminderLog: 0,
         auditLogs: 0,
+        automationRules: 0,
+        automationApplicationBatches: 0,
+        automationRuleApplications: 0,
       },
       checksum: null,
     },

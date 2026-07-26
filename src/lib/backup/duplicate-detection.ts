@@ -15,6 +15,9 @@ const COLLECTIONS: CollectionName[] = [
   'birthdays',
   'birthdayReminderLog',
   'auditLogs',
+  'automationRules',
+  'automationApplicationBatches',
+  'automationRuleApplications',
 ]
 
 export function detectBackupDuplicates(backup: AuroraBackupV1): BackupValidationIssue[] {

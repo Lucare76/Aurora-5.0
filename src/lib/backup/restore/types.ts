@@ -37,6 +37,9 @@ export type CurrentUserDataSnapshot = {
   birthdays: SnapshotRecord[]
   birthdayReminderLog: SnapshotRecord[]
   auditLogs: SnapshotRecord[]
+  automationRules: SnapshotRecord[]
+  automationApplicationBatches: SnapshotRecord[]
+  automationRuleApplications: SnapshotRecord[]
 }
 
 export type AccountEmptyResult = {

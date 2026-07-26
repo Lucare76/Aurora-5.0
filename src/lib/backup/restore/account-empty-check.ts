@@ -8,6 +8,9 @@ const BLOCKING_COLLECTIONS = [
   'loans',
   'loanPayments',
   'birthdays',
+  'automationRules',
+  'automationApplicationBatches',
+  'automationRuleApplications',
 ] as const
 
 export function checkAccountEmpty(snapshot: CurrentUserDataSnapshot): AccountEmptyResult {
@@ -24,6 +27,9 @@ export function checkAccountEmpty(snapshot: CurrentUserDataSnapshot): AccountEmp
     birthdays: snapshot.birthdays.length,
     birthdayReminderLog: snapshot.birthdayReminderLog.length,
     auditLogs: snapshot.auditLogs.length,
+    automationRules: snapshot.automationRules.length,
+    automationApplicationBatches: snapshot.automationApplicationBatches.length,
+    automationRuleApplications: snapshot.automationRuleApplications.length,
   }
 
   const blockingCollections = [

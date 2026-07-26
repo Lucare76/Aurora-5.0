@@ -17,6 +17,7 @@ const GROUP_LABELS: Record<SearchResultType, string> = {
   GOAL: 'Obiettivi',
   LOAN: 'Prestiti',
   RECURRENCE: 'Ricorrenze',
+  AUTOMATION_RULE: 'Automazioni',
 }
 
 export function normalizeSearchQuery(input: string): string {
@@ -62,7 +63,7 @@ function sortAndLimit(type: SearchResultType, query: string, results: SearchResu
 }
 
 export function groupSearchResults(query: string, results: SearchResult[]): SearchPayload {
-  const order: SearchResultType[] = ['TRANSACTION', 'ACCOUNT', 'CATEGORY', 'BUDGET', 'GOAL', 'LOAN', 'RECURRENCE']
+  const order: SearchResultType[] = ['TRANSACTION', 'ACCOUNT', 'CATEGORY', 'BUDGET', 'GOAL', 'LOAN', 'RECURRENCE', 'AUTOMATION_RULE']
   const groups = order
     .map((type) => sortAndLimit(type, query, results.filter((result) => result.type === type)))
     .filter(Boolean) as SearchGroup[]
@@ -107,6 +108,7 @@ export async function searchAurora(supabase: SupabaseClient, rawQuery: string, u
     goalRes,
     loanRes,
     recurringRes,
+    automationRes,
   ] = await Promise.all([
     supabase
       .from('transactions')
@@ -151,9 +153,15 @@ export async function searchAurora(supabase: SupabaseClient, rawQuery: string, u
       .eq('user_id', userId)
       .or(`description.ilike.${pattern},frequency.ilike.${pattern}`)
       .limit(LIMIT_PER_GROUP),
+    supabase
+      .from('automation_rules')
+      .select('id,name,description,is_active,priority,match_mode,archived')
+      .eq('user_id', userId)
+      .or(`name.ilike.${pattern},description.ilike.${pattern}`)
+      .limit(LIMIT_PER_GROUP),
   ])
 
-  const errors = [txRes, accountRes, categoryRes, budgetRes, goalRes, loanRes, recurringRes]
+  const errors = [txRes, accountRes, categoryRes, budgetRes, goalRes, loanRes, recurringRes, automationRes]
     .map((res) => res.error)
     .filter(Boolean)
   if (errors.length > 0) throw errors[0]
@@ -254,6 +262,18 @@ export async function searchAurora(supabase: SupabaseClient, rawQuery: string, u
       subtitle: subtitle([formatCurrency(Number(rule.amount)), FREQUENCY_LABELS[rule.frequency as RecurringFrequency], rule.is_active ? 'Attiva' : 'In pausa']),
       metadata: [rule.type, rule.frequency, String(rule.amount), rule.next_due_date],
       href: '/recurring',
+      score: 0,
+    })
+  }
+
+  for (const rule of (automationRes.data ?? []) as SearchRow[]) {
+    results.push({
+      id: rule.id,
+      type: 'AUTOMATION_RULE',
+      title: rule.name,
+      subtitle: subtitle([`Priorità ${rule.priority}`, rule.is_active ? 'Attiva' : 'Disattivata', rule.archived ? 'Archiviata' : null]),
+      metadata: [rule.description, rule.match_mode, String(rule.priority)],
+      href: '/automation',
       score: 0,
     })
   }

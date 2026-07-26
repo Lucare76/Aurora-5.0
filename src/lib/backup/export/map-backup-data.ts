@@ -1,6 +1,9 @@
 import type {
   Account,
   AuditLog,
+  AutomationApplicationBatch,
+  AutomationRule,
+  AutomationRuleApplication,
   Birthday,
   BirthdayReminderLog,
   Budget,
@@ -15,6 +18,9 @@ import type {
 import type {
   AuroraBackupAccountV1,
   AuroraBackupAuditLogV1,
+  AuroraBackupAutomationApplicationBatchV1,
+  AuroraBackupAutomationRuleApplicationV1,
+  AuroraBackupAutomationRuleV1,
   AuroraBackupBirthdayReminderLogV1,
   AuroraBackupBirthdayV1,
   AuroraBackupBudgetV1,
@@ -41,6 +47,9 @@ export function mapUserBackupDataToV1Data(input: UserBackupData): AuroraBackupDa
     birthdays: input.birthdays.map(mapBirthday),
     birthdayReminderLog: input.birthdayReminderLog.map(mapBirthdayReminderLog),
     auditLogs: input.auditLogs.map(mapAuditLog),
+    automationRules: (input.automationRules ?? []).map(mapAutomationRule),
+    automationApplicationBatches: (input.automationApplicationBatches ?? []).map(mapAutomationApplicationBatch),
+    automationRuleApplications: (input.automationRuleApplications ?? []).map(mapAutomationRuleApplication),
   }
 }
 
@@ -198,5 +207,55 @@ export function mapAuditLog(log: AuditLog): AuroraBackupAuditLogV1 {
     old_data: log.old_data,
     new_data: log.new_data,
     created_at: log.created_at,
+  }
+}
+
+export function mapAutomationRule(rule: AutomationRule): AuroraBackupAutomationRuleV1 {
+  return {
+    id: rule.id,
+    name: rule.name,
+    description: rule.description,
+    is_active: rule.is_active,
+    priority: rule.priority,
+    match_mode: rule.match_mode,
+    stop_processing: rule.stop_processing,
+    apply_to_new_transactions: rule.apply_to_new_transactions,
+    archived: rule.archived,
+    conditions: rule.conditions as AuroraBackupAutomationRuleV1['conditions'],
+    actions: rule.actions as AuroraBackupAutomationRuleV1['actions'],
+    created_at: rule.created_at,
+    updated_at: rule.updated_at,
+  }
+}
+
+export function mapAutomationApplicationBatch(batch: AutomationApplicationBatch): AuroraBackupAutomationApplicationBatchV1 {
+  return {
+    id: batch.id,
+    rule_id: batch.rule_id,
+    mode: batch.mode,
+    status: batch.status,
+    transaction_count: batch.transaction_count,
+    applied_count: batch.applied_count,
+    skipped_count: batch.skipped_count,
+    conflict_count: batch.conflict_count,
+    failed_count: batch.failed_count,
+    created_at: batch.created_at,
+    reverted_at: batch.reverted_at,
+  }
+}
+
+export function mapAutomationRuleApplication(application: AutomationRuleApplication): AuroraBackupAutomationRuleApplicationV1 {
+  return {
+    id: application.id,
+    rule_id: application.rule_id,
+    transaction_id: application.transaction_id,
+    application_batch_id: application.application_batch_id,
+    application_mode: application.application_mode,
+    previous_values: application.previous_values,
+    applied_values: application.applied_values,
+    result: application.result,
+    error_code: application.error_code,
+    applied_at: application.applied_at,
+    reverted_at: application.reverted_at,
   }
 }
