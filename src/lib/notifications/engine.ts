@@ -1,4 +1,14 @@
 import type { EngineInput, NotificationCandidate, NotificationSeverity } from './types'
+import type {
+  AutomationNotificationConfig,
+  BalanceNotificationConfig,
+  BudgetNotificationConfig,
+  DuplicateNotificationConfig,
+  GoalNotificationConfig,
+  LoanNotificationConfig,
+  RecurrenceNotificationConfig,
+} from './preferences-types'
+import { isSourceMuted } from './preferences-defaults'
 import {
   evaluateAutomationRules,
   evaluateBalanceRules,
@@ -12,23 +22,75 @@ import {
 /**
  * Pure rule engine. Receives pre-loaded data, returns notification candidates.
  * No DB queries. Idempotent: running multiple times on the same input gives the same result.
+ * Preferences (Sprint 13B) are optional: defaults apply when absent.
  */
 export function evaluateNotificationRules(input: EngineInput): NotificationCandidate[] {
   const { accounts, budgets, recurringRules, goals, loans, recentLoanPayments,
-    recentAutomationApplications, recentTransactions, now } = input
+    recentAutomationApplications, recentTransactions, now, preferences } = input
+
+  const prefs = preferences
+  const typePrefs = prefs?.typePreferences
+  const mutes     = prefs?.sourceMutes ?? []
+  const settings  = prefs?.userSettings
+
+  // Global kill switch
+  if (settings && !settings.notificationsEnabled) return []
+
+  // Helper: check if a type is enabled
+  const isEnabled = (type: string) => typePrefs?.[type as keyof typeof typePrefs]?.isEnabled !== false
+
+  // Helper: extract config for a type (already merged with defaults in preferences-defaults.ts)
+  const cfg = <T>(type: string) =>
+    (typePrefs?.[type as keyof typeof typePrefs]?.config ?? {}) as Partial<T>
 
   const allCandidates: NotificationCandidate[] = [
-    ...evaluateBalanceRules(accounts, recurringRules, now),
-    ...evaluateBudgetRules(budgets, now),
-    ...evaluateRecurrenceRules(recurringRules, now),
-    ...evaluateGoalRules(goals, now),
-    ...evaluateLoanRules(loans, recentLoanPayments, now),
-    ...evaluateAutomationRules(recentAutomationApplications),
-    ...evaluateDuplicateRules(recentTransactions, now),
+    ...(isEnabled('negative_projected_balance')
+      ? evaluateBalanceRules(accounts, recurringRules, now, cfg<BalanceNotificationConfig>('negative_projected_balance'))
+      : []),
+    ...(isEnabled('budget_threshold')
+      ? evaluateBudgetRules(budgets, now, cfg<BudgetNotificationConfig>('budget_threshold'))
+      : []),
+    ...(isEnabled('upcoming_recurrence') || isEnabled('overdue_recurrence')
+      ? evaluateRecurrenceRules(
+          recurringRules, now,
+          // Use upcoming_recurrence config (same config for both recurrence types)
+          cfg<RecurrenceNotificationConfig>('upcoming_recurrence'),
+        )
+      : []),
+    ...(isEnabled('goal_behind_schedule')
+      ? evaluateGoalRules(goals, now, cfg<GoalNotificationConfig>('goal_behind_schedule'))
+      : []),
+    ...(isEnabled('upcoming_loan_payment') || isEnabled('overdue_loan_payment') || isEnabled('loan_due_soon')
+      ? evaluateLoanRules(loans, recentLoanPayments, now, cfg<LoanNotificationConfig>('upcoming_loan_payment'))
+      : []),
+    ...(isEnabled('automation_failure') || isEnabled('automation_conflict')
+      ? evaluateAutomationRules(recentAutomationApplications, cfg<AutomationNotificationConfig>('automation_failure'))
+      : []),
+    ...(isEnabled('possible_duplicate')
+      ? evaluateDuplicateRules(recentTransactions, now, cfg<DuplicateNotificationConfig>('possible_duplicate'))
+      : []),
   ]
 
+  // Filter individually disabled types (if recurrences: filter overdue if disabled, etc.)
+  const filtered = allCandidates.filter((c) => {
+    // Per-type enabled check
+    if (!isEnabled(c.type)) return false
+
+    // Severity filter from user settings
+    if (settings) {
+      if (c.severity === 'INFO'     && !settings.showInfo)     return false
+      if (c.severity === 'WARNING'  && !settings.showWarning)  return false
+      if (c.severity === 'CRITICAL' && !settings.showCritical) return false
+    }
+
+    // Source mute check
+    if (isSourceMuted(mutes, c.sourceType, c.sourceId, c.type)) return false
+
+    return true
+  })
+
   // Deduplicate candidates by dedupe_key: keep highest severity
-  return deduplicateCandidates(allCandidates)
+  return deduplicateCandidates(filtered)
 }
 
 /**

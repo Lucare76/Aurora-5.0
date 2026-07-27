@@ -13,6 +13,15 @@ import {
   PROJECTED_BALANCE_DAYS,
   UPCOMING_DAYS_WARNING,
 } from './constants'
+import type {
+  AutomationNotificationConfig,
+  BalanceNotificationConfig,
+  BudgetNotificationConfig,
+  DuplicateNotificationConfig,
+  GoalNotificationConfig,
+  LoanNotificationConfig,
+  RecurrenceNotificationConfig,
+} from './preferences-types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -71,13 +80,19 @@ export function evaluateBalanceRules(
   accounts: Account[],
   recurringRules: RecurringRule[],
   now: Date,
+  config?: Partial<BalanceNotificationConfig>,
 ): NotificationCandidate[] {
   const candidates: NotificationCandidate[] = []
+  const lookahead     = config?.lookaheadDays ?? PROJECTED_BALANCE_DAYS
+  const criticalBelow = config?.criticalBelow ?? NEGATIVE_BALANCE_CRITICAL_THRESHOLD
+  const accountIds    = config?.accountIds ?? null
+
   const today    = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  const horizon  = new Date(today.getTime() + PROJECTED_BALANCE_DAYS * 86_400_000)
+  const horizon  = new Date(today.getTime() + lookahead * 86_400_000)
 
   for (const account of accounts) {
     if (!account.is_active) continue
+    if (accountIds && !accountIds.includes(account.id)) continue
 
     const accountRules = recurringRules.filter(
       (r) => r.is_active && r.account_id === account.id,
@@ -88,7 +103,7 @@ export function evaluateBalanceRules(
     let firstNegDate: Date | null = null
     let lowestBalance = balance
 
-    for (let d = 0; d < PROJECTED_BALANCE_DAYS; d++) {
+    for (let d = 0; d < lookahead; d++) {
       const day = new Date(today.getTime() + d * 86_400_000)
       for (const rule of accountRules) {
         const due = parseDate(rule.next_due_date)
@@ -120,7 +135,7 @@ export function evaluateBalanceRules(
 
     const negDateStr = firstNegDate.toISOString().slice(0, 10)
     const severity: NotificationSeverity =
-      lowestBalance < NEGATIVE_BALANCE_CRITICAL_THRESHOLD ? 'CRITICAL' : 'WARNING'
+      lowestBalance < criticalBelow ? 'CRITICAL' : 'WARNING'
 
     const displayDate = firstNegDate.toLocaleDateString('it-IT', {
       day: 'numeric', month: 'long', timeZone: 'UTC',
@@ -153,17 +168,20 @@ export function evaluateBalanceRules(
 export function evaluateBudgetRules(
   budgets: BudgetEntry[],
   now: Date,
+  config?: Partial<BudgetNotificationConfig>,
 ): NotificationCandidate[] {
   const candidates: NotificationCandidate[] = []
+  const warningPct  = config?.warningPercentage  ?? BUDGET_WARNING_THRESHOLD
+  const criticalPct = config?.criticalPercentage ?? BUDGET_CRITICAL_THRESHOLD
   const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
   for (const b of budgets) {
     const pct = b.percentage
 
-    if (pct >= BUDGET_CRITICAL_THRESHOLD) {
+    if (pct >= criticalPct) {
       const overrun = b.spent - b.amount
       candidates.push({
-        dedupeKey:  `budget_threshold:${b.budgetId}:${period}:100`,
+        dedupeKey:  `budget_threshold:${b.budgetId}:${period}:${criticalPct}`,
         type:       'budget_threshold',
         severity:   'CRITICAL',
         title:      `Budget superato — ${b.categoryName}`,
@@ -176,9 +194,9 @@ export function evaluateBudgetRules(
       })
     }
 
-    if (pct >= BUDGET_WARNING_THRESHOLD && pct < BUDGET_CRITICAL_THRESHOLD) {
+    if (pct >= warningPct && pct < criticalPct) {
       candidates.push({
-        dedupeKey:  `budget_threshold:${b.budgetId}:${period}:80`,
+        dedupeKey:  `budget_threshold:${b.budgetId}:${period}:${warningPct}`,
         type:       'budget_threshold',
         severity:   'WARNING',
         title:      `Budget quasi esaurito — ${b.categoryName}`,
@@ -200,8 +218,12 @@ export function evaluateBudgetRules(
 export function evaluateRecurrenceRules(
   rules: RecurringRule[],
   now: Date,
+  config?: Partial<RecurrenceNotificationConfig>,
 ): NotificationCandidate[] {
   const candidates: NotificationCandidate[] = []
+  const advanceDays      = config?.advanceDays ?? UPCOMING_DAYS_WARNING
+  const overdueEnabled   = config?.overdueEnabled ?? true
+  const overdueCritical  = config?.overdueCriticalAfterDays ?? 7
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
 
   for (const rule of rules) {
@@ -209,8 +231,8 @@ export function evaluateRecurrenceRules(
     const due      = parseDate(rule.next_due_date)
     const daysLeft = daysBetween(today, due)
 
-    // Upcoming: 1 to UPCOMING_DAYS_WARNING days before
-    if (daysLeft > 0 && daysLeft <= UPCOMING_DAYS_WARNING) {
+    // Upcoming: 1 to advanceDays days before
+    if (daysLeft > 0 && daysLeft <= advanceDays) {
       const severity: NotificationSeverity = daysLeft === 1 ? 'WARNING' : 'INFO'
       const dayLabel = daysLeft === 1 ? 'domani' : `tra ${daysLeft} giorni`
       candidates.push({
@@ -244,12 +266,13 @@ export function evaluateRecurrenceRules(
     }
 
     // Overdue: next_due_date is in the past (only for manual rules — auto_create handles them)
-    if (daysLeft < 0 && !rule.auto_create) {
+    if (daysLeft < 0 && !rule.auto_create && overdueEnabled) {
       const overdueDays = Math.abs(daysLeft)
+      const severity: NotificationSeverity = overdueDays >= overdueCritical ? 'CRITICAL' : 'WARNING'
       candidates.push({
         dedupeKey:   `overdue_recurrence:${rule.id}:${rule.next_due_date}`,
         type:        'overdue_recurrence',
-        severity:    'CRITICAL',
+        severity,
         title:       `Ricorrenza scaduta — ${rule.description}`,
         message:     `${rule.description} (${eur(Number(rule.amount))}) era prevista il ${due.toLocaleDateString('it-IT', { timeZone: 'UTC' })} e non è stata registrata (${overdueDays} ${overdueDays === 1 ? 'giorno' : 'giorni'} fa).`,
         sourceType:  'recurring_rule',
@@ -269,8 +292,12 @@ export function evaluateRecurrenceRules(
 export function evaluateGoalRules(
   goals: SavingsGoal[],
   now: Date,
+  config?: Partial<GoalNotificationConfig>,
 ): NotificationCandidate[] {
   const candidates: NotificationCandidate[] = []
+  const tolerance     = config?.tolerancePercentagePoints  ?? GOAL_BEHIND_TOLERANCE_PCT
+  const criticalDays  = config?.criticalDaysRemaining       ?? GOAL_CRITICAL_DAYS_LIMIT
+  const criticalGap   = config?.criticalGapPercentagePoints ?? GOAL_CRITICAL_GAP_PCT
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
   const period = monthKey(now)
 
@@ -288,12 +315,12 @@ export function evaluateGoalRules(
     const amountProgress = Number(goal.current_amount) / Number(goal.target_amount)  // 0..1
 
     const gap = (timeProgress - amountProgress) * 100  // pp behind schedule
-    if (gap <= GOAL_BEHIND_TOLERANCE_PCT) continue  // within tolerance
+    if (gap <= tolerance) continue  // within tolerance
 
     const daysLeft          = daysBetween(today, targetDate)
     const expectedPct       = Math.round(timeProgress * 100)
     const actualPct         = Math.round(amountProgress * 100)
-    const isCritical        = daysLeft <= GOAL_CRITICAL_DAYS_LIMIT && gap >= GOAL_CRITICAL_GAP_PCT
+    const isCritical        = daysLeft <= criticalDays && gap >= criticalGap
     const severity: NotificationSeverity = isCritical ? 'CRITICAL' : 'WARNING'
 
     candidates.push({
@@ -323,8 +350,11 @@ export function evaluateLoanRules(
   loans: Loan[],
   loanPayments: LoanPayment[],
   now: Date,
+  config?: Partial<LoanNotificationConfig>,
 ): NotificationCandidate[] {
   const candidates: NotificationCandidate[] = []
+  const advanceDays    = config?.advanceDays    ?? LOAN_DUE_DAYS_WARNING
+  const overdueEnabled = config?.overdueEnabled ?? true
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
 
   // Index payments by loan_id for quick lookup
@@ -342,7 +372,7 @@ export function evaluateLoanRules(
     const due      = parseDate(loan.due_date)
     const daysLeft = daysBetween(today, due)
 
-    if (daysLeft < 0) {
+    if (daysLeft < 0 && overdueEnabled) {
       // Overdue
       candidates.push({
         dedupeKey:   `overdue_loan_payment:${loan.id}:${loan.due_date}`,
@@ -369,7 +399,7 @@ export function evaluateLoanRules(
         metadata:    { counterpart: loan.counterpart, remaining: Number(loan.remaining), dueDate: loan.due_date, daysLeft: 0 },
         isCondition: true,
       })
-    } else if (daysLeft <= LOAN_DUE_DAYS_WARNING) {
+    } else if (daysLeft <= advanceDays) {
       const severity: NotificationSeverity = daysLeft <= UPCOMING_DAYS_WARNING ? 'WARNING' : 'INFO'
       candidates.push({
         dedupeKey:   `loan_due_soon:${loan.id}:${loan.due_date}`,
@@ -395,8 +425,10 @@ export function evaluateAutomationRules(
   applications: Pick<AutomationRuleApplication,
     'id' | 'rule_id' | 'transaction_id' | 'application_batch_id' |
     'result' | 'error_code' | 'applied_at' | 'applied_values'>[],
+  config?: Partial<AutomationNotificationConfig>,
 ): NotificationCandidate[] {
   const candidates: NotificationCandidate[] = []
+  const includeConflicts = config?.includeConflicts ?? true
 
   for (const app of applications) {
     if (app.result === 'FAILED') {
@@ -412,7 +444,7 @@ export function evaluateAutomationRules(
         metadata:    { applicationId: app.id, ruleId: app.rule_id, transactionId: app.transaction_id, errorCode: app.error_code },
         isCondition: false,
       })
-    } else if (app.result === 'CONFLICT') {
+    } else if (app.result === 'CONFLICT' && includeConflicts) {
       candidates.push({
         dedupeKey:   `automation_conflict:${app.id}`,
         type:        'automation_conflict',
@@ -436,25 +468,29 @@ export function evaluateAutomationRules(
 export function evaluateDuplicateRules(
   transactions: Pick<Transaction, 'id' | 'account_id' | 'type' | 'amount' | 'description' | 'date' | 'transfer_peer_id'>[],
   now: Date,
+  config?: Partial<DuplicateNotificationConfig>,
 ): NotificationCandidate[] {
   const candidates: NotificationCandidate[] = []
+  const windowDays  = DUPLICATE_WINDOW_DAYS + (config?.dateToleranceDays ?? 0)
+  const requireDesc = config?.descriptionMatchRequired ?? false
   const today    = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  const cutoff   = new Date(today.getTime() - DUPLICATE_WINDOW_DAYS * 86_400_000)
+  const cutoff   = new Date(today.getTime() - windowDays * 86_400_000)
 
   // Exclude transfers entirely
   const eligible = transactions.filter(
     (t) => t.transfer_peer_id === null && t.type !== 'transfer' && parseDate(t.date) >= cutoff,
   )
 
-  // Group by fingerprint: account + type + amount + date + normalized description
+  // Group by fingerprint: account + type + amount + date + (optionally) normalized description
   const groups = new Map<string, typeof eligible>()
   for (const tx of eligible) {
+    const descPart = requireDesc ? normalizeDescription(tx.description) : ''
     const key = [
       tx.account_id,
       tx.type,
       String(Number(tx.amount).toFixed(2)),
       tx.date,
-      normalizeDescription(tx.description),
+      descPart,
     ].join('|')
     const g = groups.get(key) ?? []
     g.push(tx)

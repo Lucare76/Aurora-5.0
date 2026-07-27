@@ -26,6 +26,11 @@ export function buildRestorePlan(backup: AuroraBackupV1, issues: DryRunIssue[] =
     step(11, 'birthdays', backup.data.birthdays.length, ['profile']),
     step(12, 'birthdayReminderLog', backup.data.birthdayReminderLog.length, ['birthdays']),
     step(13, 'auditLogs', backup.data.auditLogs.length, ['profile']),
+    // Sprint 13B: steps 14/15 restored via TypeScript upserts after RPC (no UUID remapping needed).
+    // Step 16 (source mutes) is export-only — source_id requires UUID remapping across multiple tables.
+    step(14, 'notificationUserSettings', backup.data.notificationUserSettings ? 1 : 0, ['profile']),
+    step(15, 'notificationPreferences', (backup.data.notificationPreferences ?? []).length, ['profile']),
+    step(16, 'notificationSourceMutes', (backup.data.notificationSourceMutes ?? []).length, ['profile']),
   ]
 
   const enriched = steps.map((item) => {

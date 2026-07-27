@@ -44,6 +44,8 @@ export type Notification = {
   is_read: boolean
   archived_at: string | null
   resolved_at: string | null
+  snoozed_until: string | null    // Sprint 13B
+  last_snoozed_at: string | null  // Sprint 13B
   first_detected_at: string
   last_detected_at: string
   read_at: string | null
@@ -82,6 +84,8 @@ export type EngineInput = {
     'result' | 'error_code' | 'applied_at' | 'applied_values'>[]
   recentTransactions: Pick<Transaction,
     'id' | 'account_id' | 'type' | 'amount' | 'description' | 'date' | 'transfer_peer_id'>[]
+  // Sprint 13B: optional preferences — defaults apply when absent
+  preferences?: import('./preferences-types').ResolvedPreferences
 }
 
 // ── Service results ─────────────────────────────────────────────────────────
@@ -101,7 +105,7 @@ export type RefreshResult = {
 
 // ── API list params ─────────────────────────────────────────────────────────
 
-export type NotificationStatusFilter = 'unread' | 'read' | 'archived' | 'resolved' | 'all'
+export type NotificationStatusFilter = 'unread' | 'read' | 'archived' | 'resolved' | 'snoozed' | 'all'
 
 export type NotificationListParams = {
   status: NotificationStatusFilter

@@ -14,8 +14,8 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/domain/accounting/**/*.ts'],
-      exclude: ['**/*.test.ts'],
+      include: ['src/domain/accounting/**/*.ts', 'src/lib/notifications/**/*.ts'],
+      exclude: ['**/*.test.ts', '**/service.ts', '**/preferences-service.ts'],
       thresholds: {
         statements: 80,
         branches: 70,

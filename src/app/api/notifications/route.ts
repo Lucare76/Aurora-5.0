@@ -7,7 +7,7 @@ import { NOTIFICATIONS_DEFAULT_LIMIT, NOTIFICATIONS_PAGE_LIMIT } from '@/lib/not
 
 export const dynamic = 'force-dynamic'
 
-const VALID_STATUSES: NotificationStatusFilter[] = ['all', 'unread', 'read', 'archived', 'resolved']
+const VALID_STATUSES: NotificationStatusFilter[] = ['all', 'unread', 'read', 'archived', 'resolved', 'snoozed']
 const VALID_SEVERITIES: NotificationSeverity[]   = ['INFO', 'WARNING', 'CRITICAL']
 const VALID_TYPES: NotificationType[] = [
   'negative_projected_balance', 'budget_threshold', 'overdue_recurrence',
@@ -17,7 +17,7 @@ const VALID_TYPES: NotificationType[] = [
 ]
 
 const querySchema = z.object({
-  status:     z.enum(['all', 'unread', 'read', 'archived', 'resolved']).default('all'),
+  status:     z.enum(['all', 'unread', 'read', 'archived', 'resolved', 'snoozed']).default('all'),
   severity:   z.enum(['INFO', 'WARNING', 'CRITICAL']).optional(),
   type:       z.enum(VALID_TYPES as [NotificationType, ...NotificationType[]]).optional(),
   sourceType: z.enum(['account', 'budget', 'recurring_rule', 'savings_goal', 'loan', 'automation', 'transaction']).optional(),

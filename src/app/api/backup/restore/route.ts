@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 import {
   assertJsonFilename,
@@ -101,6 +102,11 @@ export async function POST(request: Request) {
       duration: Date.now() - startedAt,
     })
 
+    // Restore notification preferences (steps 14/15 from migration 00021).
+    // Non-fatal: tables may not exist if migration hasn't been applied yet.
+    // notification_source_mutes (step 16) excluded — source_id requires UUID remapping.
+    await restoreNotificationPreferences(supabase as unknown as SupabaseClient, user.id, validated.backup)
+
     return json({
       status: 'completed',
       restore: data,
@@ -116,6 +122,52 @@ export async function POST(request: Request) {
 
 export async function GET() {
   return json(error('METHOD_NOT_SUPPORTED'), 405)
+}
+
+async function restoreNotificationPreferences(
+  db: SupabaseClient,
+  userId: string,
+  backup: NonNullable<Awaited<ReturnType<typeof validateBackupForRealRestore>>['backup']>,
+) {
+  const { notificationUserSettings, notificationPreferences } = backup.data
+  if (!notificationUserSettings && !notificationPreferences?.length) return
+
+  try {
+    if (notificationUserSettings) {
+      const s = notificationUserSettings
+      await db.from('notification_user_settings').upsert({
+        user_id: userId,
+        notifications_enabled: s.notifications_enabled,
+        show_info: s.show_info,
+        show_warning: s.show_warning,
+        show_critical: s.show_critical,
+        quiet_hours_enabled: s.quiet_hours_enabled,
+        quiet_hours_start: s.quiet_hours_start ?? null,
+        quiet_hours_end: s.quiet_hours_end ?? null,
+        timezone: s.timezone ?? null,
+        digest_enabled: s.digest_enabled,
+        digest_frequency: s.digest_frequency ?? null,
+        digest_time: s.digest_time ?? null,
+      }, { onConflict: 'user_id' })
+    }
+    if (notificationPreferences?.length) {
+      await db.from('notification_preferences').delete().eq('user_id', userId)
+      await db.from('notification_preferences').insert(
+        notificationPreferences.map((p) => ({
+          id: p.id,
+          user_id: userId,
+          notification_type: p.notification_type,
+          is_enabled: p.is_enabled,
+          config: p.config ?? {},
+        })),
+      )
+    }
+  } catch (prefErr) {
+    console.warn('[aurora-restore] notification-preferences-restore-skipped', {
+      uid: userId.slice(0, 8),
+      error: prefErr instanceof Error ? prefErr.message : String(prefErr),
+    })
+  }
 }
 
 function json(body: unknown, status: number) {

@@ -222,6 +222,44 @@ export const automationRuleApplicationSchema = z.object({
   reverted_at: isoTimestamp.nullable().optional(),
 }).passthrough()
 
+// Notification preferences schemas — export only, restore deferred. Not in BACKUP_COLLECTION_KEYS.
+
+export const notificationUserSettingsSchema = z.object({
+  notifications_enabled: z.boolean().optional(),
+  show_info: z.boolean().optional(),
+  show_warning: z.boolean().optional(),
+  show_critical: z.boolean().optional(),
+  quiet_hours_enabled: z.boolean().optional(),
+  quiet_hours_start: shortString.nullable().optional(),
+  quiet_hours_end: shortString.nullable().optional(),
+  timezone: shortString.nullable().optional(),
+  digest_enabled: z.boolean().optional(),
+  digest_frequency: z.enum(['DAILY', 'WEEKLY']).nullable().optional(),
+  digest_time: shortString.nullable().optional(),
+  created_at: maybeTimestamp,
+  updated_at: maybeTimestamp,
+}).passthrough()
+
+export const notificationPreferenceSchema = z.object({
+  id: uuid.optional(),
+  notification_type: shortString.min(1),
+  is_enabled: z.boolean(),
+  config: z.record(z.string(), z.unknown()).optional(),
+  created_at: maybeTimestamp,
+  updated_at: maybeTimestamp,
+}).passthrough()
+
+export const notificationSourceMuteSchema = z.object({
+  id: uuid.optional(),
+  source_type: shortString.min(1),
+  source_id: shortString.min(1),
+  notification_type: shortString.nullable().optional(),
+  muted_until: isoTimestamp.nullable().optional(),
+  reason: shortString.nullable().optional(),
+  created_at: maybeTimestamp,
+  updated_at: maybeTimestamp,
+}).passthrough()
+
 // Notification schema — export only, restore deferred. Not in BACKUP_COLLECTION_KEYS.
 const notificationSeverity = z.enum(['INFO', 'WARNING', 'CRITICAL'])
 
@@ -279,6 +317,9 @@ export const auroraBackupV1Schema = z.object({
     automationApplicationBatches: collection(automationApplicationBatchSchema).default([]),
     automationRuleApplications: collection(automationRuleApplicationSchema).default([]),
     notifications: collection(notificationSchema).optional(),
+    notificationUserSettings: notificationUserSettingsSchema.optional(),
+    notificationPreferences: collection(notificationPreferenceSchema).optional(),
+    notificationSourceMutes: collection(notificationSourceMuteSchema).optional(),
   }).passthrough(),
   integrity: z.object({
     recordCounts: z.record(z.string(), z.number().int().min(0)),

@@ -236,8 +236,9 @@ describe('evaluateRecurrenceRules', () => {
     expect(result[0].type).toBe('upcoming_recurrence')
   })
 
-  it('generates CRITICAL for overdue manual rule', () => {
-    const rule = makeRecurringRule({ next_due_date: '2026-07-20', auto_create: false })
+  it('generates CRITICAL for overdue manual rule past critical threshold', () => {
+    // 2026-07-18 is 8 days before NOW (2026-07-26), exceeds default overdueCriticalAfterDays=7
+    const rule = makeRecurringRule({ next_due_date: '2026-07-18', auto_create: false })
     const result = evaluateRecurrenceRules([rule], NOW)
     expect(result).toHaveLength(1)
     expect(result[0].severity).toBe('CRITICAL')

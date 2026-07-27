@@ -1,5 +1,10 @@
 import type { Notification } from '@/lib/notifications/types'
 import type {
+  NotificationPreference,
+  NotificationSourceMute,
+  NotificationUserSettings,
+} from '@/lib/notifications/preferences-types'
+import type {
   Account,
   AuditLog,
   AutomationApplicationBatch,
@@ -29,6 +34,9 @@ import type {
   AuroraBackupDataV1,
   AuroraBackupLoanPaymentV1,
   AuroraBackupLoanV1,
+  AuroraBackupNotificationPreferenceV1,
+  AuroraBackupNotificationSourceMuteV1,
+  AuroraBackupNotificationUserSettingsV1,
   AuroraBackupNotificationV1,
   AuroraBackupProfileV1,
   AuroraBackupRecurringRuleV1,
@@ -53,6 +61,15 @@ export function mapUserBackupDataToV1Data(input: UserBackupData): AuroraBackupDa
     automationApplicationBatches: (input.automationApplicationBatches ?? []).map(mapAutomationApplicationBatch),
     automationRuleApplications: (input.automationRuleApplications ?? []).map(mapAutomationRuleApplication),
     notifications: (input.notifications ?? []).map(mapNotification),
+    ...(input.notificationUserSettings
+      ? { notificationUserSettings: mapNotificationUserSettings(input.notificationUserSettings) }
+      : {}),
+    ...(input.notificationPreferences && input.notificationPreferences.length > 0
+      ? { notificationPreferences: input.notificationPreferences.map(mapNotificationPreference) }
+      : {}),
+    ...(input.notificationSourceMutes && input.notificationSourceMutes.length > 0
+      ? { notificationSourceMutes: input.notificationSourceMutes.map(mapNotificationSourceMute) }
+      : {}),
   }
 }
 
@@ -260,6 +277,48 @@ export function mapAutomationRuleApplication(application: AutomationRuleApplicat
     error_code: application.error_code,
     applied_at: application.applied_at,
     reverted_at: application.reverted_at,
+  }
+}
+
+export function mapNotificationUserSettings(s: NotificationUserSettings): AuroraBackupNotificationUserSettingsV1 {
+  return {
+    notifications_enabled: s.notifications_enabled,
+    show_info: s.show_info,
+    show_warning: s.show_warning,
+    show_critical: s.show_critical,
+    quiet_hours_enabled: s.quiet_hours_enabled,
+    quiet_hours_start: s.quiet_hours_start,
+    quiet_hours_end: s.quiet_hours_end,
+    timezone: s.timezone,
+    digest_enabled: s.digest_enabled,
+    digest_frequency: s.digest_frequency,
+    digest_time: s.digest_time,
+    created_at: s.created_at,
+    updated_at: s.updated_at,
+  }
+}
+
+export function mapNotificationPreference(p: NotificationPreference): AuroraBackupNotificationPreferenceV1 {
+  return {
+    id: p.id,
+    notification_type: p.notification_type,
+    is_enabled: p.is_enabled,
+    config: p.config,
+    created_at: p.created_at,
+    updated_at: p.updated_at,
+  }
+}
+
+export function mapNotificationSourceMute(m: NotificationSourceMute): AuroraBackupNotificationSourceMuteV1 {
+  return {
+    id: m.id,
+    source_type: m.source_type,
+    source_id: m.source_id,
+    notification_type: m.notification_type,
+    muted_until: m.muted_until,
+    reason: m.reason,
+    created_at: m.created_at,
+    updated_at: m.updated_at,
   }
 }
 

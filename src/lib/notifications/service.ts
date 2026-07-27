@@ -219,12 +219,21 @@ export async function listNotifications(
     .eq('user_id', userId)
 
   // Status filter
+  const nowIso = new Date().toISOString()
   switch (params.status) {
     case 'unread':
-      query = query.eq('is_read', false).is('archived_at', null).is('resolved_at', null)
+      query = query
+        .eq('is_read', false)
+        .is('archived_at', null)
+        .is('resolved_at', null)
+        .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`)
       break
     case 'read':
-      query = query.eq('is_read', true).is('archived_at', null).is('resolved_at', null)
+      query = query
+        .eq('is_read', true)
+        .is('archived_at', null)
+        .is('resolved_at', null)
+        .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`)
       break
     case 'archived':
       query = query.not('archived_at', 'is', null)
@@ -232,7 +241,10 @@ export async function listNotifications(
     case 'resolved':
       query = query.not('resolved_at', 'is', null)
       break
-    // 'all': no extra filter
+    case 'snoozed':
+      query = query.gt('snoozed_until', nowIso)
+      break
+    // 'all': no extra filter (includes snoozed)
   }
 
   if (params.severity) query = query.eq('severity', params.severity)
@@ -267,6 +279,7 @@ export async function getRecentUnread(
   userId: string,
   limit = NOTIFICATIONS_BELL_LIMIT,
 ): Promise<{ notifications: Notification[]; unreadCount: number }> {
+  const nowIso = new Date().toISOString()
   const [{ data }, { count }] = await Promise.all([
     supabase
       .from('notifications')
@@ -275,6 +288,7 @@ export async function getRecentUnread(
       .eq('is_read', false)
       .is('archived_at', null)
       .is('resolved_at', null)
+      .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`)
       .order('created_at', { ascending: false })
       .limit(limit),
     supabase
@@ -283,7 +297,8 @@ export async function getRecentUnread(
       .eq('user_id', userId)
       .eq('is_read', false)
       .is('archived_at', null)
-      .is('resolved_at', null),
+      .is('resolved_at', null)
+      .or(`snoozed_until.is.null,snoozed_until.lte.${nowIso}`),
   ])
 
   return {
@@ -399,6 +414,7 @@ export async function loadEngineInput(
   supabase: SupabaseClient,
   userId: string,
   now: Date,
+  includePreferences = true,
 ): Promise<EngineInput> {
   const automationWindowDays = 30
   const automationCutoff     = new Date(now.getTime() - automationWindowDays * 86_400_000).toISOString()
@@ -451,6 +467,11 @@ export async function loadEngineInput(
     budgetEntries = await listMonthlyBudgets(supabase, now.getFullYear(), now.getMonth() + 1)
   }
 
+  // Load preferences in parallel with financial data (if requested)
+  const preferences = includePreferences
+    ? await (await import('./preferences-service')).loadResolvedPreferences(supabase, userId)
+    : undefined
+
   return {
     userId,
     now,
@@ -462,5 +483,6 @@ export async function loadEngineInput(
     recentLoanPayments:          (loanPayments ?? []) as import('@/types/database').LoanPayment[],
     recentAutomationApplications: (automationApplications ?? []) as import('@/types/database').AutomationRuleApplication[],
     recentTransactions:          (recentTransactions ?? []) as import('@/types/database').Transaction[],
+    preferences,
   }
 }

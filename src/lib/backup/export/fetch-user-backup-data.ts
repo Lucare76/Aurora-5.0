@@ -18,6 +18,11 @@ import type {
   Transaction,
 } from '@/types/database'
 import type { Notification } from '@/lib/notifications/types'
+import type {
+  NotificationPreference,
+  NotificationSourceMute,
+  NotificationUserSettings,
+} from '@/lib/notifications/preferences-types'
 
 export const BACKUP_PROFILE_SELECT =
   'id,display_name,avatar_url,currency,locale,timezone,onboarding_done,created_at,updated_at'
@@ -71,6 +76,10 @@ export type UserBackupData = {
   automationRuleApplications?: AutomationRuleApplication[]
   // Notifications: export-only since Sprint 13A; restore is deferred
   notifications?: Notification[]
+  // Notification preferences: export-only since Sprint 13B; restore is deferred
+  notificationUserSettings?: NotificationUserSettings | null
+  notificationPreferences?: NotificationPreference[]
+  notificationSourceMutes?: NotificationSourceMute[]
 }
 
 type BackupSupabaseClient = SupabaseClient<Database>
@@ -122,6 +131,9 @@ export async function fetchUserBackupData(
     automationApplicationBatches,
     automationRuleApplications,
     notifications,
+    notificationUserSettings,
+    notificationPreferences,
+    notificationSourceMutes,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -205,6 +217,22 @@ export async function fetchUserBackupData(
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(5000) as unknown as Promise<QueryResult<Notification>>,
+    // Notification preferences: export-only since Sprint 13B; restore deferred
+    (supabase as unknown as SupabaseClient)
+      .from('notification_user_settings')
+      .select('notifications_enabled,show_info,show_warning,show_critical,quiet_hours_enabled,quiet_hours_start,quiet_hours_end,timezone,digest_enabled,digest_frequency,digest_time,created_at,updated_at')
+      .eq('user_id', user.id)
+      .maybeSingle() as unknown as Promise<SingleQueryResult<NotificationUserSettings>>,
+    (supabase as unknown as SupabaseClient)
+      .from('notification_preferences')
+      .select('id,notification_type,is_enabled,config,created_at,updated_at')
+      .eq('user_id', user.id)
+      .order('notification_type', { ascending: true }) as unknown as Promise<QueryResult<NotificationPreference>>,
+    (supabase as unknown as SupabaseClient)
+      .from('notification_source_mutes')
+      .select('id,source_type,source_id,notification_type,muted_until,reason,created_at,updated_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<NotificationSourceMute>>,
   ])
 
   assertNoQueryError('profiles', profile.error)
@@ -241,6 +269,10 @@ export async function fetchUserBackupData(
     automationApplicationBatches: automationApplicationBatches.data ?? [],
     automationRuleApplications: automationRuleApplications.data ?? [],
     notifications: notifications.error ? [] : (notifications.data ?? []),
+    // Notification preferences are non-fatal: backup proceeds even if tables are missing
+    notificationUserSettings: notificationUserSettings.error ? null : notificationUserSettings.data,
+    notificationPreferences: notificationPreferences.error ? [] : (notificationPreferences.data ?? []),
+    notificationSourceMutes: notificationSourceMutes.error ? [] : (notificationSourceMutes.data ?? []),
   }
 }
 

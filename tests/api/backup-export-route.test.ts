@@ -172,8 +172,9 @@ function mockSupabase(options: {
           return builder
         }),
         order: vi.fn(() => builder),
+        limit: vi.fn(() => builder),
         maybeSingle: vi.fn(() => Promise.resolve({
-          data: errors[table] ? null : (data[table][0] ?? null),
+          data: errors[table] ? null : (data[table]?.[0] ?? null),
           error: errors[table] ? { message: errors[table] } : null,
         })),
         insert: vi.fn(() => {

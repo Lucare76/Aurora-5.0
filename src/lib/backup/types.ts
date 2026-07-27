@@ -188,6 +188,44 @@ export type AuroraBackupAuditLogV1 = {
   created_at?: string
 }
 
+// ── Notification preferences — export-only (restore deferred, same as notifications) ──
+
+export type AuroraBackupNotificationUserSettingsV1 = {
+  notifications_enabled?: boolean
+  show_info?: boolean
+  show_warning?: boolean
+  show_critical?: boolean
+  quiet_hours_enabled?: boolean
+  quiet_hours_start?: string | null
+  quiet_hours_end?: string | null
+  timezone?: string | null
+  digest_enabled?: boolean
+  digest_frequency?: 'DAILY' | 'WEEKLY' | null
+  digest_time?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export type AuroraBackupNotificationPreferenceV1 = {
+  id?: string
+  notification_type: string
+  is_enabled: boolean
+  config?: Record<string, unknown>
+  created_at?: string
+  updated_at?: string
+}
+
+export type AuroraBackupNotificationSourceMuteV1 = {
+  id?: string
+  source_type: string
+  source_id: string
+  notification_type?: string | null
+  muted_until?: string | null
+  reason?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
 // Notifications: export-only (restore is deferred to a future sprint).
 // Excluded from BACKUP_COLLECTION_KEYS to preserve backward compatibility with existing backups.
 export type AuroraBackupNotificationV1 = {
@@ -272,6 +310,10 @@ export type AuroraBackupDataV1 = {
   automationRuleApplications: AuroraBackupAutomationRuleApplicationV1[]
   // Optional: included from Sprint 13A onwards; absent in earlier backups (restore deferred)
   notifications?: AuroraBackupNotificationV1[]
+  // Optional: included from Sprint 13B onwards; absent in earlier backups (restore deferred)
+  notificationUserSettings?: AuroraBackupNotificationUserSettingsV1
+  notificationPreferences?: AuroraBackupNotificationPreferenceV1[]
+  notificationSourceMutes?: AuroraBackupNotificationSourceMuteV1[]
 }
 
 export type AuroraBackupV1 = {
