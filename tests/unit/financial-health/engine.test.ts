@@ -49,6 +49,10 @@ function baseInput(overrides: Partial<FinancialHealthInput> = {}): FinancialHeal
       maxOverdraft: 0,
       projectedIncome30d: 0,
       projectedExpenses30d: 0,
+      dailySeries: [
+        { date: '2026-07-15', label: '15 lug', balance: 7000, income: 0, expenses: 0 },
+        { date: '2026-07-16', label: '16 lug', balance: 6950, income: 0, expenses: 50 },
+      ],
     },
     recurringItems: [],
     budgets: [{ id: 'budget-1', category_id: 'cat-food', amount: 700, month: 7, year: 2026 }],
@@ -196,6 +200,25 @@ describe('financial-health engine', () => {
     expect(result.totalScore).not.toBeNull()
     expect(result.isProvisional).toBe(true)
     expect(result.recommendations[0].reasonCode).toBe('INSUFFICIENT_DATA')
+  })
+
+  it('exposes dashboard-ready data without client-side recalculation', () => {
+    const result = calculateFinancialHealth(baseInput({
+      notifications: [
+        { id: 'alert-1', type: 'budget_threshold', severity: 'WARNING', source_type: 'budget', source_id: 'budget-1', source_url: '/budgets', is_read: false, archived_at: null, resolved_at: null, created_at: '2026-07-10T00:00:00.000Z' },
+      ],
+      budgets: [{ id: 'budget-1', category_id: 'cat-food', amount: 600, month: 7, year: 2026 }],
+      loans: [{ id: 'loan-1', counterpart: 'Mario', type: 'received', amount: 500, remaining: 250, due_date: '2026-07-20', is_settled: false }],
+      recurringItems: [{ id: 'rec-1', account_id: 'acc-1', category_id: 'cat-food', type: 'expense', amount: 40, description: 'ABBONAMENTO', frequency: 'monthly', start_date: '2026-01-01', end_date: null, next_due_date: '2026-07-18', is_active: true, auto_create: true }],
+    }))
+
+    expect(result.dashboard.projectedLiquiditySeries).toHaveLength(2)
+    expect(result.dashboard.monthlyCashFlowSeries.at(-1)?.key).toBe('2026-07')
+    expect(result.dashboard.budgetFocus[0]).toMatchObject({ categoryName: 'Alimentari', status: 'warning' })
+    expect(result.dashboard.deadlineFocus.map((item) => item.type)).toContain('recurring')
+    expect(result.dashboard.loanFocus[0]).toMatchObject({ counterpart: 'Mario' })
+    expect(result.dashboard.goalFocus[0]).toMatchObject({ name: 'Vacanze' })
+    expect(result.dashboard.alertFocus[0]).toMatchObject({ severity: 'WARNING' })
   })
 
   it('returns null total score only when every component is unavailable', () => {

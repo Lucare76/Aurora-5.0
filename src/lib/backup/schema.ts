@@ -303,6 +303,15 @@ export const financialHealthSnapshotSchema = z.object({
   updated_at: maybeTimestamp,
 }).passthrough()
 
+export const dashboardPreferencesSchema = z.object({
+  visible_widgets: z.array(shortString),
+  widget_order: z.array(shortString),
+  compact_mode: z.boolean(),
+  default_period: z.enum(['current_month', 'previous_month']),
+  created_at: maybeTimestamp,
+  updated_at: maybeTimestamp,
+}).passthrough()
+
 const collection = <T extends z.ZodType>(schema: T) =>
   z.array(schema).max(BACKUP_LIMITS.maxRecordsPerCollection)
 
@@ -343,6 +352,7 @@ export const auroraBackupV1Schema = z.object({
     notificationPreferences: collection(notificationPreferenceSchema).optional(),
     notificationSourceMutes: collection(notificationSourceMuteSchema).optional(),
     financialHealthSnapshots: collection(financialHealthSnapshotSchema).optional(),
+    dashboardPreferences: dashboardPreferencesSchema.optional(),
   }).passthrough(),
   integrity: z.object({
     recordCounts: z.record(z.string(), z.number().int().min(0)),

@@ -31,6 +31,7 @@ export function buildRestorePlan(backup: AuroraBackupV1, issues: DryRunIssue[] =
     step(14, 'notificationUserSettings', backup.data.notificationUserSettings ? 1 : 0, ['profile']),
     step(15, 'notificationPreferences', (backup.data.notificationPreferences ?? []).length, ['profile']),
     step(16, 'notificationSourceMutes', (backup.data.notificationSourceMutes ?? []).length, ['profile']),
+    step(17, 'dashboardPreferences', backup.data.dashboardPreferences ? 1 : 0, ['profile']),
   ]
 
   const enriched = steps.map((item) => {

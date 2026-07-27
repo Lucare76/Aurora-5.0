@@ -15,6 +15,7 @@ import {
   RestorePreparationError,
   validateBackupForRealRestore,
 } from '@/lib/backup'
+import { normalizeDashboardPreferences, preferencesToRow } from '@/lib/dashboard/preferences'
 import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -106,6 +107,7 @@ export async function POST(request: Request) {
     // Non-fatal: tables may not exist if migration hasn't been applied yet.
     // notification_source_mutes (step 16) excluded — source_id requires UUID remapping.
     await restoreNotificationPreferences(supabase as unknown as SupabaseClient, user.id, validated.backup)
+    await restoreDashboardPreferences(supabase as unknown as SupabaseClient, user.id, validated.backup)
 
     return json({
       status: 'completed',
@@ -122,6 +124,30 @@ export async function POST(request: Request) {
 
 export async function GET() {
   return json(error('METHOD_NOT_SUPPORTED'), 405)
+}
+
+async function restoreDashboardPreferences(
+  db: SupabaseClient,
+  userId: string,
+  backup: NonNullable<Awaited<ReturnType<typeof validateBackupForRealRestore>>['backup']>,
+) {
+  const preferences = backup.data.dashboardPreferences
+  if (!preferences) return
+
+  try {
+    const normalized = normalizeDashboardPreferences({
+      visibleWidgets: preferences.visible_widgets,
+      widgetOrder: preferences.widget_order,
+      compactMode: preferences.compact_mode,
+      defaultPeriod: preferences.default_period,
+    })
+    await db.from('dashboard_preferences').upsert(preferencesToRow(userId, normalized), { onConflict: 'user_id' })
+  } catch (prefErr) {
+    console.warn('[aurora-restore] dashboard-preferences-restore-skipped', {
+      uid: userId.slice(0, 8),
+      error: prefErr instanceof Error ? prefErr.message : String(prefErr),
+    })
+  }
 }
 
 async function restoreNotificationPreferences(

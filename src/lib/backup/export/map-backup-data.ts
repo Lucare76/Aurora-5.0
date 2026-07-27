@@ -33,6 +33,7 @@ import type {
   AuroraBackupBudgetV1,
   AuroraBackupCategoryV1,
   AuroraBackupDataV1,
+  AuroraBackupDashboardPreferencesV1,
   AuroraBackupFinancialHealthSnapshotV1,
   AuroraBackupLoanPaymentV1,
   AuroraBackupLoanV1,
@@ -74,6 +75,9 @@ export function mapUserBackupDataToV1Data(input: UserBackupData): AuroraBackupDa
       : {}),
     ...(input.financialHealthSnapshots && input.financialHealthSnapshots.length > 0
       ? { financialHealthSnapshots: input.financialHealthSnapshots.map(mapFinancialHealthSnapshot) }
+      : {}),
+    ...(input.dashboardPreferences
+      ? { dashboardPreferences: mapDashboardPreferences(input.dashboardPreferences) }
       : {}),
   }
 }
@@ -366,5 +370,16 @@ export function mapFinancialHealthSnapshot(snapshot: FinancialHealthSnapshot): A
     calculated_at: snapshot.calculated_at,
     created_at: snapshot.created_at,
     updated_at: snapshot.updated_at,
+  }
+}
+
+export function mapDashboardPreferences(preferences: NonNullable<UserBackupData['dashboardPreferences']>): AuroraBackupDashboardPreferencesV1 {
+  return {
+    visible_widgets: [...preferences.visible_widgets],
+    widget_order: [...preferences.widget_order],
+    compact_mode: preferences.compact_mode,
+    default_period: preferences.default_period === 'previous_month' ? 'previous_month' : 'current_month',
+    created_at: preferences.created_at,
+    updated_at: preferences.updated_at,
   }
 }

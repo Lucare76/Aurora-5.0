@@ -314,6 +314,15 @@ export type AuroraBackupFinancialHealthSnapshotV1 = {
   updated_at?: string
 }
 
+export type AuroraBackupDashboardPreferencesV1 = {
+  visible_widgets: string[]
+  widget_order: string[]
+  compact_mode: boolean
+  default_period: 'current_month' | 'previous_month'
+  created_at?: string
+  updated_at?: string
+}
+
 export type AuroraBackupDataV1 = {
   profile: AuroraBackupProfileV1
   accounts: AuroraBackupAccountV1[]
@@ -337,6 +346,8 @@ export type AuroraBackupDataV1 = {
   notificationSourceMutes?: AuroraBackupNotificationSourceMuteV1[]
   // Optional: included from Sprint 14A onwards; absent in earlier backups (restore deferred)
   financialHealthSnapshots?: AuroraBackupFinancialHealthSnapshotV1[]
+  // Optional: included from Sprint 14B onwards; absent in earlier backups
+  dashboardPreferences?: AuroraBackupDashboardPreferencesV1
 }
 
 export type AuroraBackupV1 = {

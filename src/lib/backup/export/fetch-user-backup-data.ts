@@ -55,6 +55,8 @@ export const BACKUP_AUTOMATION_APPLICATION_SELECT =
   'id,user_id,rule_id,transaction_id,application_batch_id,application_mode,previous_values,applied_values,result,error_code,applied_at,reverted_at'
 export const BACKUP_FINANCIAL_HEALTH_SNAPSHOT_SELECT =
   'id,user_id,period_key,period_start,period_end,total_score,level,is_provisional,data_quality,observed_weight,metrics,component_scores,factors,recommendations,calculation_version,calculated_at,created_at,updated_at'
+export const BACKUP_DASHBOARD_PREFERENCES_SELECT =
+  'user_id,visible_widgets,widget_order,compact_mode,default_period,created_at,updated_at'
 
 export type BackupAuthenticatedUser = {
   id: string
@@ -85,6 +87,14 @@ export type UserBackupData = {
   notificationSourceMutes?: NotificationSourceMute[]
   // Financial health snapshots: export-only since Sprint 14A; restore is deferred
   financialHealthSnapshots?: FinancialHealthSnapshot[]
+  dashboardPreferences?: {
+    visible_widgets: string[]
+    widget_order: string[]
+    compact_mode: boolean
+    default_period: string
+    created_at?: string
+    updated_at?: string
+  } | null
 }
 
 type BackupSupabaseClient = SupabaseClient<Database>
@@ -140,6 +150,7 @@ export async function fetchUserBackupData(
     notificationPreferences,
     notificationSourceMutes,
     financialHealthSnapshots,
+    dashboardPreferences,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -244,6 +255,11 @@ export async function fetchUserBackupData(
       .select(BACKUP_FINANCIAL_HEALTH_SNAPSHOT_SELECT)
       .eq('user_id', user.id)
       .order('period_start', { ascending: true }) as unknown as Promise<QueryResult<FinancialHealthSnapshot>>,
+    (supabase as unknown as SupabaseClient)
+      .from('dashboard_preferences')
+      .select(BACKUP_DASHBOARD_PREFERENCES_SELECT)
+      .eq('user_id', user.id)
+      .maybeSingle() as unknown as Promise<SingleQueryResult<NonNullable<UserBackupData['dashboardPreferences']>>>,
   ])
 
   assertNoQueryError('profiles', profile.error)
@@ -286,6 +302,7 @@ export async function fetchUserBackupData(
     notificationPreferences: notificationPreferences.error ? [] : (notificationPreferences.data ?? []),
     notificationSourceMutes: notificationSourceMutes.error ? [] : (notificationSourceMutes.data ?? []),
     financialHealthSnapshots: financialHealthSnapshots.error ? [] : (financialHealthSnapshots.data ?? []),
+    dashboardPreferences: dashboardPreferences.error ? null : dashboardPreferences.data,
   }
 }
 

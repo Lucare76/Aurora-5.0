@@ -14,7 +14,19 @@ import { calculateCashFlowStability, calculateSavingsRate, calculateSavingsScore
 import { buildTrends } from './trends'
 import { average, roundMoney } from './helpers'
 import type { Account, Transaction } from '@/types/database'
-import type { ComponentScore, FinancialHealthInput, FinancialHealthMetrics, HealthComponentKey, HealthFactor } from './types'
+import type {
+  ComponentScore,
+  DashboardAlertFocusItem,
+  DashboardBudgetFocusItem,
+  DashboardDeadlineItem,
+  DashboardGoalFocusItem,
+  DashboardLoanFocusItem,
+  FinancialHealthDashboardData,
+  FinancialHealthInput,
+  FinancialHealthMetrics,
+  HealthComponentKey,
+  HealthFactor,
+} from './types'
 import { FINANCIAL_HEALTH_CALCULATION_VERSION } from './constants'
 
 function activeAccounts(input: FinancialHealthInput) {
@@ -76,6 +88,120 @@ function previousMetrics(input: FinancialHealthInput): Partial<Record<keyof Fina
     savingsRate: prev.savingsRate,
     currentFinancialPosition: null,
     currentLiquidity: null,
+  }
+}
+
+function diffDays(from: string, to: string) {
+  return Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86400000)
+}
+
+function buildDashboardData(params: {
+  input: FinancialHealthInput
+  budgetSummary: ReturnType<typeof summarizeBudgets>
+  today: string
+}): FinancialHealthDashboardData {
+  const categoryNames = new Map(params.input.categories.map((category) => [category.id, category.name]))
+  const budgetFocus: DashboardBudgetFocusItem[] = params.budgetSummary.atRiskCategories.slice(0, 5).map((item) => ({
+    categoryId: item.categoryId,
+    categoryName: categoryNames.get(item.categoryId) ?? 'Categoria',
+    spent: item.spent,
+    limit: item.limit,
+    usage: item.usage,
+    status: item.usage >= 100 ? 'exceeded' : 'warning',
+  }))
+
+  const recurringDeadlines: DashboardDeadlineItem[] = params.input.recurringItems
+    .filter((item) => item.is_active && item.next_due_date)
+    .map((item) => {
+      const daysUntil = diffDays(params.today, item.next_due_date)
+      return {
+        id: item.id,
+        title: item.description,
+        amount: item.amount,
+        dueDate: item.next_due_date,
+        daysUntil,
+        type: 'recurring' as const,
+        status: daysUntil < 0 ? 'overdue' as const : 'upcoming' as const,
+        href: '/recurring',
+      }
+    })
+
+  const loanDeadlines: DashboardDeadlineItem[] = params.input.loans
+    .filter((loan) => !loan.is_settled && loan.remaining > 0 && loan.due_date)
+    .map((loan) => {
+      const daysUntil = diffDays(params.today, loan.due_date!)
+      return {
+        id: loan.id,
+        title: loan.counterpart,
+        amount: loan.remaining,
+        dueDate: loan.due_date!,
+        daysUntil,
+        type: 'loan' as const,
+        status: daysUntil < 0 ? 'overdue' as const : 'upcoming' as const,
+        href: '/loans',
+      }
+    })
+
+  const deadlineFocus = [...recurringDeadlines, ...loanDeadlines]
+    .filter((item) => item.daysUntil <= 30)
+    .sort((a, b) => a.daysUntil - b.daysUntil)
+    .slice(0, 6)
+
+  const loanFocus: DashboardLoanFocusItem[] = params.input.loans
+    .filter((loan) => !loan.is_settled && loan.remaining > 0)
+    .map((loan) => {
+      const daysUntil = loan.due_date ? diffDays(params.today, loan.due_date) : null
+      const status: DashboardLoanFocusItem['status'] = daysUntil == null ? 'open' : daysUntil < 0 ? 'overdue' : daysUntil <= 30 ? 'upcoming' : 'open'
+      return {
+        id: loan.id,
+        counterpart: loan.counterpart,
+        type: loan.type,
+        remaining: loan.remaining,
+        dueDate: loan.due_date,
+        status,
+        href: '/loans',
+      }
+    })
+    .sort((a, b) => {
+      const statusWeight = { overdue: 0, upcoming: 1, open: 2 }
+      return statusWeight[a.status] - statusWeight[b.status] || b.remaining - a.remaining
+    })
+    .slice(0, 5)
+
+  const goalFocus: DashboardGoalFocusItem[] = params.input.goals
+    .filter((goal) => !goal.archived && goal.status !== 'ARCHIVED')
+    .map((goal) => ({
+      id: goal.id,
+      name: goal.name,
+      targetAmount: goal.target_amount,
+      currentAmount: goal.current_amount,
+      progress: goal.target_amount > 0 ? Math.min(100, Math.round((goal.current_amount / goal.target_amount) * 100)) : 0,
+      targetDate: goal.target_date,
+      status: goal.status,
+      href: `/goals/${goal.id}`,
+    }))
+    .sort((a, b) => (a.status === 'ACTIVE' ? 0 : 1) - (b.status === 'ACTIVE' ? 0 : 1) || a.progress - b.progress)
+    .slice(0, 5)
+
+  const alertFocus: DashboardAlertFocusItem[] = params.input.notifications
+    .filter((notification) => !notification.archived_at && !notification.resolved_at && notification.severity !== 'INFO')
+    .slice(0, 6)
+    .map((notification) => ({
+      id: notification.id,
+      title: notification.type.replaceAll('_', ' '),
+      severity: notification.severity,
+      sourceUrl: notification.source_url,
+      createdAt: notification.created_at,
+    }))
+
+  return {
+    projectedLiquiditySeries: params.input.projectedLiquidity.dailySeries ?? [],
+    monthlyCashFlowSeries: params.input.historicalMonthlyMetrics.slice(-6),
+    budgetFocus,
+    deadlineFocus,
+    loanFocus,
+    goalFocus,
+    alertFocus,
   }
 }
 
@@ -170,6 +296,7 @@ export function calculateFinancialHealth(input: FinancialHealthInput) {
     dataIsInsufficient: dataQuality.level === 'INSUFFICIENT',
   })
   const trends = buildTrends({ metrics, previousMetrics: previousMetrics(input), totalScore: weighted.totalScore })
+  const dashboard = buildDashboardData({ input, budgetSummary, today })
 
   return {
     calculationVersion: FINANCIAL_HEALTH_CALCULATION_VERSION,
@@ -196,5 +323,6 @@ export function calculateFinancialHealth(input: FinancialHealthInput) {
     recommendations,
     trends,
     warnings: dataQuality.reasons,
+    dashboard,
   }
 }

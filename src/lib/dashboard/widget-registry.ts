@@ -1,0 +1,141 @@
+import type { DashboardWidgetDefinition, DashboardWidgetId } from './types'
+
+export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
+  {
+    id: 'summary',
+    label: 'Indicatori principali',
+    description: 'Patrimonio, liquidita prevista, margine mensile e tasso di risparmio.',
+    defaultVisible: true,
+    defaultOrder: 10,
+    minimumData: 'Almeno un conto attivo.',
+    mobilePriority: 1,
+  },
+  {
+    id: 'financial-health',
+    label: 'Salute finanziaria',
+    description: 'Score, livello, qualita dei dati e fattori principali dal motore deterministico.',
+    defaultVisible: true,
+    defaultOrder: 20,
+    minimumData: 'Dati finanziari sufficienti per il calcolo.',
+    mobilePriority: 2,
+    href: '/financial-health',
+  },
+  {
+    id: 'projected-balance',
+    label: 'Saldo previsionale',
+    description: 'Andamento previsto nei prossimi 90 giorni generato dal calendario finanziario.',
+    defaultVisible: true,
+    defaultOrder: 30,
+    minimumData: 'Conti attivi e almeno un evento futuro o saldo corrente.',
+    mobilePriority: 3,
+    href: '/calendar',
+  },
+  {
+    id: 'cash-flow',
+    label: 'Entrate, uscite e margine',
+    description: 'Confronto degli ultimi mesi calcolato dal payload Financial Health.',
+    defaultVisible: true,
+    defaultOrder: 40,
+    minimumData: 'Movimenti degli ultimi mesi.',
+    mobilePriority: 4,
+    href: '/reports',
+  },
+  {
+    id: 'score-components',
+    label: 'Componenti dello score',
+    description: 'Peso, contributo e stato dei sette componenti della salute finanziaria.',
+    defaultVisible: true,
+    defaultOrder: 50,
+    minimumData: 'Calcolo Financial Health disponibile.',
+    mobilePriority: 5,
+    href: '/financial-health',
+  },
+  {
+    id: 'expense-coverage',
+    label: 'Copertura spese',
+    description: 'Autonomia stimata rispetto alle uscite medie osservate.',
+    defaultVisible: true,
+    defaultOrder: 60,
+    minimumData: 'Uscite osservate negli ultimi mesi.',
+    mobilePriority: 6,
+  },
+  {
+    id: 'budgets',
+    label: 'Budget a rischio',
+    description: 'Budget superati o vicini alla soglia, ordinati per priorita.',
+    defaultVisible: true,
+    defaultOrder: 70,
+    minimumData: 'Budget del periodo.',
+    mobilePriority: 7,
+    href: '/budgets',
+  },
+  {
+    id: 'deadlines',
+    label: 'Scadenze',
+    description: 'Pagamenti ricorrenti e prestiti in scadenza o scaduti.',
+    defaultVisible: true,
+    defaultOrder: 80,
+    minimumData: 'Ricorrenze o prestiti con data.',
+    mobilePriority: 8,
+    href: '/calendar',
+  },
+  {
+    id: 'loans',
+    label: 'Prestiti',
+    description: 'Prestiti aperti ordinati per urgenza e capitale residuo.',
+    defaultVisible: true,
+    defaultOrder: 90,
+    minimumData: 'Prestiti attivi.',
+    mobilePriority: 9,
+    href: '/loans',
+  },
+  {
+    id: 'goals',
+    label: 'Obiettivi',
+    description: 'Obiettivi attivi, avanzamento e rischio di ritardo.',
+    defaultVisible: true,
+    defaultOrder: 100,
+    minimumData: 'Obiettivi di risparmio attivi.',
+    mobilePriority: 10,
+    href: '/goals',
+  },
+  {
+    id: 'recommendations',
+    label: 'Azioni consigliate',
+    description: 'Azioni deterministiche suggerite dal motore Financial Health.',
+    defaultVisible: true,
+    defaultOrder: 110,
+    minimumData: 'Fattori o metriche interpretabili.',
+    mobilePriority: 11,
+  },
+  {
+    id: 'priority-alerts',
+    label: 'Avvisi prioritari',
+    description: 'Avvisi critici e warning ancora aperti.',
+    defaultVisible: true,
+    defaultOrder: 120,
+    minimumData: 'Notifiche finanziarie attive.',
+    mobilePriority: 12,
+    href: '/notifications',
+  },
+  {
+    id: 'score-history',
+    label: 'Storico score',
+    description: 'Snapshot salvati dello score Financial Health.',
+    defaultVisible: true,
+    defaultOrder: 130,
+    minimumData: 'Almeno uno snapshot salvato.',
+    mobilePriority: 13,
+    href: '/financial-health',
+  },
+]
+
+export const DASHBOARD_WIDGET_IDS = DASHBOARD_WIDGET_REGISTRY.map((widget) => widget.id)
+
+export function isDashboardWidgetId(value: unknown): value is DashboardWidgetId {
+  return typeof value === 'string' && (DASHBOARD_WIDGET_IDS as string[]).includes(value)
+}
+
+export function getDashboardWidget(id: DashboardWidgetId) {
+  return DASHBOARD_WIDGET_REGISTRY.find((widget) => widget.id === id)
+}

@@ -121,6 +121,13 @@ function buildProjectedLiquidity(params: {
     maxOverdraft: Math.min(0, forecast.summary.minimumProjectedBalance),
     projectedIncome30d: roundMoney(forecast.dailySeries.slice(0, 31).reduce((sum, point) => sum + point.projectedIncome, 0)),
     projectedExpenses30d: roundMoney(forecast.dailySeries.slice(0, 31).reduce((sum, point) => sum + point.projectedExpenses, 0)),
+    dailySeries: forecast.dailySeries.map((point) => ({
+      date: point.date,
+      label: point.label,
+      balance: roundMoney(point.totalProjectedBalance),
+      income: roundMoney(point.projectedIncome),
+      expenses: roundMoney(point.projectedExpenses),
+    })),
   }
 }
 
@@ -155,7 +162,7 @@ export async function buildFinancialHealthPayload(
     loanPaymentsRes,
     notificationsRes,
   ] = await Promise.all([
-    supabase.from('profiles').select('timezone').eq('id', userId).maybeSingle(),
+    supabase.from('profiles').select('timezone,display_name').eq('id', userId).maybeSingle(),
     supabase.from('accounts').select('id,user_id,name,type,balance,currency,is_active,is_hidden,color,icon,sort_order,created_at,updated_at').eq('user_id', userId),
     supabase.from('categories').select('id,user_id,name,type,color,icon,parent_id,is_default,sort_order,created_at').eq('user_id', userId),
     supabase.from('transactions').select('id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at').eq('user_id', userId).gte('date', twelveMonthsAgo).lte('date', in90).order('date', { ascending: true }).limit(10000),
@@ -181,9 +188,10 @@ export async function buildFinancialHealthPayload(
   const projectedLiquidity = buildProjectedLiquidity({ accounts, categories, recurringRules, loans, goals, budgets, transactions, today, in90 })
   const history = monthlyMetrics(transactions, accounts, twelveMonthsAgo, period.to)
 
-  return calculateFinancialHealth({
+  const profile = profileRes.data as { timezone?: string; display_name?: string | null } | null
+  const result = calculateFinancialHealth({
     now: now.toISOString(),
-    timezone: (profileRes.data as { timezone?: string } | null)?.timezone ?? 'Europe/Rome',
+    timezone: profile?.timezone ?? 'Europe/Rome',
     accounts: accounts.map((account) => ({ id: account.id, name: account.name, type: account.type, balance: Number(account.balance), currency: account.currency, is_active: account.is_active, is_hidden: account.is_hidden })),
     categories: categories.map((category) => ({ id: category.id, name: category.name, type: category.type, parent_id: category.parent_id })),
     transactions: transactions.map((transaction) => ({ id: transaction.id, account_id: transaction.account_id, category_id: transaction.category_id, type: transaction.type, amount: Number(transaction.amount), description: transaction.description, date: transaction.date, transfer_peer_id: transaction.transfer_peer_id, recurring_id: transaction.recurring_id })),
@@ -199,4 +207,11 @@ export async function buildFinancialHealthPayload(
     previousPeriod,
     historicalMonthlyMetrics: history,
   })
+
+  return {
+    ...result,
+    profile: {
+      displayName: profile?.display_name ?? null,
+    },
+  }
 }

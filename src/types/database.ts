@@ -754,6 +754,36 @@ export type Database = {
         }
         Relationships: []
       }
+      dashboard_preferences: {
+        Row: {
+          user_id: string
+          visible_widgets: string[]
+          widget_order: string[]
+          compact_mode: boolean
+          default_period: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          visible_widgets?: string[]
+          widget_order?: string[]
+          compact_mode?: boolean
+          default_period?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          visible_widgets?: string[]
+          widget_order?: string[]
+          compact_mode?: boolean
+          default_period?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financial_health_snapshots: {
         Row: {
           id: string

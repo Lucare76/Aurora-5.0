@@ -140,6 +140,15 @@ export type ProjectedLiquidityInput = {
   maxOverdraft: number
   projectedIncome30d: number
   projectedExpenses30d: number
+  dailySeries?: ProjectedLiquidityPoint[]
+}
+
+export type ProjectedLiquidityPoint = {
+  date: string
+  label: string
+  balance: number
+  income: number
+  expenses: number
 }
 
 export type MonthlyCashFlowMetric = {
@@ -262,6 +271,65 @@ export type HealthTrend = {
   percentageChange: number | null
 }
 
+export type DashboardBudgetFocusItem = {
+  categoryId: string
+  categoryName: string
+  spent: number
+  limit: number
+  usage: number
+  status: 'warning' | 'exceeded'
+}
+
+export type DashboardDeadlineItem = {
+  id: string
+  title: string
+  amount: number
+  dueDate: string
+  daysUntil: number
+  type: 'recurring' | 'loan'
+  status: 'overdue' | 'upcoming'
+  href: string
+}
+
+export type DashboardLoanFocusItem = {
+  id: string
+  counterpart: string
+  type: LoanType
+  remaining: number
+  dueDate: string | null
+  status: 'overdue' | 'upcoming' | 'open'
+  href: string
+}
+
+export type DashboardGoalFocusItem = {
+  id: string
+  name: string
+  targetAmount: number
+  currentAmount: number
+  progress: number
+  targetDate: string | null
+  status: SavingsGoalStatus
+  href: string
+}
+
+export type DashboardAlertFocusItem = {
+  id: string
+  title: string
+  severity: HealthNotification['severity']
+  sourceUrl: string | null
+  createdAt: string
+}
+
+export type FinancialHealthDashboardData = {
+  projectedLiquiditySeries: ProjectedLiquidityPoint[]
+  monthlyCashFlowSeries: MonthlyCashFlowMetric[]
+  budgetFocus: DashboardBudgetFocusItem[]
+  deadlineFocus: DashboardDeadlineItem[]
+  loanFocus: DashboardLoanFocusItem[]
+  goalFocus: DashboardGoalFocusItem[]
+  alertFocus: DashboardAlertFocusItem[]
+}
+
 export type WeightedScoreResult = {
   totalScore: number | null
   observedWeight: number
@@ -273,6 +341,9 @@ export type WeightedScoreResult = {
 export type FinancialHealthResult = {
   calculationVersion: string
   calculatedAt: string
+  profile?: {
+    displayName: string | null
+  }
   period: HealthPeriod
   previousPeriod: HealthPeriod
   isProvisional: boolean
@@ -295,4 +366,5 @@ export type FinancialHealthResult = {
   recommendations: HealthRecommendation[]
   trends: HealthTrend[]
   warnings: string[]
+  dashboard: FinancialHealthDashboardData
 }
