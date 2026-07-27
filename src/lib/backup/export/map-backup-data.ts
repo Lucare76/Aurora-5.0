@@ -14,6 +14,7 @@ import type {
   BirthdayReminderLog,
   Budget,
   Category,
+  FinancialHealthSnapshot,
   Loan,
   LoanPayment,
   Profile,
@@ -32,6 +33,7 @@ import type {
   AuroraBackupBudgetV1,
   AuroraBackupCategoryV1,
   AuroraBackupDataV1,
+  AuroraBackupFinancialHealthSnapshotV1,
   AuroraBackupLoanPaymentV1,
   AuroraBackupLoanV1,
   AuroraBackupNotificationPreferenceV1,
@@ -69,6 +71,9 @@ export function mapUserBackupDataToV1Data(input: UserBackupData): AuroraBackupDa
       : {}),
     ...(input.notificationSourceMutes && input.notificationSourceMutes.length > 0
       ? { notificationSourceMutes: input.notificationSourceMutes.map(mapNotificationSourceMute) }
+      : {}),
+    ...(input.financialHealthSnapshots && input.financialHealthSnapshots.length > 0
+      ? { financialHealthSnapshots: input.financialHealthSnapshots.map(mapFinancialHealthSnapshot) }
       : {}),
   }
 }
@@ -339,5 +344,27 @@ export function mapNotification(n: Notification): AuroraBackupNotificationV1 {
     resolved_at: n.resolved_at ?? undefined,
     first_detected_at: n.first_detected_at,
     created_at: n.created_at,
+  }
+}
+
+export function mapFinancialHealthSnapshot(snapshot: FinancialHealthSnapshot): AuroraBackupFinancialHealthSnapshotV1 {
+  return {
+    id: snapshot.id,
+    period_key: snapshot.period_key,
+    period_start: snapshot.period_start,
+    period_end: snapshot.period_end,
+    total_score: snapshot.total_score,
+    level: snapshot.level,
+    is_provisional: snapshot.is_provisional,
+    data_quality: snapshot.data_quality,
+    observed_weight: snapshot.observed_weight,
+    metrics: snapshot.metrics,
+    component_scores: snapshot.component_scores,
+    factors: snapshot.factors,
+    recommendations: snapshot.recommendations,
+    calculation_version: snapshot.calculation_version,
+    calculated_at: snapshot.calculated_at,
+    created_at: snapshot.created_at,
+    updated_at: snapshot.updated_at,
   }
 }

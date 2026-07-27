@@ -11,6 +11,7 @@ import type {
   Budget,
   Category,
   Database,
+  FinancialHealthSnapshot,
   Loan,
   LoanPayment,
   Profile,
@@ -52,6 +53,8 @@ export const BACKUP_AUTOMATION_BATCH_SELECT =
   'id,user_id,rule_id,mode,status,transaction_count,applied_count,skipped_count,conflict_count,failed_count,created_at,reverted_at'
 export const BACKUP_AUTOMATION_APPLICATION_SELECT =
   'id,user_id,rule_id,transaction_id,application_batch_id,application_mode,previous_values,applied_values,result,error_code,applied_at,reverted_at'
+export const BACKUP_FINANCIAL_HEALTH_SNAPSHOT_SELECT =
+  'id,user_id,period_key,period_start,period_end,total_score,level,is_provisional,data_quality,observed_weight,metrics,component_scores,factors,recommendations,calculation_version,calculated_at,created_at,updated_at'
 
 export type BackupAuthenticatedUser = {
   id: string
@@ -80,6 +83,8 @@ export type UserBackupData = {
   notificationUserSettings?: NotificationUserSettings | null
   notificationPreferences?: NotificationPreference[]
   notificationSourceMutes?: NotificationSourceMute[]
+  // Financial health snapshots: export-only since Sprint 14A; restore is deferred
+  financialHealthSnapshots?: FinancialHealthSnapshot[]
 }
 
 type BackupSupabaseClient = SupabaseClient<Database>
@@ -134,6 +139,7 @@ export async function fetchUserBackupData(
     notificationUserSettings,
     notificationPreferences,
     notificationSourceMutes,
+    financialHealthSnapshots,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -233,6 +239,11 @@ export async function fetchUserBackupData(
       .select('id,source_type,source_id,notification_type,muted_until,reason,created_at,updated_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<NotificationSourceMute>>,
+    (supabase as unknown as SupabaseClient)
+      .from('financial_health_snapshots')
+      .select(BACKUP_FINANCIAL_HEALTH_SNAPSHOT_SELECT)
+      .eq('user_id', user.id)
+      .order('period_start', { ascending: true }) as unknown as Promise<QueryResult<FinancialHealthSnapshot>>,
   ])
 
   assertNoQueryError('profiles', profile.error)
@@ -251,6 +262,7 @@ export async function fetchUserBackupData(
   assertNoQueryError('automation_rule_applications', automationRuleApplications.error)
   // Notifications errors are non-fatal: backup proceeds even if the table is missing
   // (e.g., before migration 00020 is applied to production)
+  // Financial health snapshot errors are non-fatal for the same compatibility reason.
 
   return {
     user,
@@ -273,6 +285,7 @@ export async function fetchUserBackupData(
     notificationUserSettings: notificationUserSettings.error ? null : notificationUserSettings.data,
     notificationPreferences: notificationPreferences.error ? [] : (notificationPreferences.data ?? []),
     notificationSourceMutes: notificationSourceMutes.error ? [] : (notificationSourceMutes.data ?? []),
+    financialHealthSnapshots: financialHealthSnapshots.error ? [] : (financialHealthSnapshots.data ?? []),
   }
 }
 

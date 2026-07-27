@@ -227,6 +227,27 @@ export interface BirthdayReminderLog {
   sent_at: string
 }
 
+export interface FinancialHealthSnapshot {
+  id: string
+  user_id: string
+  period_key: string
+  period_start: string
+  period_end: string
+  total_score: number | null
+  level: string | null
+  is_provisional: boolean
+  data_quality: string
+  observed_weight: number
+  metrics: Record<string, unknown>
+  component_scores: Record<string, unknown>
+  factors: Record<string, unknown>[]
+  recommendations: Record<string, unknown>[]
+  calculation_version: string
+  calculated_at: string
+  created_at: string
+  updated_at: string
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -730,6 +751,69 @@ export type Database = {
         }
         Update: {
           [_ in never]: never
+        }
+        Relationships: []
+      }
+      financial_health_snapshots: {
+        Row: {
+          id: string
+          user_id: string
+          period_key: string
+          period_start: string
+          period_end: string
+          total_score: number | null
+          level: string | null
+          is_provisional: boolean
+          data_quality: string
+          observed_weight: number
+          metrics: Record<string, unknown>
+          component_scores: Record<string, unknown>
+          factors: Record<string, unknown>[]
+          recommendations: Record<string, unknown>[]
+          calculation_version: string
+          calculated_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          period_key: string
+          period_start: string
+          period_end: string
+          total_score?: number | null
+          level?: string | null
+          is_provisional?: boolean
+          data_quality: string
+          observed_weight: number
+          metrics: Record<string, unknown>
+          component_scores: Record<string, unknown>
+          factors: Record<string, unknown>[]
+          recommendations: Record<string, unknown>[]
+          calculation_version: string
+          calculated_at: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          period_key?: string
+          period_start?: string
+          period_end?: string
+          total_score?: number | null
+          level?: string | null
+          is_provisional?: boolean
+          data_quality?: string
+          observed_weight?: number
+          metrics?: Record<string, unknown>
+          component_scores?: Record<string, unknown>
+          factors?: Record<string, unknown>[]
+          recommendations?: Record<string, unknown>[]
+          calculation_version?: string
+          calculated_at?: string
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }

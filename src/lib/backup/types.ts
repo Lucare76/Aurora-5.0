@@ -293,6 +293,27 @@ export type AuroraBackupAutomationRuleApplicationV1 = {
   reverted_at?: string | null
 }
 
+export type AuroraBackupFinancialHealthSnapshotV1 = {
+  id: string
+  user_id?: string
+  period_key: string
+  period_start: string
+  period_end: string
+  total_score?: number | null
+  level?: string | null
+  is_provisional: boolean
+  data_quality: string
+  observed_weight: number
+  metrics: Record<string, unknown>
+  component_scores: Record<string, unknown>
+  factors: Record<string, unknown>[]
+  recommendations: Record<string, unknown>[]
+  calculation_version: string
+  calculated_at: string
+  created_at?: string
+  updated_at?: string
+}
+
 export type AuroraBackupDataV1 = {
   profile: AuroraBackupProfileV1
   accounts: AuroraBackupAccountV1[]
@@ -314,6 +335,8 @@ export type AuroraBackupDataV1 = {
   notificationUserSettings?: AuroraBackupNotificationUserSettingsV1
   notificationPreferences?: AuroraBackupNotificationPreferenceV1[]
   notificationSourceMutes?: AuroraBackupNotificationSourceMuteV1[]
+  // Optional: included from Sprint 14A onwards; absent in earlier backups (restore deferred)
+  financialHealthSnapshots?: AuroraBackupFinancialHealthSnapshotV1[]
 }
 
 export type AuroraBackupV1 = {

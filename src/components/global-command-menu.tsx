@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeftRight,
+  Activity,
   BarChart3,
   Bell,
   Cake,
@@ -64,6 +65,10 @@ export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'notifications-snoozed', group: 'Azioni rapide', title: 'Avvisi posticipati', subtitle: 'Vedi avvisi posticipati', href: '/notifications?status=snoozed', keywords: ['posticipati', 'snoozed', 'posticipate'], icon: Bell },
   { id: 'notification-settings', group: 'Azioni rapide', title: 'Impostazioni avvisi', subtitle: 'Soglie, preferenze e fonti silenziate', href: '/settings/notifications', keywords: ['impostazioni avvisi', 'notifiche impostazioni', 'preferenze notifiche', 'soglie'], icon: Bell },
   { id: 'notification-mutes', group: 'Azioni rapide', title: 'Fonti silenziate', subtitle: 'Gestisci le fonti silenziate', href: '/settings/notifications#mutes', keywords: ['silenziata', 'mute', 'fonti silenziate'], icon: Bell },
+  { id: 'financial-health-open', group: 'Azioni rapide', title: 'Apri salute finanziaria', subtitle: 'Verifica score e componenti', href: '/financial-health', keywords: ['salute finanziaria', 'score', 'punteggio'], icon: Activity },
+  { id: 'financial-health-calculate', group: 'Azioni rapide', title: 'Calcola salute finanziaria', subtitle: 'Apri il motore live', href: '/financial-health', keywords: ['calcola salute finanziaria', 'ricalcola score'], icon: Activity },
+  { id: 'financial-health-history', group: 'Azioni rapide', title: 'Storico salute finanziaria', subtitle: 'Apri lo storico snapshot', href: '/financial-health#history', keywords: ['storico salute finanziaria', 'snapshot salute'], icon: Activity },
+  { id: 'financial-health-snapshot', group: 'Azioni rapide', title: 'Salva snapshot del mese', subtitle: 'Apri la pagina e salva lo snapshot', href: '/financial-health', keywords: ['salva snapshot', 'snapshot mese'], icon: DatabaseBackup },
   { id: 'dashboard', group: 'Navigazione', title: 'Dashboard', subtitle: 'Panoramica principale', href: '/dashboard', keywords: ['home', 'dashboard'], icon: LayoutDashboard },
   { id: 'transactions', group: 'Navigazione', title: 'Movimenti', subtitle: 'Transazioni e giroconti', href: '/transactions', keywords: ['transazioni', 'movimenti'], icon: ArrowLeftRight },
   { id: 'accounts', group: 'Navigazione', title: 'Conti', subtitle: 'Risorse e saldi', href: '/accounts', keywords: ['conti', 'risorse'], icon: Wallet },
@@ -71,6 +76,7 @@ export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'budgets', group: 'Navigazione', title: 'Budget', subtitle: 'Budget mensili', href: '/budgets', keywords: ['budget'], icon: Target },
   { id: 'goals', group: 'Navigazione', title: 'Obiettivi', subtitle: 'Obiettivi di risparmio', href: '/goals', keywords: ['obiettivi', 'risparmio'], icon: Target },
   { id: 'reports', group: 'Navigazione', title: 'Report', subtitle: 'Analisi e grafici', href: '/reports', keywords: ['report', 'grafici'], icon: BarChart3 },
+  { id: 'financial-health', group: 'Navigazione', title: 'Salute finanziaria', subtitle: 'Score spiegabile e metriche predittive', href: '/financial-health', keywords: ['salute finanziaria', 'score', 'punteggio', 'metriche predittive'], icon: Activity },
   { id: 'calendar', group: 'Navigazione', title: 'Calendario', subtitle: 'Scadenze e saldo previsto', href: '/calendar', keywords: ['calendario', 'previsioni', 'scadenze'], icon: CalendarDays },
   { id: 'automation', group: 'Navigazione', title: 'Automazioni', subtitle: 'Regole deterministiche per i movimenti', href: '/automation', keywords: ['automazioni', 'regole', 'classificazione'], icon: Sparkles },
   { id: 'loans', group: 'Navigazione', title: 'Prestiti', subtitle: 'Prestiti dati e ricevuti', href: '/loans', keywords: ['prestiti'], icon: HandCoins },

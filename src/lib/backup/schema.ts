@@ -281,6 +281,28 @@ export const notificationSchema = z.object({
   created_at: maybeTimestamp,
 }).passthrough()
 
+// Financial health snapshots — export only, restore deferred. Not in BACKUP_COLLECTION_KEYS.
+export const financialHealthSnapshotSchema = z.object({
+  id: uuid,
+  user_id: uuid.optional(),
+  period_key: z.string().regex(/^\d{4}-\d{2}$/),
+  period_start: dateOnly,
+  period_end: dateOnly,
+  total_score: money.min(0).max(100).nullable().optional(),
+  level: shortString.nullable().optional(),
+  is_provisional: z.boolean(),
+  data_quality: z.enum(['INSUFFICIENT', 'LIMITED', 'GOOD', 'EXCELLENT']),
+  observed_weight: money.min(0),
+  metrics: z.record(z.string(), z.unknown()),
+  component_scores: z.record(z.string(), z.unknown()),
+  factors: z.array(z.record(z.string(), z.unknown())),
+  recommendations: z.array(z.record(z.string(), z.unknown())),
+  calculation_version: shortString.min(1),
+  calculated_at: isoTimestamp,
+  created_at: maybeTimestamp,
+  updated_at: maybeTimestamp,
+}).passthrough()
+
 const collection = <T extends z.ZodType>(schema: T) =>
   z.array(schema).max(BACKUP_LIMITS.maxRecordsPerCollection)
 
@@ -320,6 +342,7 @@ export const auroraBackupV1Schema = z.object({
     notificationUserSettings: notificationUserSettingsSchema.optional(),
     notificationPreferences: collection(notificationPreferenceSchema).optional(),
     notificationSourceMutes: collection(notificationSourceMuteSchema).optional(),
+    financialHealthSnapshots: collection(financialHealthSnapshotSchema).optional(),
   }).passthrough(),
   integrity: z.object({
     recordCounts: z.record(z.string(), z.number().int().min(0)),
