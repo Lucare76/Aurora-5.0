@@ -14,7 +14,7 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/domain/accounting/**/*.ts', 'src/lib/notifications/**/*.ts', 'src/lib/financial-health/**/*.ts', 'src/lib/dashboard/**/*.ts'],
+      include: ['src/domain/accounting/**/*.ts', 'src/lib/notifications/**/*.ts', 'src/lib/financial-health/**/*.ts', 'src/lib/dashboard/**/*.ts', 'src/lib/data-integrity/**/*.ts'],
       exclude: ['**/*.test.ts', '**/service.ts', '**/preferences-service.ts', '**/snapshot-service.ts'],
       thresholds: {
         statements: 80,

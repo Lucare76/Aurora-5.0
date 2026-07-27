@@ -312,6 +312,18 @@ export const dashboardPreferencesSchema = z.object({
   updated_at: maybeTimestamp,
 }).passthrough()
 
+export const dataIntegrityIssueSchema = z.object({
+  fingerprint: shortString.min(1),
+  rule_code: shortString.min(1),
+  status: z.enum(['open', 'acknowledged', 'ignored', 'resolved', 'stale']),
+  ignored_reason: notesString.nullable().optional(),
+  acknowledged_at: isoTimestamp.nullable().optional(),
+  ignored_at: isoTimestamp.nullable().optional(),
+  resolved_at: isoTimestamp.nullable().optional(),
+  ruleset_version: shortString.optional(),
+  updated_at: maybeTimestamp,
+}).passthrough()
+
 const collection = <T extends z.ZodType>(schema: T) =>
   z.array(schema).max(BACKUP_LIMITS.maxRecordsPerCollection)
 
@@ -353,6 +365,7 @@ export const auroraBackupV1Schema = z.object({
     notificationSourceMutes: collection(notificationSourceMuteSchema).optional(),
     financialHealthSnapshots: collection(financialHealthSnapshotSchema).optional(),
     dashboardPreferences: dashboardPreferencesSchema.optional(),
+    dataIntegrityIssues: collection(dataIntegrityIssueSchema).optional(),
   }).passthrough(),
   integrity: z.object({
     recordCounts: z.record(z.string(), z.number().int().min(0)),

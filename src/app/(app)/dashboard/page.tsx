@@ -10,12 +10,13 @@ import { DashboardPreferencesDialog } from '@/components/dashboard/dashboard-pre
 import { DASHBOARD_WIDGET_COMPONENTS } from '@/components/dashboard/dashboard-widgets'
 import { dashboardPeriodToMonth, orderedWidgetIds, periodLabel } from '@/lib/dashboard/helpers'
 import { DEFAULT_DASHBOARD_PREFERENCES, normalizeDashboardPreferences } from '@/lib/dashboard/preferences'
-import type { DashboardPeriodKey, DashboardPreferences, FinancialHealthSnapshotSummary } from '@/lib/dashboard/types'
+import type { DashboardPeriodKey, DashboardPreferences, DataIntegrityDashboardSummary, FinancialHealthSnapshotSummary } from '@/lib/dashboard/types'
 import type { FinancialHealthResult } from '@/lib/financial-health/types'
 
 type DashboardState = {
   data: FinancialHealthResult | null
   history: FinancialHealthSnapshotSummary[]
+  dataIntegrity: DataIntegrityDashboardSummary | null
   preferences: DashboardPreferences
 }
 
@@ -59,6 +60,7 @@ function DashboardPageContent() {
   const [state, setState] = useState<DashboardState>({
     data: null,
     history: [],
+    dataIntegrity: null,
     preferences: DEFAULT_DASHBOARD_PREFERENCES,
   })
   const [loading, setLoading] = useState(true)
@@ -70,20 +72,33 @@ function DashboardPageContent() {
     setLoading(true)
     try {
       const month = dashboardPeriodToMonth(selectedPeriod)
-      const [healthResponse, historyResponse, preferencesResponse] = await Promise.all([
+      const [healthResponse, historyResponse, preferencesResponse, integrityResponse] = await Promise.all([
         fetch(`/api/financial-health?period=${month}`, { cache: 'no-store' }),
         fetch('/api/financial-health/history', { cache: 'no-store' }),
         fetch('/api/dashboard/preferences', { cache: 'no-store' }),
+        fetch('/api/data-integrity?status=open&limit=3', { cache: 'no-store' }),
       ])
 
       if (!healthResponse.ok) throw new Error('FINANCIAL_HEALTH_UNAVAILABLE')
       const health = await healthResponse.json() as FinancialHealthResult
       const historyBody = historyResponse.ok ? await historyResponse.json() as { snapshots?: FinancialHealthSnapshotSummary[] } : { snapshots: [] }
       const preferencesBody = preferencesResponse.ok ? await preferencesResponse.json() as { preferences?: DashboardPreferences } : { preferences: DEFAULT_DASHBOARD_PREFERENCES }
+      const integrityBody = integrityResponse.ok ? await integrityResponse.json() as {
+        summary?: { critical: number; warning: number; statusLabel: string }
+        latestScan?: { completed_at: string | null; started_at: string | null } | null
+        issues?: Array<{ id?: string; title: string; severity: 'CRITICAL' | 'WARNING' | 'INFO'; category: string; sourcePath?: string }>
+      } : null
 
       setState({
         data: health,
         history: historyBody.snapshots ?? [],
+        dataIntegrity: integrityBody ? {
+          latestScanAt: integrityBody.latestScan?.completed_at ?? integrityBody.latestScan?.started_at ?? null,
+          critical: integrityBody.summary?.critical ?? 0,
+          warning: integrityBody.summary?.warning ?? 0,
+          statusLabel: integrityBody.summary?.statusLabel ?? 'Nessun dato',
+          issues: integrityBody.issues ?? [],
+        } : null,
         preferences: normalizeDashboardPreferences(preferencesBody.preferences),
       })
     } catch (error) {
@@ -179,6 +194,7 @@ function DashboardPageContent() {
   const widgetProps = {
     data: state.data,
     history: state.history,
+    dataIntegrity: state.dataIntegrity,
     compact: state.preferences.compactMode,
     onSaveSnapshot: saveSnapshot,
     savingSnapshot,

@@ -11,8 +11,8 @@ $$;
 
 create table if not exists public.dashboard_preferences (
   user_id uuid primary key references auth.users(id) on delete cascade,
-  visible_widgets jsonb not null default '["summary","financial-health","score-components","projected-balance","cash-flow","expense-coverage","budgets","deadlines","loans","goals","recommendations","priority-alerts","score-history"]'::jsonb,
-  widget_order jsonb not null default '["summary","financial-health","projected-balance","cash-flow","score-components","expense-coverage","budgets","deadlines","loans","goals","recommendations","priority-alerts","score-history"]'::jsonb,
+  visible_widgets jsonb not null default '["summary","financial-health","data-integrity","score-components","projected-balance","cash-flow","expense-coverage","budgets","deadlines","loans","goals","recommendations","priority-alerts","score-history"]'::jsonb,
+  widget_order jsonb not null default '["summary","financial-health","data-integrity","projected-balance","cash-flow","score-components","expense-coverage","budgets","deadlines","loans","goals","recommendations","priority-alerts","score-history"]'::jsonb,
   compact_mode boolean not null default false,
   default_period text not null default 'current_month',
   created_at timestamptz not null default now(),
@@ -20,10 +20,10 @@ create table if not exists public.dashboard_preferences (
 );
 
 alter table public.dashboard_preferences
-  add column if not exists visible_widgets jsonb not null default '["summary","financial-health","score-components","projected-balance","cash-flow","expense-coverage","budgets","deadlines","loans","goals","recommendations","priority-alerts","score-history"]'::jsonb;
+  add column if not exists visible_widgets jsonb not null default '["summary","financial-health","data-integrity","score-components","projected-balance","cash-flow","expense-coverage","budgets","deadlines","loans","goals","recommendations","priority-alerts","score-history"]'::jsonb;
 
 alter table public.dashboard_preferences
-  add column if not exists widget_order jsonb not null default '["summary","financial-health","projected-balance","cash-flow","score-components","expense-coverage","budgets","deadlines","loans","goals","recommendations","priority-alerts","score-history"]'::jsonb;
+  add column if not exists widget_order jsonb not null default '["summary","financial-health","data-integrity","projected-balance","cash-flow","score-components","expense-coverage","budgets","deadlines","loans","goals","recommendations","priority-alerts","score-history"]'::jsonb;
 
 alter table public.dashboard_preferences
   add column if not exists compact_mode boolean not null default false;

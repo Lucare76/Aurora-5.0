@@ -9,7 +9,7 @@ import {
 } from '@/domain/accounting/aggregations'
 import { buildTransactionExportRows, buildTransactionsCsv } from '@/domain/accounting/export'
 import { adaptTransactionRows } from '@/domain/accounting/transaction-adapter'
-import type { Account, Category, Database, Transaction } from '@/types/database'
+import type { Account, Category, Transaction } from '@/types/database'
 
 import {
   sprint5AccountIds,
@@ -20,7 +20,7 @@ import {
   sprint5UserBId,
 } from './fixtures/supabase-accounting-fixture'
 
-type TestClient = SupabaseClient<Database>
+type TestClient = SupabaseClient
 
 const env = {
   url: process.env.SUPABASE_TEST_URL,
@@ -47,7 +47,7 @@ describeIntegration('Sprint 5 Supabase accounting integration', () => {
   let userB: TestClient
 
   beforeEach(async () => {
-    admin = createClient<Database>(env.url!, env.serviceRoleKey!, {
+    admin = createClient(env.url!, env.serviceRoleKey!, {
       auth: { persistSession: false, autoRefreshToken: false },
     })
     userA = authenticatedClient(env.userAJwt!)
@@ -286,7 +286,7 @@ describeIntegration('Sprint 5 Supabase accounting integration', () => {
 })
 
 function authenticatedClient(jwt: string): TestClient {
-  return createClient<Database>(env.url!, env.anonKey!, {
+  return createClient(env.url!, env.anonKey!, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: {
       headers: {

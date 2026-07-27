@@ -21,13 +21,23 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     href: '/financial-health',
   },
   {
+    id: 'data-integrity',
+    label: 'Integrita dei dati',
+    description: 'Anomalie strutturali, duplicazioni e riferimenti incoerenti rilevati dalla scansione.',
+    defaultVisible: true,
+    defaultOrder: 25,
+    minimumData: 'Almeno una scansione Data Integrity.',
+    mobilePriority: 3,
+    href: '/data-integrity',
+  },
+  {
     id: 'projected-balance',
     label: 'Saldo previsionale',
     description: 'Andamento previsto nei prossimi 90 giorni generato dal calendario finanziario.',
     defaultVisible: true,
     defaultOrder: 30,
     minimumData: 'Conti attivi e almeno un evento futuro o saldo corrente.',
-    mobilePriority: 3,
+    mobilePriority: 4,
     href: '/calendar',
   },
   {
@@ -37,7 +47,7 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     defaultVisible: true,
     defaultOrder: 40,
     minimumData: 'Movimenti degli ultimi mesi.',
-    mobilePriority: 4,
+    mobilePriority: 5,
     href: '/reports',
   },
   {
@@ -47,7 +57,7 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     defaultVisible: true,
     defaultOrder: 50,
     minimumData: 'Calcolo Financial Health disponibile.',
-    mobilePriority: 5,
+    mobilePriority: 6,
     href: '/financial-health',
   },
   {
@@ -57,7 +67,7 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     defaultVisible: true,
     defaultOrder: 60,
     minimumData: 'Uscite osservate negli ultimi mesi.',
-    mobilePriority: 6,
+    mobilePriority: 7,
   },
   {
     id: 'budgets',
@@ -66,7 +76,7 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     defaultVisible: true,
     defaultOrder: 70,
     minimumData: 'Budget del periodo.',
-    mobilePriority: 7,
+    mobilePriority: 8,
     href: '/budgets',
   },
   {
@@ -76,7 +86,7 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     defaultVisible: true,
     defaultOrder: 80,
     minimumData: 'Ricorrenze o prestiti con data.',
-    mobilePriority: 8,
+    mobilePriority: 9,
     href: '/calendar',
   },
   {
@@ -86,7 +96,7 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     defaultVisible: true,
     defaultOrder: 90,
     minimumData: 'Prestiti attivi.',
-    mobilePriority: 9,
+    mobilePriority: 10,
     href: '/loans',
   },
   {
@@ -96,7 +106,7 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     defaultVisible: true,
     defaultOrder: 100,
     minimumData: 'Obiettivi di risparmio attivi.',
-    mobilePriority: 10,
+    mobilePriority: 11,
     href: '/goals',
   },
   {
@@ -106,7 +116,7 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     defaultVisible: true,
     defaultOrder: 110,
     minimumData: 'Fattori o metriche interpretabili.',
-    mobilePriority: 11,
+    mobilePriority: 12,
   },
   {
     id: 'priority-alerts',
@@ -115,7 +125,7 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     defaultVisible: true,
     defaultOrder: 120,
     minimumData: 'Notifiche finanziarie attive.',
-    mobilePriority: 12,
+    mobilePriority: 13,
     href: '/notifications',
   },
   {
@@ -125,7 +135,7 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     defaultVisible: true,
     defaultOrder: 130,
     minimumData: 'Almeno uno snapshot salvato.',
-    mobilePriority: 13,
+    mobilePriority: 14,
     href: '/financial-health',
   },
 ]

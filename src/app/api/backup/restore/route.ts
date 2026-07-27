@@ -108,6 +108,7 @@ export async function POST(request: Request) {
     // notification_source_mutes (step 16) excluded — source_id requires UUID remapping.
     await restoreNotificationPreferences(supabase as unknown as SupabaseClient, user.id, validated.backup)
     await restoreDashboardPreferences(supabase as unknown as SupabaseClient, user.id, validated.backup)
+    await restoreDataIntegrityStates(supabase as unknown as SupabaseClient, user.id, validated.backup)
 
     return json({
       status: 'completed',
@@ -124,6 +125,34 @@ export async function POST(request: Request) {
 
 export async function GET() {
   return json(error('METHOD_NOT_SUPPORTED'), 405)
+}
+
+async function restoreDataIntegrityStates(
+  db: SupabaseClient,
+  userId: string,
+  backup: NonNullable<Awaited<ReturnType<typeof validateBackupForRealRestore>>['backup']>,
+) {
+  const issues = backup.data.dataIntegrityIssues ?? []
+  if (issues.length === 0) return
+  try {
+    for (const item of issues.filter((issue) => issue.status === 'ignored' || issue.status === 'acknowledged')) {
+      await db
+        .from('data_integrity_issues')
+        .update({
+          status: item.status,
+          ignored_reason: item.status === 'ignored' ? item.ignored_reason ?? null : null,
+          ignored_at: item.status === 'ignored' ? item.ignored_at ?? new Date().toISOString() : null,
+          acknowledged_at: item.status === 'acknowledged' ? item.acknowledged_at ?? new Date().toISOString() : null,
+        })
+        .eq('user_id', userId)
+        .eq('fingerprint', item.fingerprint)
+    }
+  } catch (stateErr) {
+    console.warn('[aurora-restore] data-integrity-state-restore-skipped', {
+      uid: userId.slice(0, 8),
+      error: stateErr instanceof Error ? stateErr.message : String(stateErr),
+    })
+  }
 }
 
 async function restoreDashboardPreferences(

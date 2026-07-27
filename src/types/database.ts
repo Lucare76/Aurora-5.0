@@ -248,9 +248,62 @@ export interface FinancialHealthSnapshot {
   updated_at: string
 }
 
+export interface DataIntegrityScanRun {
+  id: string
+  user_id: string
+  mode: 'quick' | 'full' | 'targeted'
+  status: 'running' | 'completed' | 'failed'
+  ruleset_version: string
+  started_at: string
+  completed_at: string | null
+  detected_count: number
+  critical_count: number
+  warning_count: number
+  info_count: number
+  error_code: string | null
+  metadata: Record<string, unknown>
+}
+
+export interface DataIntegrityIssueRecord {
+  id: string
+  user_id: string
+  fingerprint: string
+  ruleset_version: string
+  rule_code: string
+  category: string
+  severity: string
+  status: string
+  title: string
+  description: string
+  explanation: string
+  impact: string
+  recommendation: string
+  confidence: string
+  entity_type: string
+  entity_ids: string[]
+  evidence: Record<string, unknown>[]
+  allowed_actions: string[]
+  source_path: string | null
+  first_detected_at: string
+  last_detected_at: string
+  resolved_at: string | null
+  ignored_at: string | null
+  ignored_reason: string | null
+  acknowledged_at: string | null
+  last_scan_run_id: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type Database = {
   public: {
     Tables: {
+      [key: string]: {
+        Row: unknown
+        Insert: unknown
+        Update: unknown
+        Relationships: unknown[]
+      }
       profiles: {
         Row: {
           id: string
@@ -784,6 +837,61 @@ export type Database = {
         }
         Relationships: []
       }
+      data_integrity_scan_runs: {
+        Row: DataIntegrityScanRun
+        Insert: {
+          id?: string
+          user_id: string
+          mode?: 'quick' | 'full' | 'targeted'
+          status?: 'running' | 'completed' | 'failed'
+          ruleset_version: string
+          started_at?: string
+          completed_at?: string | null
+          detected_count?: number
+          critical_count?: number
+          warning_count?: number
+          info_count?: number
+          error_code?: string | null
+          metadata?: Record<string, unknown>
+        }
+        Update: Partial<DataIntegrityScanRun>
+        Relationships: []
+      }
+      data_integrity_issues: {
+        Row: DataIntegrityIssueRecord
+        Insert: {
+          id?: string
+          user_id: string
+          fingerprint: string
+          ruleset_version: string
+          rule_code: string
+          category: string
+          severity: string
+          status?: string
+          title: string
+          description: string
+          explanation: string
+          impact: string
+          recommendation: string
+          confidence?: string
+          entity_type: string
+          entity_ids?: string[]
+          evidence?: Record<string, unknown>[]
+          allowed_actions?: string[]
+          source_path?: string | null
+          first_detected_at?: string
+          last_detected_at?: string
+          resolved_at?: string | null
+          ignored_at?: string | null
+          ignored_reason?: string | null
+          acknowledged_at?: string | null
+          last_scan_run_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<DataIntegrityIssueRecord>
+        Relationships: []
+      }
       financial_health_snapshots: {
         Row: {
           id: string
@@ -936,6 +1044,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      [key: string]: {
+        Args: unknown
+        Returns: unknown
+      }
       adjust_account_balance: {
         Args: { p_account_id: string; p_amount: number }
         Returns: undefined

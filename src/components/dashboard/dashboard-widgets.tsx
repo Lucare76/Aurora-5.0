@@ -15,18 +15,19 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { AlertTriangle, ArrowRight, Bell, CalendarClock, CheckCircle2, PiggyBank, ShieldAlert, Target, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Bell, CalendarClock, CheckCircle2, Database, PiggyBank, ShieldAlert, Target, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { componentLabel, componentStatusLabel, formatPercent, formatTrendLabel, pickTopFactors, scoreHistorySeries, trendTone } from '@/lib/dashboard/helpers'
-import type { DashboardWidgetId, FinancialHealthSnapshotSummary } from '@/lib/dashboard/types'
+import type { DashboardWidgetId, DataIntegrityDashboardSummary, FinancialHealthSnapshotSummary } from '@/lib/dashboard/types'
 import type { ComponentScore, FinancialHealthResult, HealthTrend } from '@/lib/financial-health/types'
 
 type WidgetProps = {
   data: FinancialHealthResult
   history: FinancialHealthSnapshotSummary[]
+  dataIntegrity?: DataIntegrityDashboardSummary | null
   compact?: boolean
   onSaveSnapshot: () => void
   savingSnapshot: boolean
@@ -149,6 +150,42 @@ export function FinancialHealthWidget({ data, onSaveSnapshot, savingSnapshot }: 
           </div>
         </div>
       </div>
+    </WidgetShell>
+  )
+}
+
+export function DataIntegrityWidget({ dataIntegrity }: WidgetProps) {
+  return (
+    <WidgetShell title="Integrita dei dati" description="Anomalie strutturali rilevate dalle scansioni." href="/data-integrity">
+      {dataIntegrity ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
+              <p className="text-xs font-semibold text-red-600">Critical aperte</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-red-700">{dataIntegrity.critical}</p>
+            </div>
+            <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+              <p className="text-xs font-semibold text-amber-600">Warning aperte</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-amber-700">{dataIntegrity.warning}</p>
+            </div>
+          </div>
+          <p className="text-sm text-slate-500">Ultima scansione: {dataIntegrity.latestScanAt ? formatDate(dataIntegrity.latestScanAt) : 'mai'} - {dataIntegrity.statusLabel}</p>
+          <div className="space-y-2">
+            {dataIntegrity.issues.slice(0, 3).map((issue) => (
+              <Link key={`${issue.severity}-${issue.title}`} href={issue.sourcePath ?? '/data-integrity'} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 transition hover:border-indigo-200 hover:bg-indigo-50/40">
+                <span className={issue.severity === 'CRITICAL' ? 'rounded-xl bg-red-50 p-2 text-red-600' : 'rounded-xl bg-amber-50 p-2 text-amber-600'}>
+                  <Database className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-900">{issue.title}</p>
+                  <p className="text-xs text-slate-500">{issue.category}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+          {dataIntegrity.issues.length === 0 ? <EmptyWidgetText text="Nessuna anomalia aperta dall'ultima scansione." /> : null}
+        </div>
+      ) : <EmptyWidgetText text="Avvia una scansione dal Data Integrity Center." />}
     </WidgetShell>
   )
 }
@@ -397,6 +434,7 @@ function EmptyWidgetText({ text }: { text: string }) {
 export const DASHBOARD_WIDGET_COMPONENTS: Record<DashboardWidgetId, (props: WidgetProps) => React.ReactNode> = {
   summary: (props) => <SummaryWidget {...props} />,
   'financial-health': (props) => <FinancialHealthWidget {...props} />,
+  'data-integrity': (props) => <DataIntegrityWidget {...props} />,
   'score-components': (props) => <ScoreComponentsWidget {...props} />,
   'projected-balance': (props) => <ProjectedBalanceWidget {...props} />,
   'cash-flow': (props) => <CashFlowWidget {...props} />,

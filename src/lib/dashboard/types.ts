@@ -5,6 +5,7 @@ export type DashboardPeriodKey = 'current_month' | 'previous_month'
 export type DashboardWidgetId =
   | 'summary'
   | 'financial-health'
+  | 'data-integrity'
   | 'score-components'
   | 'projected-balance'
   | 'cash-flow'
@@ -52,6 +53,20 @@ export type FinancialHealthSnapshotSummary = {
   period_key: string
   calculated_at: string
   created_at: string
+}
+
+export type DataIntegrityDashboardSummary = {
+  latestScanAt: string | null
+  critical: number
+  warning: number
+  statusLabel: string
+  issues: Array<{
+    id?: string
+    title: string
+    severity: 'CRITICAL' | 'WARNING' | 'INFO'
+    category: string
+    sourcePath?: string
+  }>
 }
 
 export type DashboardPayload = FinancialHealthResult

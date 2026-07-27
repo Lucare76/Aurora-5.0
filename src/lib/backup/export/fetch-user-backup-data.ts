@@ -11,6 +11,7 @@ import type {
   Budget,
   Category,
   Database,
+  DataIntegrityIssueRecord,
   FinancialHealthSnapshot,
   Loan,
   LoanPayment,
@@ -57,6 +58,8 @@ export const BACKUP_FINANCIAL_HEALTH_SNAPSHOT_SELECT =
   'id,user_id,period_key,period_start,period_end,total_score,level,is_provisional,data_quality,observed_weight,metrics,component_scores,factors,recommendations,calculation_version,calculated_at,created_at,updated_at'
 export const BACKUP_DASHBOARD_PREFERENCES_SELECT =
   'user_id,visible_widgets,widget_order,compact_mode,default_period,created_at,updated_at'
+export const BACKUP_DATA_INTEGRITY_ISSUE_SELECT =
+  'fingerprint,rule_code,status,ignored_reason,acknowledged_at,ignored_at,resolved_at,ruleset_version,updated_at'
 
 export type BackupAuthenticatedUser = {
   id: string
@@ -95,6 +98,7 @@ export type UserBackupData = {
     created_at?: string
     updated_at?: string
   } | null
+  dataIntegrityIssues?: Pick<DataIntegrityIssueRecord, 'fingerprint' | 'rule_code' | 'status' | 'ignored_reason' | 'acknowledged_at' | 'ignored_at' | 'resolved_at' | 'ruleset_version' | 'updated_at'>[]
 }
 
 type BackupSupabaseClient = SupabaseClient<Database>
@@ -151,6 +155,7 @@ export async function fetchUserBackupData(
     notificationSourceMutes,
     financialHealthSnapshots,
     dashboardPreferences,
+    dataIntegrityIssues,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -260,6 +265,12 @@ export async function fetchUserBackupData(
       .select(BACKUP_DASHBOARD_PREFERENCES_SELECT)
       .eq('user_id', user.id)
       .maybeSingle() as unknown as Promise<SingleQueryResult<NonNullable<UserBackupData['dashboardPreferences']>>>,
+    (supabase as unknown as SupabaseClient)
+      .from('data_integrity_issues')
+      .select(BACKUP_DATA_INTEGRITY_ISSUE_SELECT)
+      .eq('user_id', user.id)
+      .in('status', ['ignored', 'acknowledged'])
+      .limit(5000) as unknown as Promise<QueryResult<NonNullable<UserBackupData['dataIntegrityIssues']>[number]>>,
   ])
 
   assertNoQueryError('profiles', profile.error)
@@ -303,6 +314,7 @@ export async function fetchUserBackupData(
     notificationSourceMutes: notificationSourceMutes.error ? [] : (notificationSourceMutes.data ?? []),
     financialHealthSnapshots: financialHealthSnapshots.error ? [] : (financialHealthSnapshots.data ?? []),
     dashboardPreferences: dashboardPreferences.error ? null : dashboardPreferences.data,
+    dataIntegrityIssues: dataIntegrityIssues.error ? [] : (dataIntegrityIssues.data ?? []),
   }
 }
 

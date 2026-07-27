@@ -323,6 +323,18 @@ export type AuroraBackupDashboardPreferencesV1 = {
   updated_at?: string
 }
 
+export type AuroraBackupDataIntegrityIssueV1 = {
+  fingerprint: string
+  rule_code: string
+  status: 'open' | 'acknowledged' | 'ignored' | 'resolved' | 'stale'
+  ignored_reason?: string | null
+  acknowledged_at?: string | null
+  ignored_at?: string | null
+  resolved_at?: string | null
+  ruleset_version?: string
+  updated_at?: string
+}
+
 export type AuroraBackupDataV1 = {
   profile: AuroraBackupProfileV1
   accounts: AuroraBackupAccountV1[]
@@ -348,6 +360,8 @@ export type AuroraBackupDataV1 = {
   financialHealthSnapshots?: AuroraBackupFinancialHealthSnapshotV1[]
   // Optional: included from Sprint 14B onwards; absent in earlier backups
   dashboardPreferences?: AuroraBackupDashboardPreferencesV1
+  // Optional: included from Sprint 15 onwards; derived issue state, safe to regenerate
+  dataIntegrityIssues?: AuroraBackupDataIntegrityIssueV1[]
 }
 
 export type AuroraBackupV1 = {

@@ -34,6 +34,7 @@ import type {
   AuroraBackupCategoryV1,
   AuroraBackupDataV1,
   AuroraBackupDashboardPreferencesV1,
+  AuroraBackupDataIntegrityIssueV1,
   AuroraBackupFinancialHealthSnapshotV1,
   AuroraBackupLoanPaymentV1,
   AuroraBackupLoanV1,
@@ -78,6 +79,9 @@ export function mapUserBackupDataToV1Data(input: UserBackupData): AuroraBackupDa
       : {}),
     ...(input.dashboardPreferences
       ? { dashboardPreferences: mapDashboardPreferences(input.dashboardPreferences) }
+      : {}),
+    ...(input.dataIntegrityIssues && input.dataIntegrityIssues.length > 0
+      ? { dataIntegrityIssues: input.dataIntegrityIssues.map(mapDataIntegrityIssue) }
       : {}),
   }
 }
@@ -381,5 +385,19 @@ export function mapDashboardPreferences(preferences: NonNullable<UserBackupData[
     default_period: preferences.default_period === 'previous_month' ? 'previous_month' : 'current_month',
     created_at: preferences.created_at,
     updated_at: preferences.updated_at,
+  }
+}
+
+export function mapDataIntegrityIssue(issue: NonNullable<UserBackupData['dataIntegrityIssues']>[number]): AuroraBackupDataIntegrityIssueV1 {
+  return {
+    fingerprint: issue.fingerprint,
+    rule_code: issue.rule_code,
+    status: issue.status as AuroraBackupDataIntegrityIssueV1['status'],
+    ignored_reason: issue.ignored_reason,
+    acknowledged_at: issue.acknowledged_at,
+    ignored_at: issue.ignored_at,
+    resolved_at: issue.resolved_at,
+    ruleset_version: issue.ruleset_version,
+    updated_at: issue.updated_at,
   }
 }

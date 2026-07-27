@@ -25,12 +25,13 @@ type TableName =
   | 'birthdays'
   | 'birthday_reminder_log'
   | 'audit_logs'
+  | 'data_integrity_issues'
 
 type TableData = Record<TableName, unknown[]>
 type QueryCall = {
   table: string
   select?: string
-  filters: Array<{ column: string; value: unknown }>
+  filters: Array<{ column: string; value: unknown; operator?: 'eq' | 'in' }>
 }
 
 async function importRoute() {
@@ -168,7 +169,11 @@ function mockSupabase(options: {
           return builder
         }),
         eq: vi.fn((column: string, value: unknown) => {
-          call.filters.push({ column, value })
+          call.filters.push({ column, value, operator: 'eq' })
+          return builder
+        }),
+        in: vi.fn((column: string, value: unknown[]) => {
+          call.filters.push({ column, value, operator: 'in' })
           return builder
         }),
         order: vi.fn(() => builder),
@@ -219,6 +224,7 @@ function baseTableData(): TableData {
     birthdays: [],
     birthday_reminder_log: [],
     audit_logs: [],
+    data_integrity_issues: [],
   }
 }
 
