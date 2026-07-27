@@ -36,6 +36,7 @@ import type {
   AuroraBackupDashboardPreferencesV1,
   AuroraBackupDataIntegrityIssueV1,
   AuroraBackupFinancialHealthSnapshotV1,
+  AuroraBackupFinancialScenarioV1,
   AuroraBackupLoanPaymentV1,
   AuroraBackupLoanV1,
   AuroraBackupNotificationPreferenceV1,
@@ -82,6 +83,9 @@ export function mapUserBackupDataToV1Data(input: UserBackupData): AuroraBackupDa
       : {}),
     ...(input.dataIntegrityIssues && input.dataIntegrityIssues.length > 0
       ? { dataIntegrityIssues: input.dataIntegrityIssues.map(mapDataIntegrityIssue) }
+      : {}),
+    ...(input.financialScenarios && input.financialScenarios.length > 0
+      ? { financialScenarios: input.financialScenarios.map(mapFinancialScenario) }
       : {}),
   }
 }
@@ -399,5 +403,29 @@ export function mapDataIntegrityIssue(issue: NonNullable<UserBackupData['dataInt
     resolved_at: issue.resolved_at,
     ruleset_version: issue.ruleset_version,
     updated_at: issue.updated_at,
+  }
+}
+
+export function mapFinancialScenario(row: Record<string, unknown>): AuroraBackupFinancialScenarioV1 {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    description: (row.description as string | null) ?? null,
+    status: row.status as string,
+    horizon_months: row.horizon_months as number,
+    start_date: row.start_date as string,
+    end_date: row.end_date as string,
+    currency: (row.currency as string | null) ?? null,
+    actions: (row.actions as Record<string, unknown>[]) ?? [],
+    assumptions: (row.assumptions as Record<string, unknown>) ?? {},
+    engine_version: row.engine_version as string,
+    schema_version: row.schema_version as number,
+    action_registry_version: row.action_registry_version as string,
+    baseline_as_of: (row.baseline_as_of as string | null) ?? null,
+    last_calculated_at: (row.last_calculated_at as string | null) ?? null,
+    result_summary: (row.result_summary as Record<string, unknown> | null) ?? null,
+    is_favorite: row.is_favorite as boolean,
+    created_at: row.created_at as string | undefined,
+    updated_at: row.updated_at as string | undefined,
   }
 }

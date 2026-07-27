@@ -12,6 +12,7 @@ import {
   Command,
   DatabaseBackup,
   Download,
+  FlaskConical,
   HandCoins,
   LayoutDashboard,
   Loader2,
@@ -79,6 +80,8 @@ export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'data-integrity-critical', group: 'Azioni rapide', title: 'Problemi critici', subtitle: 'Vedi anomalie critical aperte', href: '/data-integrity?severity=CRITICAL&status=open', keywords: ['critical', 'problemi critici', 'anomalie critiche'], icon: ShieldAlert },
   { id: 'data-integrity-duplicates', group: 'Azioni rapide', title: 'Transazioni duplicate', subtitle: 'Filtra possibili duplicati', href: '/data-integrity?rule=TRANSACTION_POSSIBLE_DUPLICATE', keywords: ['duplicati', 'transazioni duplicate'], icon: ScanSearch },
   { id: 'data-integrity-transfers', group: 'Azioni rapide', title: 'Giroconti incompleti', subtitle: 'Filtra anomalie sui giroconti', href: '/data-integrity?category=transfers', keywords: ['giroconti incompleti', 'transfer'], icon: ArrowLeftRight },
+  { id: 'new-scenario', group: 'Azioni rapide', title: 'Nuovo scenario', subtitle: 'Crea uno scenario "what if"', href: '/scenarios/new', keywords: ['scenario', 'simulazione', 'what if', 'nuovo scenario'], icon: FlaskConical },
+  { id: 'scenarios-list', group: 'Azioni rapide', title: 'I miei scenari', subtitle: 'Vedi tutti gli scenari finanziari', href: '/scenarios', keywords: ['scenari', 'simulazioni', 'proiezioni'], icon: FlaskConical },
   { id: 'dashboard', group: 'Navigazione', title: 'Dashboard', subtitle: 'Panoramica principale', href: '/dashboard', keywords: ['home', 'dashboard'], icon: LayoutDashboard },
   { id: 'transactions', group: 'Navigazione', title: 'Movimenti', subtitle: 'Transazioni e giroconti', href: '/transactions', keywords: ['transazioni', 'movimenti'], icon: ArrowLeftRight },
   { id: 'accounts', group: 'Navigazione', title: 'Conti', subtitle: 'Risorse e saldi', href: '/accounts', keywords: ['conti', 'risorse'], icon: Wallet },
@@ -95,6 +98,7 @@ export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'birthdays', group: 'Navigazione', title: 'Compleanni', subtitle: 'Promemoria compleanni', href: '/birthdays', keywords: ['compleanni'], icon: Cake },
   { id: 'settings', group: 'Navigazione', title: 'Impostazioni', subtitle: 'Profilo, dati, backup', href: '/settings', keywords: ['impostazioni', 'backup'], icon: Settings },
   { id: 'notifications', group: 'Navigazione', title: 'Avvisi', subtitle: 'Centro avvisi finanziari', href: '/notifications', keywords: ['avvisi', 'notifiche', 'alert'], icon: Bell },
+  { id: 'scenarios', group: 'Navigazione', title: 'Scenari', subtitle: 'Simulazioni "what if"', href: '/scenarios', keywords: ['scenari', 'simulazioni', 'what if', 'proiezioni'], icon: FlaskConical },
 ]
 
 function commandScore(query: string, command: QuickCommand): number {

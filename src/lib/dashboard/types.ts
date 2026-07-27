@@ -17,6 +17,7 @@ export type DashboardWidgetId =
   | 'recommendations'
   | 'priority-alerts'
   | 'score-history'
+  | 'scenarios'
 
 export type DashboardWidgetDefinition = {
   id: DashboardWidgetId

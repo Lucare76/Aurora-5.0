@@ -4,13 +4,15 @@ import type { DashboardPeriodKey, DashboardPreferences, DashboardPreferencesRow,
 
 const PERIODS: DashboardPeriodKey[] = ['current_month', 'previous_month']
 
+const REGISTRY_ORDER = DASHBOARD_WIDGET_REGISTRY.slice()
+  .sort((a, b) => a.defaultOrder - b.defaultOrder)
+  .map((widget) => widget.id)
+
 export const DEFAULT_DASHBOARD_PREFERENCES: DashboardPreferences = {
   visibleWidgets: DASHBOARD_WIDGET_REGISTRY.filter((widget) => widget.defaultVisible)
     .sort((a, b) => a.defaultOrder - b.defaultOrder)
     .map((widget) => widget.id),
-  widgetOrder: DASHBOARD_WIDGET_REGISTRY.slice()
-    .sort((a, b) => a.defaultOrder - b.defaultOrder)
-    .map((widget) => widget.id),
+  widgetOrder: REGISTRY_ORDER,
   compactMode: false,
   defaultPeriod: 'current_month',
 }
@@ -52,7 +54,12 @@ export function normalizeDashboardPreferences(input: DashboardPreferencesInput |
   const visibleWidgets = uniqueKnownWidgets(rawVisible, DEFAULT_DASHBOARD_PREFERENCES.visibleWidgets)
   const orderFromInput = uniqueKnownWidgets(rawOrder, DEFAULT_DASHBOARD_PREFERENCES.widgetOrder)
   const missing = DASHBOARD_WIDGET_IDS.filter((id) => !orderFromInput.includes(id))
-  const widgetOrder = [...orderFromInput, ...missing]
+  const merged = [...orderFromInput, ...missing]
+  // If the saved order has score-components after projected-balance/cash-flow, it's the old
+  // default layout where score-components sat at position 6. Migrate to the new registry order.
+  const scIdx = merged.indexOf('score-components')
+  const pbIdx = merged.indexOf('projected-balance')
+  const widgetOrder = scIdx > pbIdx && scIdx > 3 ? REGISTRY_ORDER : merged
   const defaultPeriod = PERIODS.includes(rawPeriod as DashboardPeriodKey) ? rawPeriod as DashboardPeriodKey : DEFAULT_DASHBOARD_PREFERENCES.defaultPeriod
 
   return {

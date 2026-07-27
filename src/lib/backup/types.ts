@@ -335,6 +335,29 @@ export type AuroraBackupDataIntegrityIssueV1 = {
   updated_at?: string
 }
 
+// Financial scenarios: export-only (restore deferred; result_summary is derived)
+export type AuroraBackupFinancialScenarioV1 = {
+  id: string
+  name: string
+  description?: string | null
+  status: string
+  horizon_months: number
+  start_date: string
+  end_date: string
+  currency?: string | null
+  actions: Record<string, unknown>[]
+  assumptions: Record<string, unknown>
+  engine_version: string
+  schema_version: number
+  action_registry_version: string
+  baseline_as_of?: string | null
+  last_calculated_at?: string | null
+  result_summary?: Record<string, unknown> | null
+  is_favorite: boolean
+  created_at?: string
+  updated_at?: string
+}
+
 export type AuroraBackupDataV1 = {
   profile: AuroraBackupProfileV1
   accounts: AuroraBackupAccountV1[]
@@ -362,6 +385,8 @@ export type AuroraBackupDataV1 = {
   dashboardPreferences?: AuroraBackupDashboardPreferencesV1
   // Optional: included from Sprint 15 onwards; derived issue state, safe to regenerate
   dataIntegrityIssues?: AuroraBackupDataIntegrityIssueV1[]
+  // Optional: included from Sprint 16 onwards; export-only (restore deferred)
+  financialScenarios?: AuroraBackupFinancialScenarioV1[]
 }
 
 export type AuroraBackupV1 = {

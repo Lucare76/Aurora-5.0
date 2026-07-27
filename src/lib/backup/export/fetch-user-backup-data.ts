@@ -60,6 +60,8 @@ export const BACKUP_DASHBOARD_PREFERENCES_SELECT =
   'user_id,visible_widgets,widget_order,compact_mode,default_period,created_at,updated_at'
 export const BACKUP_DATA_INTEGRITY_ISSUE_SELECT =
   'fingerprint,rule_code,status,ignored_reason,acknowledged_at,ignored_at,resolved_at,ruleset_version,updated_at'
+export const BACKUP_FINANCIAL_SCENARIO_SELECT =
+  'id,user_id,name,description,status,horizon_months,start_date,end_date,currency,actions,assumptions,engine_version,schema_version,action_registry_version,baseline_as_of,last_calculated_at,result_summary,is_favorite,created_at,updated_at'
 
 export type BackupAuthenticatedUser = {
   id: string
@@ -99,6 +101,8 @@ export type UserBackupData = {
     updated_at?: string
   } | null
   dataIntegrityIssues?: Pick<DataIntegrityIssueRecord, 'fingerprint' | 'rule_code' | 'status' | 'ignored_reason' | 'acknowledged_at' | 'ignored_at' | 'resolved_at' | 'ruleset_version' | 'updated_at'>[]
+  // Financial scenarios: export-only (restore deferred)
+  financialScenarios?: Record<string, unknown>[]
 }
 
 type BackupSupabaseClient = SupabaseClient<Database>
@@ -156,6 +160,7 @@ export async function fetchUserBackupData(
     financialHealthSnapshots,
     dashboardPreferences,
     dataIntegrityIssues,
+    financialScenarios,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -271,6 +276,13 @@ export async function fetchUserBackupData(
       .eq('user_id', user.id)
       .in('status', ['ignored', 'acknowledged'])
       .limit(5000) as unknown as Promise<QueryResult<NonNullable<UserBackupData['dataIntegrityIssues']>[number]>>,
+    // Financial scenarios: export-only (non-fatal for forward compatibility)
+    (supabase as unknown as SupabaseClient)
+      .from('financial_scenarios')
+      .select(BACKUP_FINANCIAL_SCENARIO_SELECT)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(500) as unknown as Promise<QueryResult<Record<string, unknown>>>,
   ])
 
   assertNoQueryError('profiles', profile.error)
@@ -315,6 +327,7 @@ export async function fetchUserBackupData(
     financialHealthSnapshots: financialHealthSnapshots.error ? [] : (financialHealthSnapshots.data ?? []),
     dashboardPreferences: dashboardPreferences.error ? null : dashboardPreferences.data,
     dataIntegrityIssues: dataIntegrityIssues.error ? [] : (dataIntegrityIssues.data ?? []),
+    financialScenarios: financialScenarios.error ? [] : (financialScenarios.data ?? []),
   }
 }
 

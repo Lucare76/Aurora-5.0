@@ -31,6 +31,16 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     href: '/data-integrity',
   },
   {
+    id: 'score-components',
+    label: 'Componenti dello score',
+    description: 'Peso, contributo e stato dei sette componenti della salute finanziaria.',
+    defaultVisible: true,
+    defaultOrder: 26,
+    minimumData: 'Calcolo Financial Health disponibile.',
+    mobilePriority: 6,
+    href: '/financial-health',
+  },
+  {
     id: 'projected-balance',
     label: 'Saldo previsionale',
     description: 'Andamento previsto nei prossimi 90 giorni generato dal calendario finanziario.',
@@ -49,16 +59,6 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     minimumData: 'Movimenti degli ultimi mesi.',
     mobilePriority: 5,
     href: '/reports',
-  },
-  {
-    id: 'score-components',
-    label: 'Componenti dello score',
-    description: 'Peso, contributo e stato dei sette componenti della salute finanziaria.',
-    defaultVisible: true,
-    defaultOrder: 50,
-    minimumData: 'Calcolo Financial Health disponibile.',
-    mobilePriority: 6,
-    href: '/financial-health',
   },
   {
     id: 'expense-coverage',
@@ -137,6 +137,16 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     minimumData: 'Almeno uno snapshot salvato.',
     mobilePriority: 14,
     href: '/financial-health',
+  },
+  {
+    id: 'scenarios',
+    label: 'Scenari finanziari',
+    description: 'Scenari "what if" con proiezione del saldo e confronto con la baseline.',
+    defaultVisible: false,
+    defaultOrder: 140,
+    minimumData: 'Nessun prerequisito.',
+    mobilePriority: 15,
+    href: '/scenarios',
   },
 ]
 

@@ -22,6 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { componentLabel, componentStatusLabel, formatPercent, formatTrendLabel, pickTopFactors, scoreHistorySeries, trendTone } from '@/lib/dashboard/helpers'
 import type { DashboardWidgetId, DataIntegrityDashboardSummary, FinancialHealthSnapshotSummary } from '@/lib/dashboard/types'
+import { ScenariosWidget } from '@/components/scenarios/scenarios-widget'
 import type { ComponentScore, FinancialHealthResult, HealthTrend } from '@/lib/financial-health/types'
 
 type WidgetProps = {
@@ -45,7 +46,7 @@ const euroTooltip = new Intl.NumberFormat('it-IT', { style: 'currency', currency
 
 function WidgetShell({ title, description, href, children, className }: WidgetShellProps) {
   return (
-    <Card className={`border-slate-200 bg-white shadow-sm ${className ?? ''}`}>
+    <Card className={`flex h-full flex-col border-slate-200 bg-white shadow-sm ${className ?? ''}`}>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div>
           <CardTitle className="text-base font-semibold text-slate-950">{title}</CardTitle>
@@ -57,7 +58,7 @@ function WidgetShell({ title, description, href, children, className }: WidgetSh
           </Link>
         ) : null}
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent className="flex-1">{children}</CardContent>
     </Card>
   )
 }
@@ -121,7 +122,7 @@ export function FinancialHealthWidget({ data, onSaveSnapshot, savingSnapshot }: 
   const topFactors = pickTopFactors(data, 3)
   const score = data.totalScore ?? 0
   return (
-    <WidgetShell title="Salute finanziaria" description="Score calcolato dal motore deterministico Aurora." href="/financial-health" className="lg:col-span-2">
+    <WidgetShell title="Salute finanziaria" description="Score calcolato dal motore deterministico Aurora." href="/financial-health">
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
         <div className="flex flex-col items-center justify-center rounded-2xl bg-indigo-50 p-6 text-center">
           <div className="relative flex h-36 w-36 items-center justify-center rounded-full bg-white shadow-inner" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={data.totalScore ?? undefined} aria-label="Score salute finanziaria">
@@ -217,7 +218,7 @@ export function ProjectedBalanceWidget({ data }: WidgetProps) {
   const min = series.reduce((value, point) => Math.min(value, point.balance), Number.POSITIVE_INFINITY)
   const negativeDays = series.filter((point) => point.balance < 0).length
   return (
-    <WidgetShell title="Saldo previsionale" description="Proiezione a 90 giorni dal calendario finanziario." href="/calendar" className="lg:col-span-2">
+    <WidgetShell title="Saldo previsionale" description="Proiezione a 90 giorni dal calendario finanziario." href="/calendar">
       <div className="mb-4 flex flex-wrap gap-3 text-sm text-slate-600">
         <span>Minimo: <strong className="tabular-nums text-slate-950">{Number.isFinite(min) ? formatCurrency(min) : 'n.d.'}</strong></span>
         <span>Giorni sotto zero: <strong className="tabular-nums text-slate-950">{negativeDays}</strong></span>
@@ -243,7 +244,7 @@ export function ProjectedBalanceWidget({ data }: WidgetProps) {
 export function CashFlowWidget({ data }: WidgetProps) {
   const series = data.dashboard.monthlyCashFlowSeries.map((month) => ({ ...month, label: month.key.slice(5) }))
   return (
-    <WidgetShell title="Entrate, uscite e margine" description="Ultimi sei mesi disponibili dal motore Financial Health." href="/reports" className="lg:col-span-2">
+    <WidgetShell title="Entrate, uscite e margine" description="Ultimi sei mesi disponibili dal motore Financial Health." href="/reports">
       {series.length > 0 ? (
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -446,4 +447,5 @@ export const DASHBOARD_WIDGET_COMPONENTS: Record<DashboardWidgetId, (props: Widg
   recommendations: (props) => <RecommendationsWidget {...props} />,
   'priority-alerts': (props) => <PriorityAlertsWidget {...props} />,
   'score-history': (props) => <ScoreHistoryWidget {...props} />,
+  scenarios: () => <ScenariosWidget />,
 }

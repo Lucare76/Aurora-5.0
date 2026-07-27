@@ -22,6 +22,9 @@ type DashboardState = {
 
 const periodOptions: DashboardPeriodKey[] = ['current_month', 'previous_month']
 
+// Widgets that should span the full two-column grid width
+const FULL_WIDTH_WIDGET_IDS = new Set(['summary', 'financial-health', 'projected-balance', 'cash-flow'])
+
 function dateInItalian(value: string | Date) {
   return new Intl.DateTimeFormat('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(value))
 }
@@ -46,7 +49,7 @@ function DashboardLoading() {
           {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-40 rounded-2xl" />)}
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-80 rounded-2xl" />)}
+          {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className={index < 2 ? 'h-80 rounded-2xl lg:col-span-2' : 'h-64 rounded-2xl'} />)}
         </div>
       </div>
     </main>
@@ -240,7 +243,12 @@ function DashboardPageContent() {
         <div className={state.preferences.compactMode ? 'grid gap-4 lg:grid-cols-2' : 'grid gap-5 lg:grid-cols-2'}>
           {visibleWidgets.map((id) => {
             const Component = DASHBOARD_WIDGET_COMPONENTS[id]
-            return <div key={id}>{Component(widgetProps)}</div>
+            const fullWidth = FULL_WIDTH_WIDGET_IDS.has(id)
+            return (
+              <div key={id} className={fullWidth ? 'lg:col-span-2' : undefined}>
+                {Component(widgetProps)}
+              </div>
+            )
           })}
         </div>
       </div>
