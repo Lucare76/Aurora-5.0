@@ -183,7 +183,22 @@ Configurati in `next.config.ts` nella sezione `headers()`.
 
 ---
 
-## 20. Git e commit
+## 20. Posso permettermelo? (Affordability)
+
+- [ ] La pagina `/affordability` è accessibile agli utenti autenticati
+- [ ] Il form accetta modalità immediata e rateale
+- [ ] La valutazione restituisce una classificazione e un punteggio
+- [ ] Il grafico di proiezione mostra baseline e scenario
+- [ ] L'API `POST /api/affordability/calculate` restituisce 401 senza autenticazione
+- [ ] L'API non crea transazioni né modifica saldi
+- [ ] La voce di menu "Permettermelo?" è presente nella sidebar e nel menu "Altro"
+- [ ] La voce è ricercabile nel command menu (Ctrl+K)
+- [ ] Il disclaimer è visibile nel risultato
+- [ ] I dati insufficienti mostrano avvisi appropriati
+
+---
+
+## 21. Git e commit
 
 - [ ] `git diff --check` non riporta spazi o newline extra
 - [ ] Nessun file `.env*` committato

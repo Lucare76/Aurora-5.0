@@ -317,6 +317,41 @@ Le ricorrenze sono previsioni: devi registrare il movimento manualmente quando a
 
 ---
 
-## 28. Disclaimer
+## 28. Posso permettermelo?
+
+La sezione **Posso permettermelo?** (accessibile dal menu laterale) consente di simulare la sostenibilità di un acquisto in base ai propri dati finanziari registrati in Aurora.
+
+### Come funziona
+
+1. Inserisci il nome dell'acquisto e il prezzo totale.
+2. Scegli la modalità di pagamento: **immediata** (pagamento unico) o **rateale** (con rata mensile e numero di rate).
+3. Imposta la data dell'acquisto.
+4. Facoltativamente aggiungi: anticipo, spese accessorie iniziali, costo mensile o annuale ricorrente, maxi-rata finale, entrata mensile collegata all'acquisto.
+5. Premi **Valuta sostenibilità** per ottenere il risultato.
+
+### Cosa viene analizzato
+
+- **Liquidità**: saldo totale dei conti attivi, prima e dopo il pagamento iniziale.
+- **Margine mensile**: differenza tra entrate e uscite medie mensili, ridotto delle rate e dei costi ricorrenti.
+- **Mesi di copertura**: quanti mesi di spese abituali riesce a coprire la liquidità residua.
+- **Proiezione**: stima mese per mese del saldo nei prossimi 12 mesi (configurabile fino a 24).
+
+### Classificazioni
+
+| Risultato | Significato |
+|---|---|
+| **Sostenibile** | L'acquisto è compatibile con la situazione attuale. |
+| **Sostenibile con cautela** | Realizzabile ma almeno un indicatore è vicino alla soglia. |
+| **Rischioso** | Uno o più indicatori superano le soglie di attenzione. |
+| **Non sostenibile** | L'acquisto non è compatibile con la situazione attuale. |
+| **Dati insufficienti** | Non ci sono dati storici sufficienti per una stima affidabile. |
+
+### Nota importante
+
+La valutazione si basa esclusivamente sui dati registrati in Aurora (transazioni, ricorrenze attive, saldo dei conti). Non modifica nessun dato finanziario, non crea transazioni e non si connette a servizi esterni. Ha finalità organizzative e informative: non costituisce consulenza finanziaria.
+
+---
+
+## 29. Disclaimer
 
 Le informazioni mostrate in Aurora hanno finalità organizzative e informative e non costituiscono consulenza finanziaria, creditizia o di investimento. Aurora non è un istituto finanziario e non è sottoposta a vigilanza finanziaria. L'utente è responsabile delle decisioni finanziarie prese sulla base dei propri dati.

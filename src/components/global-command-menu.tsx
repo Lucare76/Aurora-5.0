@@ -23,6 +23,7 @@ import {
   Search,
   Settings,
   ShieldAlert,
+  ShoppingCart,
   Sparkles,
   Tag,
   Target,
@@ -105,6 +106,8 @@ export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'settings', group: 'Navigazione', title: 'Impostazioni', subtitle: 'Profilo, dati, backup', href: '/settings', keywords: ['impostazioni', 'backup'], icon: Settings },
   { id: 'notifications', group: 'Navigazione', title: 'Avvisi', subtitle: 'Centro avvisi finanziari', href: '/notifications', keywords: ['avvisi', 'notifiche', 'alert'], icon: Bell },
   { id: 'scenarios', group: 'Navigazione', title: 'Scenari', subtitle: 'Simulazioni "what if"', href: '/scenarios', keywords: ['scenari', 'simulazioni', 'what if', 'proiezioni'], icon: FlaskConical },
+  { id: 'affordability', group: 'Navigazione', title: 'Posso permettermelo?', subtitle: 'Valuta la sostenibilità di un acquisto', href: '/affordability', keywords: ['permettermelo', 'acquisto', 'sostenibilità', 'rata', 'spesa'], icon: ShoppingCart },
+  { id: 'affordability-calculate', group: 'Azioni rapide', title: 'Valuta un acquisto', subtitle: 'Simula la sostenibilità di una spesa', href: '/affordability', keywords: ['valuta acquisto', 'posso permettermelo', 'sostenibile', 'rata sostenibile', 'affordability'], icon: ShoppingCart },
 ]
 
 function commandScore(query: string, command: QuickCommand): number {
