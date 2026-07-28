@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { FinancialHealthResult, HealthComponentKey, TrendDirection, TrendInterpretation } from '@/lib/financial-health/types'
-import { trendDirectionLabel, trendInterpretationLabel, trendMetricLabel } from '@/lib/financial-health/trend-labels'
+import { dataQualityLabel, trendDirectionLabel, trendInterpretationLabel, trendMetricLabel } from '@/lib/financial-health/trend-labels'
 import type { FinancialHealthSnapshot } from '@/lib/financial-health/snapshot-service'
 
 const TREND_DIRECTION_ICONS: Record<TrendDirection, typeof ArrowUp> = {
@@ -127,8 +127,7 @@ export default function FinancialHealthPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-semibold text-indigo-600">Motore dati Sprint 14A</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">Salute finanziaria</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-950">Salute finanziaria</h1>
           <p className="mt-2 max-w-3xl text-sm text-slate-500">
             Questo indicatore è una sintesi dei dati registrati in Aurora e non costituisce una valutazione creditizia o una consulenza finanziaria.
           </p>
@@ -161,7 +160,7 @@ export default function FinancialHealthPage() {
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl bg-[#f8f9fc] p-4">
                 <p className="text-xs font-semibold text-slate-500">Qualità dati</p>
-                <p className="mt-1 font-bold text-slate-950">{data.dataQuality.level}</p>
+                <p className="mt-1 font-bold text-slate-950">{dataQualityLabel(data.dataQuality.level)}</p>
               </div>
               <div className="rounded-2xl bg-[#f8f9fc] p-4">
                 <p className="text-xs font-semibold text-slate-500">Confidenza</p>

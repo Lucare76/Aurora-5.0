@@ -1,0 +1,322 @@
+# Guida utente — Aurora
+
+Aurora è uno strumento personale per tenere traccia delle proprie finanze. I dati vengono inseriti manualmente e restano separati per utente grazie all'autenticazione sicura. Aurora non è collegata alla banca e non accede a nessun conto esterno.
+
+---
+
+## 1. Cos'è Aurora
+
+Aurora è un'applicazione web per la gestione finanziaria personale. Permette di:
+
+- registrare entrate, spese e trasferimenti tra conti;
+- monitorare budget mensili;
+- seguire obiettivi di risparmio;
+- gestire prestiti e rate;
+- impostare movimenti ricorrenti;
+- analizzare la propria salute finanziaria;
+- generare report periodici;
+- esportare dati in CSV o Excel;
+- creare backup e ripristinare i dati.
+
+Le informazioni mostrate hanno finalità organizzative e informative e non costituiscono consulenza finanziaria.
+
+---
+
+## 2. Primo accesso
+
+1. Apri Aurora nel browser.
+2. Registrati con email e password.
+3. Conferma la tua email se richiesto.
+4. Accedi con le credenziali create.
+5. Segui la checklist dei primi passi che appare nella dashboard.
+
+---
+
+## 3. Creare un conto
+
+Un conto rappresenta un luogo dove è depositato il denaro: conto bancario, contanti, carta di credito, investimenti o altro.
+
+Per creare un conto:
+
+1. Vai a **Conti** dal menu laterale.
+2. Clicca su **Nuovo conto**.
+3. Inserisci nome, tipo e saldo iniziale.
+4. Salva.
+
+Il saldo iniziale è il saldo del conto al momento in cui inizi a usare Aurora. I movimenti successivi aggiorneranno il saldo automaticamente.
+
+---
+
+## 4. Registrare una transazione
+
+Per aggiungere un movimento:
+
+1. Vai a **Movimenti**.
+2. Clicca su **Nuovo movimento**.
+3. Scegli il tipo: **Entrata**, **Uscita** o **Giroconto**.
+4. Compila i campi: importo, data, descrizione, conto, categoria.
+5. Salva.
+
+Un giroconto sposta denaro tra due tuoi conti. Non è né un'entrata né un'uscita: non influisce sui totali di reddito o spese.
+
+---
+
+## 5. Entrate, spese e giroconti
+
+| Tipo | Significato |
+|------|-------------|
+| Entrata | Denaro ricevuto (stipendio, rimborso, ecc.) |
+| Uscita | Denaro speso (acquisti, bollette, ecc.) |
+| Giroconto | Trasferimento tra tuoi conti (es. da conto corrente a conto risparmio) |
+
+I giroconti vengono mostrati nella lista movimenti ma non influenzano entrate totali, spese totali o tasso di risparmio.
+
+---
+
+## 6. Categorie e tag
+
+Le categorie organizzano i movimenti per tipo di spesa o entrata. Aurora include categorie predefinite, che puoi usare o personalizzare.
+
+I tag sono etichette libere che puoi aggiungere ai movimenti per raggrupparli in modo trasversale (ad esempio: "Vacanza estate 2026").
+
+---
+
+## 7. Budget
+
+Un budget imposta un limite di spesa mensile per una categoria.
+
+Per creare un budget:
+
+1. Vai a **Budget**.
+2. Clicca su **Nuovo budget**.
+3. Seleziona la categoria e l'importo massimo mensile.
+4. Salva.
+
+Aurora mostra quanto hai speso rispetto al limite e ti avvisa se stai per superarlo.
+
+---
+
+## 8. Obiettivi
+
+Un obiettivo di risparmio ha un importo target e una data entro la quale vuoi raggiungerlo.
+
+Per creare un obiettivo:
+
+1. Vai a **Obiettivi**.
+2. Clicca su **Nuovo obiettivo**.
+3. Inserisci nome, importo target, conto di riferimento e data.
+4. Aggiungi contributi manuali per tracciare i progressi.
+
+---
+
+## 9. Prestiti
+
+Registra i tuoi prestiti (mutuo, finanziamento auto, ecc.) con le relative rate.
+
+Aurora calcola il residuo, il totale pagato e le prossime scadenze. I pagamenti non vengono inviati automaticamente: devi registrarli manualmente quando effettui il pagamento.
+
+---
+
+## 10. Ricorrenze
+
+Le ricorrenze rappresentano movimenti periodici previsti: affitto mensile, abbonamenti, stipendio.
+
+Aggiungono eventi al Calendario finanziario e servono da base per le previsioni di cassa. Non creano movimenti automaticamente: devi registrare il movimento quando avviene realmente.
+
+---
+
+## 11. Calendario
+
+Il Calendario finanziario mostra in forma visiva le scadenze imminenti: rate, ricorrenze, obiettivi. Ti aiuta a pianificare il mese.
+
+---
+
+## 12. Notifiche
+
+Aurora genera avvisi automatici per eventi importanti:
+
+- budget quasi esauriti o superati;
+- ricorrenze in scadenza o scadute;
+- rate in scadenza o scadute;
+- obiettivi in ritardo.
+
+Puoi filtrarle, segnarle come lette, silenziare tipi specifici o archiviarle.
+
+---
+
+## 13. Dashboard
+
+La dashboard mostra una panoramica della tua situazione finanziaria: patrimonio, entrate, spese, margine, salute finanziaria e avvisi aperti.
+
+Puoi personalizzare i widget visibili e il loro ordine tramite il pulsante delle preferenze. Puoi ripristinare le preferenze predefinite in qualsiasi momento.
+
+---
+
+## 14. Financial Health
+
+La sezione **Salute finanziaria** calcola un punteggio basato su diversi aspetti della tua situazione:
+
+- liquidità;
+- capacità di risparmio;
+- rispetto dei budget;
+- sostenibilità del debito;
+- regolarità dei pagamenti;
+- progressi sugli obiettivi;
+- avvisi critici.
+
+Puoi salvare uno snapshot mensile per tenere traccia dell'andamento nel tempo.
+
+> Le informazioni mostrate hanno finalità organizzative e informative e non costituiscono consulenza finanziaria.
+
+---
+
+## 15. Data Integrity Center
+
+Questa sezione analizza i tuoi dati alla ricerca di possibili incongruenze: movimenti orfani, saldi incoerenti, duplicati sospetti.
+
+La scansione analizza i dati **senza modificarli**. Puoi prendere in carico un'issue, ignorarla con una motivazione o segnarla come risolta manualmente.
+
+Aurora non applica correzioni automatiche.
+
+---
+
+## 16. Scenari
+
+Gli scenari permettono di simulare situazioni finanziarie future: cosa succede se aumenti le spese fisse, se ottieni un aumento di stipendio o se cambi piano di rimborso di un prestito?
+
+> Gli scenari sono simulazioni. Non modificano conti, saldi o transazioni reali.
+
+Ogni scenario ha un orizzonte temporale (da 1 a 60 mesi) e un set di azioni simulate. Puoi calcolare, duplicare, archiviare ed eliminare gli scenari.
+
+---
+
+## 17. Report
+
+I report riassumono l'andamento finanziario in un periodo scelto: entrate, spese, categorie, conti, andamento mensile, confronto con il periodo precedente.
+
+Puoi generare un report per il mese corrente, il trimestre o un periodo personalizzato.
+
+---
+
+## 18. CSV ed Excel
+
+Puoi esportare i dati in:
+
+- **CSV**: file di testo compatibile con Excel, Google Sheets e altri fogli di calcolo.
+- **Excel (.xlsx)**: foglio di calcolo strutturato con più schede.
+
+I file vengono generati e scaricati direttamente nel tuo browser. Nessun dato viene inviato a server esterni.
+
+---
+
+## 19. Backup
+
+Il backup esporta tutti i tuoi dati in un file JSON scaricato nel tuo dispositivo.
+
+**Il backup contiene i dati finanziari associati al tuo account. Non include password o credenziali di accesso.**
+
+È consigliabile creare un backup periodico e conservarlo in un luogo sicuro.
+
+Per creare un backup:
+
+1. Vai a **Impostazioni**.
+2. Clicca su **Scarica backup**.
+3. Il file verrà salvato nel tuo browser.
+
+---
+
+## 20. Restore
+
+Il ripristino importa i dati da un file di backup in un account vuoto.
+
+**Flusso:**
+
+1. Vai a **Impostazioni**.
+2. Seleziona il file di backup.
+3. Clicca su **Verifica backup** per l'anteprima.
+4. Controlla il riepilogo: record, collisioni, eventuali avvisi.
+5. Se il risultato è corretto, prepara la conferma.
+6. Inserisci la frase di conferma richiesta.
+7. Esegui il ripristino.
+
+L'anteprima non modifica i dati. Il ripristino è disponibile solo su account vuoto.
+
+---
+
+## 21. Impostazioni
+
+Dalle impostazioni puoi:
+
+- aggiornare nome e valuta predefinita;
+- esportare le transazioni in CSV;
+- creare un backup;
+- ripristinare un backup;
+- effettuare il logout.
+
+---
+
+## 22. Dark mode
+
+Aurora si adatta alla modalità chiara o scura del dispositivo. Se il tuo sistema operativo è impostato in modalità scura, anche Aurora lo sarà automaticamente.
+
+---
+
+## 23. Ricerca e command menu
+
+La ricerca globale (icona 🔍 nell'header) permette di cercare movimenti, conti, categorie e pagine rapidamente.
+
+Puoi anche aprire il command menu con **Ctrl+K** (o **Cmd+K** su Mac) per navigare velocemente tra le sezioni.
+
+---
+
+## 24. Sicurezza
+
+- Ogni utente accede solo ai propri dati.
+- I dati sono protetti da Row Level Security sul database.
+- Le credenziali di accesso non vengono mai incluse nei backup.
+- La chiave di servizio del database non è mai esposta al browser.
+- I file di backup sono scaricati localmente — non vengono caricati su server di terze parti.
+
+---
+
+## 25. Privacy
+
+- I dati inseriti in Aurora restano nel tuo account.
+- Aurora non è collegata alla banca e non accede a conti esterni.
+- I dati non vengono venduti o condivisi con terze parti.
+- Puoi eliminare il tuo account contattando il supporto.
+
+---
+
+## 26. Risoluzione problemi
+
+**Dashboard non carica**
+Riprova tra qualche secondo. Se il problema persiste, effettua il logout e accedi nuovamente.
+
+**Il backup non si scarica**
+Verifica che il browser non blocchi i download. Prova con un browser diverso.
+
+**La verifica del backup mostra errori**
+Controlla che il file sia un backup Aurora valido e non sia stato modificato manualmente.
+
+**I movimenti non appaiono nei report**
+Verifica che il periodo e i filtri del report includano i movimenti cercati.
+
+**Una ricorrenza non ha creato il movimento**
+Le ricorrenze sono previsioni: devi registrare il movimento manualmente quando avviene.
+
+---
+
+## 27. Limiti
+
+- Aurora non è collegata a nessuna banca o servizio finanziario esterno.
+- I movimenti devono essere inseriti manualmente.
+- Le simulazioni degli scenari sono basate sui dati registrati e non garantiscono risultati futuri.
+- Il punteggio Financial Health è un indicatore interno, non una valutazione creditizia.
+- Il restore è disponibile solo su account vuoto per evitare conflitti.
+
+---
+
+## 28. Disclaimer
+
+Le informazioni mostrate in Aurora hanno finalità organizzative e informative e non costituiscono consulenza finanziaria, creditizia o di investimento. Aurora non è un istituto finanziario e non è sottoposta a vigilanza finanziaria. L'utente è responsabile delle decisioni finanziarie prese sulla base dei propri dati.

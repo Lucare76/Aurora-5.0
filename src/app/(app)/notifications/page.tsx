@@ -14,6 +14,7 @@ import type {
   NotificationStatusFilter,
   NotificationType,
 } from '@/lib/notifications/types'
+import { NOTIFICATION_META } from '@/lib/notifications/constants'
 
 // ── Tabs ────────────────────────────────────────────────────────────────────
 
@@ -70,7 +71,7 @@ function MuteConfirmDialog({
           <h2 className="text-base font-semibold text-slate-900">Silenzia avvisi simili</h2>
         </div>
         <p className="mb-5 text-sm text-slate-600">
-          Vuoi silenziare tutti gli avvisi di tipo <strong>{notification.type}</strong> per questa fonte, oppure tutti i tipi?
+          Vuoi silenziare tutti gli avvisi di tipo <strong>{NOTIFICATION_META[notification.type]?.label ?? notification.type}</strong> per questa fonte, oppure tutti i tipi?
         </p>
         <div className="flex flex-col gap-2">
           <button
@@ -79,7 +80,7 @@ function MuteConfirmDialog({
             onClick={() => doMute(false)}
             className="w-full rounded-xl border border-[#e5e7f0] px-4 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
-            Solo avvisi "{notification.type}"
+            Solo avvisi "{NOTIFICATION_META[notification.type]?.label ?? notification.type}"
           </button>
           <button
             type="button"

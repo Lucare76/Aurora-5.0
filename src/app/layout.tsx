@@ -4,8 +4,11 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Aurora 5.0',
-  description: 'Gestione finanziaria personale',
+  title: {
+    template: '%s | Aurora',
+    default: 'Aurora — Gestione finanziaria personale',
+  },
+  description: 'Aurora è uno strumento personale per monitorare entrate, uscite, budget e patrimonio. I dati sono inseriti manualmente e restano sul tuo account.',
   icons: { icon: '/favicon.svg' },
   manifest: '/manifest.json',
   appleWebApp: {

@@ -33,6 +33,46 @@ const MAX_BACKUP_DRY_RUN_BYTES = 10 * 1024 * 1024
 const RESTORE_CONFIRMATION_PHRASE = 'RIPRISTINA AURORA'
 const REAL_RESTORE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BACKUP_RESTORE_REAL === 'true'
 
+const READINESS_LABELS: Record<string, string> = {
+  ready: 'Pronto',
+  ready_with_warnings: 'Pronto con avvisi',
+  blocked: 'Non ripristinabile',
+}
+
+const COLLECTION_LABELS: Record<string, string> = {
+  transactions: 'Movimenti',
+  accounts: 'Conti',
+  categories: 'Categorie',
+  budgets: 'Budget',
+  goals: 'Obiettivi',
+  loan_payments: 'Rate prestiti',
+  loans: 'Prestiti',
+  recurring: 'Ricorrenze',
+  tags: 'Tag',
+  transaction_tags: 'Tag movimenti',
+  birthday_reminders: 'Compleanni',
+  automation_rules: 'Regole automazione',
+  automation_applications: 'Applicazioni automazione',
+  automation_batches: 'Batch automazione',
+  notification_user_settings: 'Impostazioni notifiche',
+  notification_preferences: 'Preferenze notifiche',
+  notification_source_mutes: 'Silenziamenti notifiche',
+  financial_scenarios: 'Scenari finanziari',
+  financial_health_snapshots: 'Snapshot salute finanziaria',
+  data_integrity_issues: 'Stato integrità dati',
+  dashboard_preferences: 'Preferenze dashboard',
+}
+
+const STEP_STATUS_LABELS: Record<string, string> = {
+  ready: 'Ok',
+  warning: 'Con avvisi',
+  blocked: 'Bloccato',
+}
+
+function collectionLabel(name: string): string {
+  return COLLECTION_LABELS[name] ?? name
+}
+
 type DryRunReport = {
   readiness: 'ready' | 'ready_with_warnings' | 'blocked'
   backup: {
@@ -531,7 +571,7 @@ export default function SettingsPage() {
                     dryRunReport.readiness === 'ready_with_warnings' && 'bg-amber-50 text-amber-700',
                     dryRunReport.readiness === 'blocked' && 'bg-red-50 text-red-700',
                   )}>
-                    {dryRunReport.readiness}
+                    {READINESS_LABELS[dryRunReport.readiness] ?? dryRunReport.readiness}
                   </span>
                 </div>
 
@@ -567,8 +607,8 @@ export default function SettingsPage() {
                   <div className="mt-2 grid gap-2 md:grid-cols-2">
                     {dryRunReport.restorePlan.slice(0, 8).map((step) => (
                       <div key={`${step.sequence}-${step.collection}`} className="flex items-center justify-between rounded-xl border border-[#e5e7f0] bg-white px-3 py-2 text-xs">
-                        <span>{step.sequence}. {step.collection}</span>
-                        <span className="font-medium text-slate-500">{step.recordCount} - {step.status}</span>
+                        <span>{step.sequence}. {collectionLabel(step.collection)}</span>
+                        <span className="font-medium text-slate-500">{step.recordCount} · {STEP_STATUS_LABELS[step.status] ?? step.status}</span>
                       </div>
                     ))}
                   </div>
@@ -577,7 +617,7 @@ export default function SettingsPage() {
                 <DryRunDetailPanel report={dryRunReport} />
 
                 {dryRunReport.currentState && dryRunReport.currentState.blockingCollections.length > 0 ? (
-                  <p className="mt-4 text-sm text-red-600">L'account contiene già dati: {dryRunReport.currentState.blockingCollections.join(', ')}.</p>
+                  <p className="mt-4 text-sm text-red-600">L'account contiene già dati in: {dryRunReport.currentState.blockingCollections.map(collectionLabel).join(', ')}.</p>
                 ) : null}
 
                 {dryRunReport.readiness === 'ready' ? (
@@ -737,7 +777,7 @@ function DryRunDetailPanel({ report }: { report: DryRunReport }) {
           <p className="text-xs font-medium text-amber-600">Duplicati logici ({logicalDuplicates.length})</p>
           {logicalDuplicates.map((dup, i) => (
             <div key={i} className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs">
-              <span className="font-semibold text-amber-800">{dup.collection}</span>
+              <span className="font-semibold text-amber-800">{collectionLabel(dup.collection)}</span>
               <span className="mx-1.5 text-amber-400">·</span>
               <span className="break-all font-mono text-slate-500">{dup.key}</span>
               <p className="mt-0.5 text-slate-700">{dup.message}</p>
@@ -751,7 +791,7 @@ function DryRunDetailPanel({ report }: { report: DryRunReport }) {
           <p className="text-xs font-medium text-orange-600">Collisioni UUID ({collisions.length})</p>
           {collisions.map((col, i) => (
             <div key={i} className="rounded-xl border border-orange-100 bg-orange-50 px-3 py-2 text-xs">
-              <span className="font-semibold text-orange-800">{col.collection}</span>
+              <span className="font-semibold text-orange-800">{collectionLabel(col.collection)}</span>
               {col.id ? (
                 <>
                   <span className="mx-1.5 text-orange-400">·</span>

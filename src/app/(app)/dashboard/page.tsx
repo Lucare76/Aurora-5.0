@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { DashboardPreferencesDialog } from '@/components/dashboard/dashboard-preferences-dialog'
 import { DASHBOARD_WIDGET_COMPONENTS } from '@/components/dashboard/dashboard-widgets'
 import { dashboardPeriodToMonth, orderedWidgetIds, periodLabel } from '@/lib/dashboard/helpers'
+import { dataQualityLabel } from '@/lib/financial-health/trend-labels'
 import { DEFAULT_DASHBOARD_PREFERENCES, normalizeDashboardPreferences } from '@/lib/dashboard/preferences'
 import type { DashboardPeriodKey, DashboardPreferences, DataIntegrityDashboardSummary, FinancialHealthSnapshotSummary } from '@/lib/dashboard/types'
 import type { FinancialHealthResult } from '@/lib/financial-health/types'
@@ -212,7 +213,7 @@ function DashboardPageContent() {
               <p className="text-sm font-medium text-indigo-600">{greeting()}, {state.data.profile?.displayName || 'Utente Aurora'}!</p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">Panoramica finanziaria</h1>
               <p className="mt-2 text-sm text-slate-500">{dateInItalian(new Date())} - periodo: {state.data.period.label}</p>
-              <p className="mt-1 text-xs text-slate-400">Ultimo calcolo: {dateInItalian(state.data.calculatedAt)} - {state.data.isProvisional ? 'dati provvisori' : 'dati consolidati'} - qualita {state.data.dataQuality.level}</p>
+              <p className="mt-1 text-xs text-slate-400">Ultimo calcolo: {dateInItalian(state.data.calculatedAt)} · {state.data.isProvisional ? 'dati provvisori' : 'dati consolidati'} · qualità: {dataQualityLabel(state.data.dataQuality.level)}</p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <select

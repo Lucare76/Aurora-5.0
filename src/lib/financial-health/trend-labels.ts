@@ -1,4 +1,4 @@
-import type { TrendDirection, TrendInterpretation } from './types'
+import type { DataQualityLevel, TrendDirection, TrendInterpretation } from './types'
 
 export const TREND_METRIC_LABELS: Record<string, string> = {
   currentFinancialPosition: 'Situazione finanziaria',
@@ -59,4 +59,15 @@ export function trendDirectionLabel(direction: TrendDirection): string {
 
 export function trendInterpretationLabel(interpretation: TrendInterpretation): string | null {
   return TREND_INTERPRETATION_LABELS[interpretation]
+}
+
+export const DATA_QUALITY_LABELS: Record<DataQualityLevel, string> = {
+  INSUFFICIENT: 'Dati insufficienti',
+  LIMITED: 'Dati limitati',
+  GOOD: 'Dati buoni',
+  EXCELLENT: 'Dati ottimi',
+}
+
+export function dataQualityLabel(level: DataQualityLevel): string {
+  return DATA_QUALITY_LABELS[level]
 }
