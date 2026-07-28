@@ -8,7 +8,9 @@ import {
   ArrowUp,
   BarChart3,
   Download,
+  FileSpreadsheet,
   FileText,
+  LayoutGrid,
   Landmark,
   PieChart as PieChartIcon,
   Printer,
@@ -29,10 +31,13 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn, formatCurrency } from '@/lib/utils'
+import { downloadExcel } from '@/lib/reports/excel'
+import { buildReportFilename } from '@/lib/reports/filename'
+import { csvCell } from '@/lib/reports/csv'
 import type { ReportDetailTableView, ReportPayload, ReportRange, ReportTransactionTypeFilter } from '@/lib/reports/types'
 
 const RANGE_OPTIONS: Array<{ value: ReportRange; label: string }> = [
@@ -143,30 +148,25 @@ function KpiCard({
   return href ? <Link href={href} aria-label={`Apri movimenti per ${title}`}>{body}</Link> : body
 }
 
-function csvCell(value: string | number | null) {
-  const text = value === null ? '' : String(value).replace(/"/g, '""')
-  return `"${text}"`
-}
-
 function buildCsv(report: ReportPayload) {
-  const lines: string[][] = [
+  const lines: Array<Array<string | number | null>> = [
     ['Sezione', 'Voce', 'Periodo', 'Valore', 'Dettaglio'],
-    ['Riepilogo', 'Entrate totali', report.period.label, report.summary.totalIncome.toFixed(2), 'EUR'],
-    ['Riepilogo', 'Uscite totali', report.period.label, report.summary.totalExpenses.toFixed(2), 'EUR'],
-    ['Riepilogo', 'Cash flow netto', report.period.label, report.summary.netCashFlow.toFixed(2), 'EUR'],
-    ['Riepilogo', 'Tasso di risparmio', report.period.label, report.summary.savingsRate?.toFixed(2) ?? '', '%'],
+    ['Riepilogo', 'Entrate totali', report.period.label, report.summary.totalIncome, 'EUR'],
+    ['Riepilogo', 'Uscite totali', report.period.label, report.summary.totalExpenses, 'EUR'],
+    ['Riepilogo', 'Cash flow netto', report.period.label, report.summary.netCashFlow, 'EUR'],
+    ['Riepilogo', 'Tasso di risparmio', report.period.label, report.summary.savingsRate ?? null, '%'],
     [],
     ['Mese', 'Entrate', 'Uscite', 'Cash flow', 'Movimenti'],
-    ...report.monthlySeries.map((row) => [row.key, row.income.toFixed(2), row.expenses.toFixed(2), row.cashFlow.toFixed(2), String(row.transactionCount)]),
+    ...report.monthlySeries.map((row) => [row.key, row.income, row.expenses, row.cashFlow, row.transactionCount]),
     [],
     ['Categoria uscite', 'Importo', 'Percentuale', 'Movimenti', 'Confronto'],
-    ...report.expenseCategories.map((row) => [row.categoryName, row.amount.toFixed(2), row.percentage.toFixed(2), String(row.transactionCount), row.changeAmount.toFixed(2)]),
+    ...report.expenseCategories.map((row) => [row.categoryName, row.amount, row.percentage, row.transactionCount, row.changeAmount]),
     [],
     ['Categoria entrate', 'Importo', 'Percentuale', 'Movimenti', 'Confronto'],
-    ...report.incomeCategories.map((row) => [row.categoryName, row.amount.toFixed(2), row.percentage.toFixed(2), String(row.transactionCount), row.changeAmount.toFixed(2)]),
+    ...report.incomeCategories.map((row) => [row.categoryName, row.amount, row.percentage, row.transactionCount, row.changeAmount]),
     [],
     ['Conto', 'Saldo iniziale', 'Entrate', 'Uscite', 'Saldo finale'],
-    ...report.accounts.map((row) => [row.accountName, row.startingBalance.toFixed(2), row.income.toFixed(2), row.expenses.toFixed(2), row.endingBalance.toFixed(2)]),
+    ...report.accounts.map((row) => [row.accountName, row.startingBalance, row.income, row.expenses, row.endingBalance]),
   ]
   return `\uFEFF${lines.map((row) => row.map(csvCell).join(';')).join('\n')}`
 }
@@ -176,7 +176,7 @@ function downloadCsv(report: ReportPayload) {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = `aurora-report-${report.period.from}-${report.period.to}.csv`
+  anchor.download = buildReportFilename(report.period.from, report.period.to, null, 'csv')
   document.body.appendChild(anchor)
   anchor.click()
   document.body.removeChild(anchor)
@@ -281,13 +281,21 @@ export default function ReportsPage() {
             </p>
           </div>
           <div className="aurora-no-print flex flex-wrap gap-2">
+            <Link href="/reports/new" className={buttonVariants({ variant: 'outline', className: 'h-10 gap-2' })}>
+              <LayoutGrid className="h-4 w-4" />
+              Template
+            </Link>
             <Button variant="outline" className="h-10 gap-2" onClick={() => report && downloadCsv(report)} disabled={!report || loading}>
               <Download className="h-4 w-4" />
-              Esporta CSV
+              CSV
+            </Button>
+            <Button variant="outline" className="h-10 gap-2" onClick={() => report && downloadExcel(report, buildReportFilename(report.period.from, report.period.to, null, 'xlsx'))} disabled={!report || loading}>
+              <FileSpreadsheet className="h-4 w-4" />
+              Excel
             </Button>
             <Button variant="outline" className="h-10 gap-2" onClick={() => window.print()} disabled={!report || loading}>
               <Printer className="h-4 w-4" />
-              Stampa / Salva come PDF
+              Stampa
             </Button>
           </div>
         </header>

@@ -18,6 +18,7 @@ export type DashboardWidgetId =
   | 'priority-alerts'
   | 'score-history'
   | 'scenarios'
+  | 'reports'
 
 export type DashboardWidgetDefinition = {
   id: DashboardWidgetId

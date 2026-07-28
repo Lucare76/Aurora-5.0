@@ -23,6 +23,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import { componentLabel, componentStatusLabel, formatPercent, formatTrendLabel, pickTopFactors, scoreHistorySeries, trendTone } from '@/lib/dashboard/helpers'
 import type { DashboardWidgetId, DataIntegrityDashboardSummary, FinancialHealthSnapshotSummary } from '@/lib/dashboard/types'
 import { ScenariosWidget } from '@/components/scenarios/scenarios-widget'
+import { ReportsWidget } from '@/components/reports/reports-widget'
 import type { ComponentScore, FinancialHealthResult, HealthTrend } from '@/lib/financial-health/types'
 
 type WidgetProps = {
@@ -448,4 +449,9 @@ export const DASHBOARD_WIDGET_COMPONENTS: Record<DashboardWidgetId, (props: Widg
   'priority-alerts': (props) => <PriorityAlertsWidget {...props} />,
   'score-history': (props) => <ScoreHistoryWidget {...props} />,
   scenarios: () => <ScenariosWidget />,
+  reports: () => (
+    <WidgetShell title="Report rapidi" description="Apri un report con i filtri preimpostati." href="/reports">
+      <ReportsWidget />
+    </WidgetShell>
+  ),
 }

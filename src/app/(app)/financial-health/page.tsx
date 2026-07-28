@@ -1,13 +1,34 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, AlertTriangle, CheckCircle2, Database, Loader2, Save, TrendingUp } from 'lucide-react'
+import { Activity, AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, Database, HelpCircle, Loader2, Minus, Save, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn, formatCurrency } from '@/lib/utils'
-import type { FinancialHealthResult, HealthComponentKey } from '@/lib/financial-health/types'
+import type { FinancialHealthResult, HealthComponentKey, TrendDirection, TrendInterpretation } from '@/lib/financial-health/types'
+import { trendDirectionLabel, trendInterpretationLabel, trendMetricLabel } from '@/lib/financial-health/trend-labels'
 import type { FinancialHealthSnapshot } from '@/lib/financial-health/snapshot-service'
+
+const TREND_DIRECTION_ICONS: Record<TrendDirection, typeof ArrowUp> = {
+  UP: ArrowUp,
+  DOWN: ArrowDown,
+  STABLE: Minus,
+  UNAVAILABLE: HelpCircle,
+}
+
+const TREND_ICON_COLORS: Record<TrendInterpretation, string> = {
+  positive: 'bg-emerald-50 text-emerald-600',
+  negative: 'bg-red-50 text-red-600',
+  neutral: 'bg-slate-100 text-slate-500',
+  unavailable: 'bg-slate-50 text-slate-300',
+}
+
+const TREND_BADGE_COLORS: Record<Exclude<TrendInterpretation, 'unavailable'>, string> = {
+  positive: 'bg-emerald-50 text-emerald-700',
+  negative: 'bg-red-50 text-red-700',
+  neutral: 'bg-slate-100 text-slate-600',
+}
 
 const componentLabels: Record<HealthComponentKey, string> = {
   liquidity: 'Liquidità e saldi previsti',
@@ -228,14 +249,63 @@ export default function FinancialHealthPage() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <Card className="border-[#e5e7f0] bg-white shadow-sm">
-          <CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp className="h-5 w-5" /> Trend</CardTitle></CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {data.trends.slice(0, 6).map((trend) => (
-              <div key={trend.metric} className="flex justify-between gap-4 rounded-2xl bg-[#f8f9fc] px-3 py-2">
-                <span className="text-slate-600">{trend.metric}</span>
-                <strong>{trend.direction} · {trend.interpretation}</strong>
-              </div>
-            ))}
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" aria-hidden="true" />
+              Trend
+            </CardTitle>
+            <p className="text-sm text-slate-500">Rispetto al periodo precedente</p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {data.trends.slice(0, 6).map((trend) => {
+              const metricLabel = trendMetricLabel(trend.metric)
+              const dirLabel = trendDirectionLabel(trend.direction)
+              const interpLabel = trendInterpretationLabel(trend.interpretation)
+              const Icon = TREND_DIRECTION_ICONS[trend.direction]
+              const iconColorClass = TREND_ICON_COLORS[trend.interpretation]
+              const badgeColorClass = trend.interpretation !== 'unavailable' ? TREND_BADGE_COLORS[trend.interpretation] : null
+              const ariaLabel = interpLabel
+                ? `${metricLabel}: ${dirLabel}, ${interpLabel}`
+                : `${metricLabel}: ${dirLabel}`
+
+              const isUnavailable = trend.direction === 'UNAVAILABLE'
+
+              return (
+                <div
+                  key={trend.metric}
+                  className="flex items-center gap-3 rounded-2xl bg-[#f8f9fc] px-3 py-3"
+                  aria-label={ariaLabel}
+                  role="listitem"
+                >
+                  <div
+                    className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', iconColorClass)}
+                    aria-hidden="true"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold leading-tight text-slate-900">{metricLabel}</p>
+                    {isUnavailable ? (
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        Sono necessari almeno due snapshot per calcolare il trend
+                      </p>
+                    ) : (
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-sm text-slate-600">{dirLabel}</span>
+                        {interpLabel && badgeColorClass && (
+                          <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', badgeColorClass)}>
+                            {interpLabel}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            {data.trends.length === 0 && (
+              <p className="py-4 text-center text-sm text-slate-400">Nessun dato di trend disponibile.</p>
+            )}
           </CardContent>
         </Card>
         <Card className="border-[#e5e7f0] bg-white shadow-sm">

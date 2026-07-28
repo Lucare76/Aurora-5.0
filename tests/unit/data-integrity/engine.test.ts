@@ -120,7 +120,7 @@ describe('data-integrity engine', () => {
     const result = scanDataIntegrity(input({
       recurringRules: [
         { id: 'rec-1', user_id: 'user-a', account_id: 'missing', category_id: 'missing', type: 'expense', amount: 10, description: 'A', frequency: 'monthly', start_date: '2026-08-01', end_date: '2026-07-01', next_due_date: '2026-09-01', last_run_date: null, is_active: true, auto_create: true, created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z' },
-        { id: 'rec-2', user_id: 'user-a', account_id: 'acc-a', category_id: 'cat-food', type: 'expense', amount: 20, description: 'B', frequency: 'monthly', start_date: '2026-07-01', end_date: null, next_due_date: null, last_run_date: null, is_active: true, auto_create: true, created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z' },
+        { id: 'rec-2', user_id: 'user-a', account_id: 'acc-a', category_id: 'cat-food', type: 'expense', amount: 20, description: 'B', frequency: 'monthly', start_date: '2026-07-01', end_date: null, next_due_date: '', last_run_date: null, is_active: true, auto_create: true, created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z' },
       ],
       transactions: [
         { ...input().transactions[0], id: 'rec-tx-1', recurring_id: 'rec-2', amount: 20, date: '2026-07-01' },

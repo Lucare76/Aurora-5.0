@@ -26,6 +26,10 @@ export type NotificationSourceType =
   | 'loan'
   | 'automation'
   | 'transaction'
+  // Legacy values handled by data-integrity engine's sourceExists()
+  | 'category'
+  | 'goal'
+  | 'recurring'
 
 // ── DB row ──────────────────────────────────────────────────────────────────
 

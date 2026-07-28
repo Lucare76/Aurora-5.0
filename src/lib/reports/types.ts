@@ -1,4 +1,8 @@
 import type { AccountType, CategoryType, TransactionType } from '@/types/database'
+import type { ReportTypeCode } from './constants'
+
+export type { ReportTypeCode }
+export type ReportType = ReportTypeCode
 
 export type ReportRange =
   | 'current-month'

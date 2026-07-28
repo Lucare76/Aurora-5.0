@@ -148,6 +148,16 @@ export const DASHBOARD_WIDGET_REGISTRY: DashboardWidgetDefinition[] = [
     mobilePriority: 15,
     href: '/scenarios',
   },
+  {
+    id: 'reports',
+    label: 'Report rapidi',
+    description: 'Accesso rapido ai template di report più utilizzati.',
+    defaultVisible: false,
+    defaultOrder: 145,
+    minimumData: 'Nessun prerequisito.',
+    mobilePriority: 16,
+    href: '/reports',
+  },
 ]
 
 export const DASHBOARD_WIDGET_IDS = DASHBOARD_WIDGET_REGISTRY.map((widget) => widget.id)
