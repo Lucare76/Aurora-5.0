@@ -198,7 +198,22 @@ Configurati in `next.config.ts` nella sezione `headers()`.
 
 ---
 
-## 21. Git e commit
+## 21. Valutazione auto (Car Affordability)
+
+- [ ] La pagina `/affordability` mostra il selettore "Acquisto generico" / "Auto"
+- [ ] Il form auto raccoglie: veicolo, riduzioni, pagamento, spese iniziali, assicurazione, bollo, carburante, manutenzione, altri costi, auto attuale, valore residuo
+- [ ] La valutazione restituisce TCO, costo medio mensile, costo per km e classificazione
+- [ ] Il confronto pagamento (immediato vs. finanziamento) appare quando la modalità è "Finanziamento"
+- [ ] Il confronto auto A vs. B appare quando è compilato il secondo veicolo
+- [ ] L'API `POST /api/affordability/car/calculate` restituisce 401 senza autenticazione
+- [ ] L'API non crea transazioni né modifica saldi
+- [ ] Le voci di costo mancanti sono segnalate nell'output
+- [ ] Il disclaimer è visibile nel risultato
+- [ ] `npx tsc --noEmit` → 0 errori
+
+---
+
+## 22. Git e commit
 
 - [ ] `git diff --check` non riporta spazi o newline extra
 - [ ] Nessun file `.env*` committato

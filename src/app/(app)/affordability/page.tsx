@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowRight,
   BadgeCheck,
+  Car,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -16,6 +17,7 @@ import {
   TrendingDown,
   XCircle,
 } from 'lucide-react'
+import CarEvaluation from './CarEvaluation'
 import {
   ResponsiveContainer,
   AreaChart,
@@ -280,7 +282,10 @@ function ProjectionChart({ points, currency }: { points: AffordabilityResult['pr
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+type EvalType = 'generic' | 'car'
+
 export default function AffordabilityPage() {
+  const [evalType, setEvalType] = useState<EvalType>('generic')
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
   const [result, setResult] = useState<AffordabilityResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -342,7 +347,42 @@ export default function AffordabilityPage() {
         {SIMULATION_NOTE}
       </div>
 
-      {/* Form */}
+      {/* Type selector */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => { setEvalType('generic'); setResult(null) }}
+          className={cn(
+            'flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
+            evalType === 'generic'
+              ? 'border-indigo-300 bg-indigo-600 text-white'
+              : 'border-[#e5e7f0] bg-white text-slate-600 hover:bg-slate-50',
+          )}
+        >
+          <ShoppingCart className="h-4 w-4" />
+          Acquisto generico
+        </button>
+        <button
+          type="button"
+          onClick={() => { setEvalType('car'); setResult(null) }}
+          className={cn(
+            'flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
+            evalType === 'car'
+              ? 'border-indigo-300 bg-indigo-600 text-white'
+              : 'border-[#e5e7f0] bg-white text-slate-600 hover:bg-slate-50',
+          )}
+        >
+          <Car className="h-4 w-4" />
+          Auto
+        </button>
+      </div>
+
+      {/* Car evaluation */}
+      {evalType === 'car' && <CarEvaluation />}
+
+      {/* Generic form */}
+      {evalType !== 'car' && (
+      <>
       <form onSubmit={handleCalculate} noValidate>
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Left panel: purchase details */}
@@ -752,6 +792,8 @@ export default function AffordabilityPage() {
             <p className="text-xs text-slate-500">{result.disclaimer}</p>
           </div>
         </section>
+      )}
+      </>
       )}
     </div>
   )

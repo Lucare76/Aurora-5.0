@@ -352,6 +352,41 @@ La valutazione si basa esclusivamente sui dati registrati in Aurora (transazioni
 
 ---
 
-## 29. Disclaimer
+## 29. Valutazione auto — "Posso permettermi questa auto?"
+
+La modalità **Auto** della sezione "Posso permettermelo?" consente di analizzare in dettaglio il costo totale di possesso (TCO) di un'automobile.
+
+### Come funziona
+
+1. Seleziona **Auto** nel selettore di tipo in cima alla pagina.
+2. Inserisci le informazioni del veicolo: nome/modello, prezzo, alimentazione, km/anno, anni di utilizzo.
+3. Aggiungi facoltativamente: riduzioni del prezzo (sconti, incentivi, permuta), spese iniziali (immatricolazione, consegna), assicurazione, bollo auto, carburante/energia, manutenzione, altri costi ricorrenti.
+4. Inserisci i dati dell'auto attuale (se disponibili) per calcolare il costo incrementale.
+5. Aggiungi un valore residuo stimato per un calcolo TCO netto più accurato.
+6. Premi **Valuta acquisto auto** per ottenere il risultato.
+
+### Metriche calcolate
+
+| Metrica | Descrizione |
+|---|---|
+| **Costo medio mensile di possesso** | TCO netto diviso per i mesi di utilizzo |
+| **Costo mensile ricorrente** | Assicurazione + bollo + carburante + manutenzione |
+| **Costo totale di possesso (TCO)** | Tutti i costi nel periodo di utilizzo |
+| **Costo netto** | TCO meno il valore residuo stimato |
+| **Costo per km** | Costo netto diviso per i km totali percorsi |
+| **Costo incrementale** | Differenza rispetto all'auto attuale |
+
+### Confronti disponibili
+
+- **Pagamento immediato vs. finanziamento**: se il pagamento è in finanziamento, vengono confrontate le due modalità.
+- **Auto A vs. Auto B**: inserendo un secondo veicolo per il confronto, vengono calcolati TCO, costo mensile e sostenibilità per entrambi.
+
+### Costi non inclusi
+
+Se non vengono inseriti assicurazione, bollo, carburante o manutenzione, la sezione "Costi non inclusi" avvisa che il calcolo è parziale e il costo reale sarà probabilmente più alto.
+
+---
+
+## 30. Disclaimer
 
 Le informazioni mostrate in Aurora hanno finalità organizzative e informative e non costituiscono consulenza finanziaria, creditizia o di investimento. Aurora non è un istituto finanziario e non è sottoposta a vigilanza finanziaria. L'utente è responsabile delle decisioni finanziarie prese sulla base dei propri dati.
