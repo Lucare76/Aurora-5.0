@@ -3,6 +3,7 @@ import type { Account, RecurringFrequency, Transaction } from '@/types/database'
 // ── Payment modes ─────────────────────────────────────────────────────────────
 
 export type PaymentMode = 'IMMEDIATE' | 'INSTALLMENTS'
+export type AffordabilityPurchaseType = 'GENERIC_PURCHASE' | 'CAR_PURCHASE' | 'HOME_PURCHASE' | 'TRAVEL_PURCHASE'
 
 // ── Classification ────────────────────────────────────────────────────────────
 

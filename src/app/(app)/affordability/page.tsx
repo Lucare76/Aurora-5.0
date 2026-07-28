@@ -13,11 +13,15 @@ import {
   Info,
   Loader2,
   RefreshCw,
+  Home,
+  Plane,
   ShoppingCart,
   TrendingDown,
   XCircle,
 } from 'lucide-react'
 import CarEvaluation from './CarEvaluation'
+import HomeEvaluation from './HomeEvaluation'
+import TravelEvaluation from './TravelEvaluation'
 import {
   ResponsiveContainer,
   AreaChart,
@@ -282,7 +286,7 @@ function ProjectionChart({ points, currency }: { points: AffordabilityResult['pr
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-type EvalType = 'generic' | 'car'
+type EvalType = 'generic' | 'car' | 'home' | 'travel'
 
 export default function AffordabilityPage() {
   const [evalType, setEvalType] = useState<EvalType>('generic')
@@ -375,13 +379,41 @@ export default function AffordabilityPage() {
           <Car className="h-4 w-4" />
           Auto
         </button>
+        <button
+          type="button"
+          onClick={() => { setEvalType('home'); setResult(null) }}
+          className={cn(
+            'flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
+            evalType === 'home'
+              ? 'border-indigo-300 bg-indigo-600 text-white'
+              : 'border-[#e5e7f0] bg-white text-slate-600 hover:bg-slate-50',
+          )}
+        >
+          <Home className="h-4 w-4" />
+          Casa
+        </button>
+        <button
+          type="button"
+          onClick={() => { setEvalType('travel'); setResult(null) }}
+          className={cn(
+            'flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
+            evalType === 'travel'
+              ? 'border-indigo-300 bg-indigo-600 text-white'
+              : 'border-[#e5e7f0] bg-white text-slate-600 hover:bg-slate-50',
+          )}
+        >
+          <Plane className="h-4 w-4" />
+          Vacanza
+        </button>
       </div>
 
       {/* Car evaluation */}
       {evalType === 'car' && <CarEvaluation />}
+      {evalType === 'home' && <HomeEvaluation />}
+      {evalType === 'travel' && <TravelEvaluation />}
 
       {/* Generic form */}
-      {evalType !== 'car' && (
+      {evalType === 'generic' && (
       <>
       <form onSubmit={handleCalculate} noValidate>
         <div className="grid gap-6 lg:grid-cols-2">

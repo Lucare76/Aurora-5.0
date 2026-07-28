@@ -390,3 +390,65 @@ Se non vengono inseriti assicurazione, bollo, carburante o manutenzione, la sezi
 ## 30. Disclaimer
 
 Le informazioni mostrate in Aurora hanno finalità organizzative e informative e non costituiscono consulenza finanziaria, creditizia o di investimento. Aurora non è un istituto finanziario e non è sottoposta a vigilanza finanziaria. L'utente è responsabile delle decisioni finanziarie prese sulla base dei propri dati.
+
+---
+
+## 31. Valutazione casa — "Posso permettermi questa casa?"
+
+La modalità **Casa** della sezione "Posso permettermelo?" valuta un acquisto immobiliare senza modificare saldi, movimenti, prestiti o snapshot.
+
+### Cosa inserire
+
+- prezzo richiesto e prezzo concordato;
+- sconto, contributi, agevolazioni manuali, ricavi da vendita e caparra già versata;
+- pagamento immediato oppure mutuo con anticipo, rata, durata, spese e tasso come semplice etichetta;
+- notaio, imposte, agenzia, perizia, istruttoria, assicurazione iniziale, trasloco e altri costi iniziali;
+- lavori, margine prudenziale e arredamento, distinguendo le voci rinviabili;
+- condominio, utenze, assicurazione, imposte ricorrenti e manutenzione;
+- situazione abitativa attuale per calcolare l'incremento reale;
+- valore residuo stimato e debito residuo a fine periodo.
+
+### Cosa mostra Aurora
+
+- prezzo effettivo;
+- esborso iniziale;
+- rata e costo abitativo mensile totale;
+- incremento rispetto all'abitazione attuale;
+- costo annuale e costo totale nel periodo;
+- valore netto stimato, sempre indicato come stima dell'utente;
+- costi mancanti e qualità dati;
+- rischi, motivazioni, alternative deterministiche e prezzo massimo prudenziale quando i dati sono sufficienti.
+
+### Limiti
+
+Aurora non recupera tassi, valori immobiliari, imposte o agevolazioni online. Non calcola automaticamente requisiti fiscali, non consiglia banche o immobili e non fornisce consulenza finanziaria o fiscale.
+
+---
+
+## 32. Valutazione vacanza — "Posso permettermi questa vacanza?"
+
+La modalità **Vacanza** della sezione "Posso permettermelo?" valuta l'impatto finanziario di un viaggio usando solo costi inseriti manualmente.
+
+### Cosa inserire
+
+- nome simulazione, destinazione, paese, numero viaggiatori, adulti e bambini;
+- data prenotazione, partenza e rientro;
+- trasporti: auto, aereo, treno, nave o bus, più taxi, transfer, parcheggi e altri costi;
+- alloggio: costo totale, acconto, saldo, cauzione, pulizie e tassa soggiorno;
+- pasti: budget giornaliero per persona oppure costo totale;
+- attività: escursioni, musei, parchi, eventi, sport e noleggi;
+- extra: shopping, souvenir, assicurazione viaggio, roaming, mance, imprevisti;
+- calendario pagamenti con importo e data prevista.
+
+### Cosa mostra Aurora
+
+- durata viaggio e numero notti;
+- costo totale vacanza;
+- liquidità residua e mesi di copertura;
+- saldo minimo previsto e mesi critici;
+- accantonamento mensile suggerito fino alla partenza;
+- budget massimo prudenziale quando i dati sono sufficienti;
+- confronto opzionale tra due vacanze;
+- alternative deterministicamente calcolate.
+
+Aurora non suggerisce destinazioni, non recupera prezzi online, non usa motori di prenotazione, non effettua conversioni valutarie automatiche e non modifica dati reali.

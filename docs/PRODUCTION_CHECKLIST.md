@@ -213,7 +213,41 @@ Configurati in `next.config.ts` nella sezione `headers()`.
 
 ---
 
-## 22. Git e commit
+## 22. Valutazione casa (Home Affordability)
+
+- [ ] La pagina `/affordability` mostra il selettore "Acquisto generico" / "Auto" / "Casa"
+- [ ] Il form casa raccoglie immobile, prezzo, contributi, pagamento, mutuo, costi iniziali, lavori, arredamento, condominio, utenze, assicurazione, imposte, manutenzione, abitazione attuale e valore residuo
+- [ ] Il pagamento immediato calcola esborso iniziale e liquidità residua
+- [ ] Il mutuo calcola rata, costo finanziario, costo abitativo mensile e picchi di liquidità
+- [ ] Maggiore anticipo, minore anticipo e durata mutuo diversa sono confrontabili tramite il motore
+- [ ] Lavori e arredamento rinviabile generano alternative deterministiche
+- [ ] Affitto o mutuo attuale riducono correttamente l'incremento reale mensile
+- [ ] Valore residuo e debito residuo sono mostrati come stime inserite dall'utente
+- [ ] I costi mancanti riducono la confidenza e sono visibili
+- [ ] L'API `POST /api/affordability/home/calculate` restituisce 401 senza autenticazione
+- [ ] L'API non crea transazioni, mutui, prestiti, notifiche o snapshot
+- [ ] Mobile, dark mode, tastiera e screen reader non presentano blocchi evidenti
+- [ ] Il disclaimer è visibile nel risultato
+
+---
+
+## 23. Valutazione vacanza (Travel Affordability)
+
+- [ ] La pagina `/affordability` mostra il selettore "Acquisto" / "Auto" / "Casa" / "Vacanza"
+- [ ] Il form vacanza raccoglie viaggio, trasporti, alloggio, pasti, attività, extra e calendario pagamenti
+- [ ] Durata viaggio e notti sono calcolate automaticamente
+- [ ] Il budget pasti giornaliero viene moltiplicato per giorni e viaggiatori
+- [ ] I pagamenti distribuiti usano date reali nella simulazione
+- [ ] L'accantonamento mensile suggerito cambia in base ai mesi alla partenza
+- [ ] Il budget massimo viene mostrato come intervallo prudenziale quando i dati sono sufficienti
+- [ ] Il confronto Vacanza A vs Vacanza B non suggerisce destinazioni
+- [ ] L'API `POST /api/affordability/travel/calculate` restituisce 401 senza autenticazione
+- [ ] L'API non crea transazioni, notifiche o modifiche ai saldi
+- [ ] Nessuna API esterna, AI, prezzo online o conversione automatica viene usata
+
+---
+
+## 24. Git e commit
 
 - [ ] `git diff --check` non riporta spazi o newline extra
 - [ ] Nessun file `.env*` committato
