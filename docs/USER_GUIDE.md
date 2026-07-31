@@ -452,3 +452,31 @@ La modalità **Vacanza** della sezione "Posso permettermelo?" valuta l'impatto f
 - alternative deterministicamente calcolate.
 
 Aurora non suggerisce destinazioni, non recupera prezzi online, non usa motori di prenotazione, non effettua conversioni valutarie automatiche e non modifica dati reali.
+
+---
+
+## 33. Confronta le tue decisioni
+
+La pagina **Confronta scenari** (raggiungibile dalla sezione "Posso permettermelo?") permette di confrontare fino a 4 ipotesi di acquisto — generico, auto, casa o vacanza, anche di domini diversi tra loro — in base al loro impatto finanziario.
+
+### Cosa inserire
+
+- da 2 a 4 scenari, ciascuno con i dati essenziali del relativo acquisto (nome, prezzo, modalità di pagamento, date);
+- un profilo decisionale predefinito (Bilanciato, Proteggi la liquidità, Riduci il costo totale, Riduci l'impegno mensile, Evita il debito, Preserva il fondo di emergenza) oppure pesi personalizzati per ciascun criterio.
+
+### Cosa mostra Aurora
+
+- lo scenario che risulta più adatto in base ai criteri scelti, con relativo punteggio;
+- la classifica completa, con eventuali parità o scenari dominati;
+- il dettaglio dei punteggi per ciascun criterio (costo, liquidità, debito, valore residuo, ecc.);
+- i principali compromessi tra coppie di scenari;
+- avvisi su valute incompatibili, dati mancanti o confrontabilità parziale tra domini diversi;
+- una spiegazione sintetica del metodo di calcolo (normalizzazione, pesi, punteggio, classifica).
+
+### Origine dei dati
+
+Ogni scenario viene ricalcolato lato server dal motore di confronto usando i dati finanziari reali dell'utente (conti, transazioni, ricorrenze, prestiti, obiettivi) al momento del confronto — nessun risultato viene salvato: se si esce dalla pagina, il confronto va ripetuto.
+
+### Limiti
+
+Il punteggio è un indice relativo utile a ordinare le opzioni tra loro, non una raccomandazione finanziaria assoluta. Il modulo di inserimento rapido copre i campi essenziali di ciascun dominio: per simulazioni con voci di costo dettagliate (assicurazioni, manutenzione, spese condominiali, ecc.) usare i calcolatori dedicati (Auto, Casa, Vacanza) descritti nelle sezioni precedenti.

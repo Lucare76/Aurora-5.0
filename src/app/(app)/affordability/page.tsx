@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  GitCompare,
   Info,
   Loader2,
   RefreshCw,
@@ -19,6 +20,7 @@ import {
   TrendingDown,
   XCircle,
 } from 'lucide-react'
+import Link from 'next/link'
 import CarEvaluation from './CarEvaluation'
 import HomeEvaluation from './HomeEvaluation'
 import TravelEvaluation from './TravelEvaluation'
@@ -333,16 +335,25 @@ export default function AffordabilityPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600">
-          <ShoppingCart className="h-6 w-6" />
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600">
+            <ShoppingCart className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Posso permettermelo?</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Simula un acquisto e valuta il suo impatto sulle tue finanze senza modificare i dati reali.
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Posso permettermelo?</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Simula un acquisto e valuta il suo impatto sulle tue finanze senza modificare i dati reali.
-          </p>
-        </div>
+        <Link
+          href="/affordability/compare"
+          className="flex shrink-0 items-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+        >
+          <GitCompare className="h-4 w-4" aria-hidden="true" />
+          Confronta scenari
+        </Link>
       </div>
 
       {/* Simulation badge */}
@@ -352,12 +363,18 @@ export default function AffordabilityPage() {
       </div>
 
       {/* Type selector */}
-      <div className="flex gap-2">
+      <div
+        className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0"
+        role="tablist"
+        aria-label="Tipo di valutazione"
+      >
         <button
           type="button"
           onClick={() => { setEvalType('generic'); setResult(null) }}
+          role="tab"
+          aria-selected={evalType === 'generic'}
           className={cn(
-            'flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
+            'flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
             evalType === 'generic'
               ? 'border-indigo-300 bg-indigo-600 text-white'
               : 'border-[#e5e7f0] bg-white text-slate-600 hover:bg-slate-50',
@@ -369,8 +386,10 @@ export default function AffordabilityPage() {
         <button
           type="button"
           onClick={() => { setEvalType('car'); setResult(null) }}
+          role="tab"
+          aria-selected={evalType === 'car'}
           className={cn(
-            'flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
+            'flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
             evalType === 'car'
               ? 'border-indigo-300 bg-indigo-600 text-white'
               : 'border-[#e5e7f0] bg-white text-slate-600 hover:bg-slate-50',
@@ -382,8 +401,10 @@ export default function AffordabilityPage() {
         <button
           type="button"
           onClick={() => { setEvalType('home'); setResult(null) }}
+          role="tab"
+          aria-selected={evalType === 'home'}
           className={cn(
-            'flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
+            'flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
             evalType === 'home'
               ? 'border-indigo-300 bg-indigo-600 text-white'
               : 'border-[#e5e7f0] bg-white text-slate-600 hover:bg-slate-50',
@@ -395,8 +416,10 @@ export default function AffordabilityPage() {
         <button
           type="button"
           onClick={() => { setEvalType('travel'); setResult(null) }}
+          role="tab"
+          aria-selected={evalType === 'travel'}
           className={cn(
-            'flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
+            'flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
             evalType === 'travel'
               ? 'border-indigo-300 bg-indigo-600 text-white'
               : 'border-[#e5e7f0] bg-white text-slate-600 hover:bg-slate-50',
@@ -425,7 +448,7 @@ export default function AffordabilityPage() {
               <Input id="purchaseName" value={form.purchaseName} onChange={set('purchaseName')} placeholder="es. Automobile, Laptop, Frigorifero…" required />
             </FieldGroup>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <FieldGroup label="Prezzo totale (€) *" htmlFor="totalPrice">
                 <Input id="totalPrice" value={form.totalPrice} onChange={set('totalPrice')} type="number" min="0.01" step="0.01" placeholder="0,00" required />
               </FieldGroup>
@@ -437,7 +460,7 @@ export default function AffordabilityPage() {
             {/* Payment mode */}
             <div>
               <Label htmlFor="paymentMode">Modalità di pagamento</Label>
-              <div className="mt-1 flex gap-2">
+              <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {(['IMMEDIATE', 'INSTALLMENTS'] as const).map((mode) => (
                   <button
                     key={mode}
@@ -468,7 +491,7 @@ export default function AffordabilityPage() {
             {form.paymentMode === 'INSTALLMENTS' && (
               <div className="space-y-3 rounded-xl border border-[#e5e7f0] bg-slate-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Dettagli rata</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <FieldGroup label="Anticipo (€)" htmlFor="downPayment">
                     <Input id="downPayment" value={form.downPayment} onChange={set('downPayment')} type="number" min="0" step="0.01" placeholder="0,00" />
                   </FieldGroup>
@@ -501,7 +524,7 @@ export default function AffordabilityPage() {
 
             {showAdvanced && (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <FieldGroup label="Spese aggiuntive iniziali (€)" htmlFor="additionalUpfrontCosts">
                     <Input id="additionalUpfrontCosts" value={form.additionalUpfrontCosts} onChange={set('additionalUpfrontCosts')} type="number" min="0" step="0.01" placeholder="0,00" />
                   </FieldGroup>
@@ -553,7 +576,7 @@ export default function AffordabilityPage() {
                   <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">
                     Puoi modificare questi parametri in base alle tue esigenze. Non rappresentano una raccomandazione finanziaria.
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <FieldGroup label="Fondo minimo (mesi di spese)" htmlFor="minimumLiquidityMonths">
                       <Input id="minimumLiquidityMonths" value={form.minimumLiquidityMonths} onChange={set('minimumLiquidityMonths')} type="number" min="0" max="24" step="0.5" placeholder="3" />
                     </FieldGroup>

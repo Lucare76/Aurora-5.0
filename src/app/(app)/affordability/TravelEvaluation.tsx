@@ -98,6 +98,42 @@ const SEVERITY_COLORS: Record<Severity, string> = {
   info: 'text-slate-500',
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  mainTrip: 'Viaggio principale (€)',
+  fuel: 'Carburante (€)',
+  tolls: 'Pedaggi (€)',
+  parking: 'Parcheggi (€)',
+  taxi: 'Taxi e ride sharing (€)',
+  transfers: 'Transfer locali (€)',
+  rentalCar: 'Auto a noleggio (€)',
+  transportOther: 'Altri trasporti (€)',
+  lodgingTotal: 'Alloggio totale (€)',
+  lodgingDeposit: 'Acconto alloggio (€)',
+  lodgingBalance: 'Saldo alloggio (€)',
+  securityDeposit: 'Deposito cauzionale (€)',
+  cleaning: 'Pulizie (€)',
+  touristTax: 'Tassa di soggiorno (€)',
+  excursions: 'Escursioni (€)',
+  museums: 'Musei (€)',
+  parks: 'Parchi (€)',
+  events: 'Eventi (€)',
+  beach: 'Spiaggia e stabilimenti (€)',
+  sports: 'Sport (€)',
+  rentals: 'Noleggi attività (€)',
+  activitiesOther: 'Altre attività (€)',
+  shopping: 'Shopping (€)',
+  souvenirs: 'Souvenir (€)',
+  travelInsurance: 'Assicurazione viaggio (€)',
+  roaming: 'Roaming e SIM (€)',
+  tips: 'Mance (€)',
+  contingency: 'Margine imprevisti (€)',
+  extrasOther: 'Altri extra (€)',
+}
+
+function fieldLabel(key: string) {
+  return FIELD_LABELS[key] ?? key
+}
+
 function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
   return <label htmlFor={htmlFor} className="block text-sm font-medium text-slate-700">{children}</label>
 }
@@ -300,13 +336,13 @@ export default function TravelEvaluation() {
         <Section title="2. Trasporti">
           <FieldGrid>
             <div><Label htmlFor="transportMode">Mezzo principale</Label><Select id="transportMode" value={form.transportMode} onChange={set('transportMode')}>{Object.entries(TRANSPORT_MODE_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></div>
-            {['mainTrip', 'fuel', 'tolls', 'parking', 'taxi', 'transfers', 'rentalCar', 'transportOther'].map((key) => <div key={key}><Label htmlFor={key}>{key}</Label><Input id={key} value={form[key]} onChange={set(key)} type="number" min="0" /></div>)}
+            {['mainTrip', 'fuel', 'tolls', 'parking', 'taxi', 'transfers', 'rentalCar', 'transportOther'].map((key) => <div key={key}><Label htmlFor={key}>{fieldLabel(key)}</Label><Input id={key} value={form[key]} onChange={set(key)} type="number" min="0" /></div>)}
           </FieldGrid>
         </Section>
         <Section title="3. Alloggio">
           <FieldGrid>
             <div><Label htmlFor="lodgingType">Tipo alloggio</Label><Select id="lodgingType" value={form.lodgingType} onChange={set('lodgingType')}>{Object.entries(LODGING_TYPE_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></div>
-            {['lodgingTotal', 'lodgingDeposit', 'lodgingBalance', 'securityDeposit', 'cleaning', 'touristTax'].map((key) => <div key={key}><Label htmlFor={key}>{key}</Label><Input id={key} value={form[key]} onChange={set(key)} type="number" min="0" /></div>)}
+            {['lodgingTotal', 'lodgingDeposit', 'lodgingBalance', 'securityDeposit', 'cleaning', 'touristTax'].map((key) => <div key={key}><Label htmlFor={key}>{fieldLabel(key)}</Label><Input id={key} value={form[key]} onChange={set(key)} type="number" min="0" /></div>)}
           </FieldGrid>
         </Section>
         <Section title="4. Pasti, attività, extra">
@@ -314,7 +350,7 @@ export default function TravelEvaluation() {
             <div><Label htmlFor="mealMode">Pasti</Label><Select id="mealMode" value={form.mealMode} onChange={set('mealMode')}>{Object.entries(MEAL_MODE_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></div>
             <div><Label htmlFor="dailyBudgetPerPerson">Budget pasti giornaliero a persona</Label><Input id="dailyBudgetPerPerson" value={form.dailyBudgetPerPerson} onChange={set('dailyBudgetPerPerson')} type="number" min="0" /></div>
             <div><Label htmlFor="mealsTotal">Pasti costo totale</Label><Input id="mealsTotal" value={form.mealsTotal} onChange={set('mealsTotal')} type="number" min="0" /></div>
-            {['excursions', 'museums', 'parks', 'events', 'beach', 'sports', 'rentals', 'activitiesOther', 'shopping', 'souvenirs', 'travelInsurance', 'roaming', 'tips', 'contingency', 'extrasOther'].map((key) => <div key={key}><Label htmlFor={key}>{key}</Label><Input id={key} value={form[key]} onChange={set(key)} type="number" min="0" /></div>)}
+            {['excursions', 'museums', 'parks', 'events', 'beach', 'sports', 'rentals', 'activitiesOther', 'shopping', 'souvenirs', 'travelInsurance', 'roaming', 'tips', 'contingency', 'extrasOther'].map((key) => <div key={key}><Label htmlFor={key}>{fieldLabel(key)}</Label><Input id={key} value={form[key]} onChange={set(key)} type="number" min="0" /></div>)}
           </FieldGrid>
         </Section>
         <Section title="5. Calendario pagamenti e prudenza">
