@@ -27,6 +27,7 @@ export function validateRecordCounts(backup: AuroraBackupV1): BackupValidationIs
 
   for (const key of BACKUP_COLLECTION_KEYS) {
     if (!(key in declared)) {
+      if (actual[key] === 0) continue
       issues.push(issue('RECORD_COUNT_MISSING', 'error', ['integrity', 'recordCounts', key], 'Conteggio record mancante.', { collection: key }))
       continue
     }

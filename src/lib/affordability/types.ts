@@ -120,6 +120,7 @@ export type AffordabilityDbData = {
   accounts: Account[]
   recurringRules: Array<{
     id: string
+    account_id?: string
     type: 'income' | 'expense' | 'transfer'
     amount: number
     frequency: RecurringFrequency
@@ -128,7 +129,7 @@ export type AffordabilityDbData = {
     next_due_date: string
     is_active: boolean
   }>
-  recentTransactions: Array<Pick<Transaction, 'id' | 'type' | 'amount' | 'date' | 'transfer_peer_id'>>
+  recentTransactions: Array<Pick<Transaction, 'id' | 'type' | 'amount' | 'date' | 'transfer_peer_id'> & { account_id?: string }>
   loans: Array<{ id: string; remaining: number; is_settled: boolean; due_date: string | null }>
   loanPayments: Array<{ id: string; loan_id: string; amount: number; paid_at: string }>
   goals: Array<{ id: string; name: string; target_amount: number; current_amount: number; target_date: string | null; status: string; archived: boolean }>

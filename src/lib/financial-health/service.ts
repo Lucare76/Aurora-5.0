@@ -14,6 +14,7 @@ import type { Account, Budget, Category, Database, Loan, LoanPayment, RecurringR
 import type { HealthNotification, HealthPeriod, MonthlyCashFlowMetric, ProjectedLiquidityInput } from './types'
 import { calculateFinancialHealth } from './engine'
 import { buildMonthPeriod, dateKey, addMonths, previousComparablePeriod, roundMoney } from './helpers'
+import { filterPersonalAccounts, filterPersonalTransactions, getDependentAccountIds } from '@/lib/dependent-finance/calculations'
 
 export class FinancialHealthInputError extends Error {
   constructor(
@@ -161,6 +162,7 @@ export async function buildFinancialHealthPayload(
     loansRes,
     loanPaymentsRes,
     notificationsRes,
+    accountPurposeRes,
   ] = await Promise.all([
     supabase.from('profiles').select('timezone,display_name').eq('id', userId).maybeSingle(),
     supabase.from('accounts').select('id,user_id,name,type,balance,currency,is_active,is_hidden,color,icon,sort_order,created_at,updated_at').eq('user_id', userId),
@@ -173,16 +175,19 @@ export async function buildFinancialHealthPayload(
     supabase.from('loans').select('id,user_id,counterpart,type,amount,remaining,description,due_date,is_settled,settled_at,created_at,updated_at').eq('user_id', userId),
     supabase.from('loan_payments').select('id,loan_id,user_id,amount,paid_at,notes,created_at').eq('user_id', userId).gte('paid_at', `${twelveMonthsAgo}T00:00:00.000Z`),
     (supabase as unknown as SupabaseClient).from('notifications').select('id,type,severity,source_type,source_id,source_url,is_read,archived_at,resolved_at,snoozed_until,created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(5000),
+    (supabase as unknown as SupabaseClient).from('account_purpose_links').select('account_id,purpose').eq('user_id', userId),
   ])
 
   const required = [profileRes, accountsRes, categoriesRes, transactionsRes, budgetsRes, recurringRes, goalsRes, contributionsRes, loansRes, loanPaymentsRes]
   if (required.some((res) => res.error)) throw new FinancialHealthInputError('FINANCIAL_HEALTH_CALCULATION_FAILED', 'Calcolo non disponibile.')
 
-  const accounts = (accountsRes.data ?? []) as Account[]
+  const accountPurposeLinks = accountPurposeRes.error ? [] : (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
+  const dedicatedAccountIds = getDependentAccountIds(accountPurposeLinks)
+  const accounts = filterPersonalAccounts((accountsRes.data ?? []) as Account[], accountPurposeLinks)
   const categories = (categoriesRes.data ?? []) as Category[]
-  const transactions = (transactionsRes.data ?? []) as Transaction[]
+  const transactions = filterPersonalTransactions((transactionsRes.data ?? []) as Transaction[], accountPurposeLinks)
   const budgets = (budgetsRes.data ?? []) as Budget[]
-  const recurringRules = (recurringRes.data ?? []) as RecurringRule[]
+  const recurringRules = ((recurringRes.data ?? []) as RecurringRule[]).filter((rule) => !dedicatedAccountIds.has(rule.account_id))
   const goals = (goalsRes.data ?? []) as SavingsGoal[]
   const loans = (loansRes.data ?? []) as Loan[]
   const projectedLiquidity = buildProjectedLiquidity({ accounts, categories, recurringRules, loans, goals, budgets, transactions, today, in90 })

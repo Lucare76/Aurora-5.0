@@ -17,6 +17,7 @@ import { adaptTravelScenario } from '@/lib/decision-comparison/adapters/travel-a
 import { compareDecisions } from '@/lib/decision-comparison/engine'
 import { DecisionComparisonError } from '@/lib/decision-comparison/types'
 import { MIN_SCENARIOS, MAX_SCENARIOS } from '@/lib/decision-comparison/constants'
+import { filterPersonalAccounts, filterPersonalTransactions, getDependentAccountIds } from '@/lib/dependent-finance/calculations'
 import type {
   ComparisonProfile,
   DecisionComparisonErrorCode,
@@ -135,12 +136,12 @@ function assertQuerySucceeded(label: string, result: { error?: unknown }) {
 }
 
 async function loadDbData(supabase: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<AffordabilityDbData> {
-  const [accountsRes, recurringRes, txRes, loansRes, loanPaymentsRes, goalsRes, contribRes] = await Promise.all([
+  const [accountsRes, recurringRes, txRes, loansRes, loanPaymentsRes, goalsRes, contribRes, accountPurposeRes] = await Promise.all([
     supabase.from('accounts').select('*').eq('user_id', userId),
-    supabase.from('recurring_rules').select('id,type,amount,frequency,start_date,end_date,next_due_date,is_active').eq('user_id', userId),
+    supabase.from('recurring_rules').select('id,account_id,type,amount,frequency,start_date,end_date,next_due_date,is_active').eq('user_id', userId),
     supabase
       .from('transactions')
-      .select('id,type,amount,date,transfer_peer_id')
+      .select('id,account_id,type,amount,date,transfer_peer_id')
       .eq('user_id', userId)
       .order('date', { ascending: false })
       .limit(500),
@@ -148,6 +149,7 @@ async function loadDbData(supabase: Awaited<ReturnType<typeof createClient>>, us
     supabase.from('loan_payments').select('id,loan_id,amount,paid_at').eq('user_id', userId),
     supabase.from('savings_goals').select('id,name,target_amount,current_amount,target_date,status,archived').eq('user_id', userId),
     supabase.from('goal_contributions').select('id,goal_id,amount,date').eq('user_id', userId),
+    supabase.from('account_purpose_links').select('account_id,purpose').eq('user_id', userId),
   ])
 
   assertQuerySucceeded('accounts', accountsRes)
@@ -158,10 +160,13 @@ async function loadDbData(supabase: Awaited<ReturnType<typeof createClient>>, us
   assertQuerySucceeded('savings_goals', goalsRes)
   assertQuerySucceeded('goal_contributions', contribRes)
 
+  const accountPurposeLinks = accountPurposeRes.error ? [] : (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
+  const dedicatedAccountIds = getDependentAccountIds(accountPurposeLinks)
+
   return {
-    accounts: (accountsRes.data ?? []) as AffordabilityDbData['accounts'],
-    recurringRules: (recurringRes.data ?? []) as AffordabilityDbData['recurringRules'],
-    recentTransactions: (txRes.data ?? []) as AffordabilityDbData['recentTransactions'],
+    accounts: filterPersonalAccounts((accountsRes.data ?? []) as AffordabilityDbData['accounts'], accountPurposeLinks),
+    recurringRules: ((recurringRes.data ?? []) as AffordabilityDbData['recurringRules']).filter((rule) => !rule.account_id || !dedicatedAccountIds.has(rule.account_id)),
+    recentTransactions: filterPersonalTransactions((txRes.data ?? []) as AffordabilityDbData['recentTransactions'], accountPurposeLinks),
     loans: (loansRes.data ?? []) as AffordabilityDbData['loans'],
     loanPayments: (loanPaymentsRes.data ?? []) as AffordabilityDbData['loanPayments'],
     goals: (goalsRes.data ?? []) as AffordabilityDbData['goals'],

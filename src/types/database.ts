@@ -7,6 +7,10 @@ export type SavingsGoalStatus = 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'
 export type AutomationMatchMode = 'ALL' | 'ANY'
 export type AutomationApplicationMode = 'SUGGESTED' | 'MANUAL' | 'AUTOMATIC' | 'BULK'
 export type AutomationApplicationResult = 'APPLIED' | 'SKIPPED' | 'CONFLICT' | 'FAILED' | 'REVERTED'
+export type FinanceScope = 'PERSONAL' | 'DEPENDENT_AURORA' | 'ADI'
+export type AssetPurpose = FinanceScope | 'DEPENDENT'
+export type AdiEntryType = 'credit' | 'debit'
+export type AdiCategory = 'SUPERMERCATO' | 'BENZINA' | 'ABBIGLIAMENTO_AURORA'
 
 export interface Profile {
   id: string
@@ -244,6 +248,57 @@ export interface FinancialHealthSnapshot {
   recommendations: Record<string, unknown>[]
   calculation_version: string
   calculated_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DependentBeneficiary {
+  id: string
+  user_id: string
+  name: string
+  relationship: string
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AccountPurposeLink {
+  id: string
+  user_id: string
+  account_id: string
+  beneficiary_id: string | null
+  purpose: AssetPurpose
+  label: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface FinanceTransferMetadata {
+  id: string
+  user_id: string
+  source_transaction_id: string
+  destination_transaction_id: string
+  source_scope: FinanceScope
+  destination_scope: FinanceScope
+  reason: string | null
+  note: string | null
+  idempotency_key: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AdiEntry {
+  id: string
+  user_id: string
+  transaction_id: string | null
+  entry_type: AdiEntryType
+  adi_category: AdiCategory | null
+  amount: number
+  date: string
+  reference_period: string | null
+  description: string
+  note: string | null
+  funding_source: 'ADI'
   created_at: string
   updated_at: string
 }
@@ -1037,6 +1092,73 @@ export type Database = {
           error_code?: string | null
           app_version?: string | null
         }
+        Relationships: []
+      }
+      dependent_beneficiaries: {
+        Row: DependentBeneficiary
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          relationship?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<DependentBeneficiary>
+        Relationships: []
+      }
+      account_purpose_links: {
+        Row: AccountPurposeLink
+        Insert: {
+          id?: string
+          user_id: string
+          account_id: string
+          beneficiary_id?: string | null
+          purpose?: AssetPurpose
+          label?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<AccountPurposeLink>
+        Relationships: []
+      }
+      finance_transfer_metadata: {
+        Row: FinanceTransferMetadata
+        Insert: {
+          id?: string
+          user_id: string
+          source_transaction_id: string
+          destination_transaction_id: string
+          source_scope: FinanceScope
+          destination_scope: FinanceScope
+          reason?: string | null
+          note?: string | null
+          idempotency_key?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<FinanceTransferMetadata>
+        Relationships: []
+      }
+      adi_entries: {
+        Row: AdiEntry
+        Insert: {
+          id?: string
+          user_id: string
+          transaction_id?: string | null
+          entry_type: AdiEntryType
+          adi_category?: AdiCategory | null
+          amount: number
+          date: string
+          reference_period?: string | null
+          description: string
+          note?: string | null
+          funding_source?: 'ADI'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<AdiEntry>
         Relationships: []
       }
     }

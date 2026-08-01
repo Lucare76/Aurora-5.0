@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { ACCOUNT_TYPE_LABELS, FREQUENCY_LABELS, LOAN_TYPE_LABELS, TRANSACTION_TYPE_LABELS } from '@/lib/constants'
+import { normalizeFinanceScope } from '@/lib/dependent-finance/calculations'
 import { formatCurrency } from '@/lib/utils'
 import type { AccountType, LoanType, RecurringFrequency, TransactionType } from '@/types/database'
 import type { SearchGroup, SearchPayload, SearchResult, SearchResultType } from './types'
@@ -109,6 +110,7 @@ export async function searchAurora(supabase: SupabaseClient, rawQuery: string, u
     loanRes,
     recurringRes,
     automationRes,
+    accountPurposeRes,
   ] = await Promise.all([
     supabase
       .from('transactions')
@@ -159,6 +161,10 @@ export async function searchAurora(supabase: SupabaseClient, rawQuery: string, u
       .eq('user_id', userId)
       .or(`name.ilike.${pattern},description.ilike.${pattern}`)
       .limit(LIMIT_PER_GROUP),
+    supabase
+      .from('account_purpose_links')
+      .select('account_id,purpose')
+      .eq('user_id', userId),
   ])
 
   const errors = [txRes, accountRes, categoryRes, budgetRes, goalRes, loanRes, recurringRes, automationRes]
@@ -177,6 +183,7 @@ export async function searchAurora(supabase: SupabaseClient, rawQuery: string, u
   for (const category of (extraCategories.data ?? []) as SearchRow[]) categoryById.set(category.id, category)
 
   const results: SearchResult[] = []
+  const accountScopes = new Map(((accountPurposeRes.data ?? []) as SearchRow[]).map((link) => [link.account_id, normalizeFinanceScope(link.purpose)]))
 
   for (const tx of (txRes.data ?? []) as SearchRow[]) {
     const cat = tx.category_id ? categoryById.get(tx.category_id) : null
@@ -192,13 +199,14 @@ export async function searchAurora(supabase: SupabaseClient, rawQuery: string, u
   }
 
   for (const account of (accountRes.data ?? []) as SearchRow[]) {
+    const scope = accountScopes.get(account.id) ?? 'PERSONAL'
     results.push({
       id: account.id,
       type: 'ACCOUNT',
       title: account.name,
-      subtitle: subtitle([`Saldo ${formatCurrency(Number(account.balance), account.currency)}`, ACCOUNT_TYPE_LABELS[account.type as AccountType], account.is_active ? 'Attivo' : 'Inattivo']),
-      metadata: [account.type, account.currency],
-      href: '/accounts',
+      subtitle: subtitle([scope === 'DEPENDENT_AURORA' ? 'Perimetro Aurora' : 'Perimetro personale', `Saldo ${formatCurrency(Number(account.balance), account.currency)}`, ACCOUNT_TYPE_LABELS[account.type as AccountType], account.is_active ? 'Attivo' : 'Inattivo']),
+      metadata: [account.type, account.currency, scope],
+      href: scope === 'DEPENDENT_AURORA' ? '/aurora' : '/accounts',
       score: 0,
     })
   }

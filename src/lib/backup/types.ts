@@ -358,6 +358,57 @@ export type AuroraBackupFinancialScenarioV1 = {
   updated_at?: string
 }
 
+export type AuroraBackupDependentBeneficiaryV1 = {
+  id: string
+  user_id?: string
+  name: string
+  relationship: string
+  notes?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export type AuroraBackupAccountPurposeLinkV1 = {
+  id: string
+  user_id?: string
+  account_id: string
+  beneficiary_id?: string | null
+  purpose: 'PERSONAL' | 'DEPENDENT_AURORA' | 'ADI' | 'DEPENDENT'
+  label?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export type AuroraBackupAdiEntryV1 = {
+  id: string
+  user_id?: string
+  transaction_id?: string | null
+  entry_type: 'credit' | 'debit'
+  adi_category?: 'SUPERMERCATO' | 'BENZINA' | 'ABBIGLIAMENTO_AURORA' | null
+  amount: number
+  date: string
+  reference_period?: string | null
+  description: string
+  note?: string | null
+  funding_source: 'ADI'
+  created_at?: string
+  updated_at?: string
+}
+
+export type AuroraBackupFinanceTransferMetadataV1 = {
+  id: string
+  user_id?: string
+  source_transaction_id: string
+  destination_transaction_id: string
+  source_scope: 'PERSONAL' | 'DEPENDENT_AURORA' | 'ADI'
+  destination_scope: 'PERSONAL' | 'DEPENDENT_AURORA' | 'ADI'
+  reason?: string | null
+  note?: string | null
+  idempotency_key?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
 export type AuroraBackupDataV1 = {
   profile: AuroraBackupProfileV1
   accounts: AuroraBackupAccountV1[]
@@ -387,6 +438,11 @@ export type AuroraBackupDataV1 = {
   dataIntegrityIssues?: AuroraBackupDataIntegrityIssueV1[]
   // Optional: included from Sprint 16 onwards; export-only (restore deferred)
   financialScenarios?: AuroraBackupFinancialScenarioV1[]
+  // Optional: included from Sprint 25 onwards
+  dependentBeneficiaries?: AuroraBackupDependentBeneficiaryV1[]
+  accountPurposeLinks?: AuroraBackupAccountPurposeLinkV1[]
+  financeTransferMetadata?: AuroraBackupFinanceTransferMetadataV1[]
+  adiEntries?: AuroraBackupAdiEntryV1[]
 }
 
 export type AuroraBackupV1 = {

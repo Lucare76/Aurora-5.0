@@ -10,6 +10,7 @@ import {
 import type { EnrichedBudgetEntry, EnrichedBudgetSummary } from '@/lib/budgets/service'
 import { buildGoalSummary } from '@/lib/goals/service'
 import type { GoalSummary } from '@/lib/goals/service'
+import { filterPersonalAccounts, filterPersonalTransactions, getDependentAccountIds } from '@/lib/dependent-finance/calculations'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -692,6 +693,7 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
     rulesRes,
     loansRes,
     birthdaysRes,
+    accountPurposeRes,
   ] = await Promise.all([
     supabase
       .from('accounts')
@@ -716,7 +718,7 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
       .neq('status', 'ARCHIVED'),
     supabase
       .from('recurring_rules')
-      .select('id,description,amount,type,next_due_date,frequency,auto_create')
+      .select('id,account_id,description,amount,type,next_due_date,frequency,auto_create')
       .eq('is_active', true)
       .gte('next_due_date', todayStr)
       .lte('next_due_date', in30Str)
@@ -732,14 +734,20 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
     supabase
       .from('birthdays')
       .select('id,name,birth_date'),
+    supabase
+      .from('account_purpose_links')
+      .select('account_id,purpose'),
   ])
 
-  const accounts    = (accountsRes.data ?? []) as DashboardAccount[]
+  const accountPurposeLinks = accountPurposeRes.error ? [] : (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
+  const dedicatedAccountIds = getDependentAccountIds(accountPurposeLinks)
+  const accounts    = filterPersonalAccounts((accountsRes.data ?? []) as DashboardAccount[], accountPurposeLinks)
   const categories  = (categoriesRes.data ?? []) as CatRow[]
-  const allTxs      = (txRes.data ?? []) as TxRow[]
+  const allTxs      = filterPersonalTransactions((txRes.data ?? []) as TxRow[], accountPurposeLinks)
   const budgets     = (budgetsRes.data ?? []) as { id: string; category_id: string; amount: number }[]
   const goals       = (goalsRes.data ?? []) as any[]
-  const rules       = (rulesRes.data ?? []) as DashboardUpcomingRule[]
+  const rules       = ((rulesRes.data ?? []) as Array<DashboardUpcomingRule & { account_id?: string }>)
+    .filter((rule) => !rule.account_id || !dedicatedAccountIds.has(rule.account_id))
   const loans       = (loansRes.data ?? []) as DashboardUpcomingLoan[]
   const birthdaysRaw = (birthdaysRes.data ?? []) as { id: string; name: string; birth_date: string }[]
 

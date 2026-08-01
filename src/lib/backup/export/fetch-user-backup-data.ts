@@ -12,6 +12,10 @@ import type {
   Category,
   Database,
   DataIntegrityIssueRecord,
+  DependentBeneficiary,
+  AccountPurposeLink,
+  AdiEntry,
+  FinanceTransferMetadata,
   FinancialHealthSnapshot,
   Loan,
   LoanPayment,
@@ -62,6 +66,14 @@ export const BACKUP_DATA_INTEGRITY_ISSUE_SELECT =
   'fingerprint,rule_code,status,ignored_reason,acknowledged_at,ignored_at,resolved_at,ruleset_version,updated_at'
 export const BACKUP_FINANCIAL_SCENARIO_SELECT =
   'id,user_id,name,description,status,horizon_months,start_date,end_date,currency,actions,assumptions,engine_version,schema_version,action_registry_version,baseline_as_of,last_calculated_at,result_summary,is_favorite,created_at,updated_at'
+export const BACKUP_DEPENDENT_BENEFICIARY_SELECT =
+  'id,user_id,name,relationship,notes,created_at,updated_at'
+export const BACKUP_ACCOUNT_PURPOSE_LINK_SELECT =
+  'id,user_id,account_id,beneficiary_id,purpose,label,created_at,updated_at'
+export const BACKUP_FINANCE_TRANSFER_METADATA_SELECT =
+  'id,user_id,source_transaction_id,destination_transaction_id,source_scope,destination_scope,reason,note,idempotency_key,created_at,updated_at'
+export const BACKUP_ADI_ENTRY_SELECT =
+  'id,user_id,transaction_id,entry_type,adi_category,amount,date,reference_period,description,note,funding_source,created_at,updated_at'
 
 export type BackupAuthenticatedUser = {
   id: string
@@ -103,6 +115,10 @@ export type UserBackupData = {
   dataIntegrityIssues?: Pick<DataIntegrityIssueRecord, 'fingerprint' | 'rule_code' | 'status' | 'ignored_reason' | 'acknowledged_at' | 'ignored_at' | 'resolved_at' | 'ruleset_version' | 'updated_at'>[]
   // Financial scenarios: export-only (restore deferred)
   financialScenarios?: Record<string, unknown>[]
+  dependentBeneficiaries?: DependentBeneficiary[]
+  accountPurposeLinks?: AccountPurposeLink[]
+  financeTransferMetadata?: FinanceTransferMetadata[]
+  adiEntries?: AdiEntry[]
 }
 
 type BackupSupabaseClient = SupabaseClient<Database>
@@ -161,6 +177,10 @@ export async function fetchUserBackupData(
     dashboardPreferences,
     dataIntegrityIssues,
     financialScenarios,
+    dependentBeneficiaries,
+    accountPurposeLinks,
+    financeTransferMetadata,
+    adiEntries,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -283,6 +303,27 @@ export async function fetchUserBackupData(
       .eq('user_id', user.id)
       .order('created_at', { ascending: true })
       .limit(500) as unknown as Promise<QueryResult<Record<string, unknown>>>,
+    (supabase as unknown as SupabaseClient)
+      .from('dependent_beneficiaries')
+      .select(BACKUP_DEPENDENT_BENEFICIARY_SELECT)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<DependentBeneficiary>>,
+    (supabase as unknown as SupabaseClient)
+      .from('account_purpose_links')
+      .select(BACKUP_ACCOUNT_PURPOSE_LINK_SELECT)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<AccountPurposeLink>>,
+    (supabase as unknown as SupabaseClient)
+      .from('finance_transfer_metadata')
+      .select(BACKUP_FINANCE_TRANSFER_METADATA_SELECT)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<FinanceTransferMetadata>>,
+    (supabase as unknown as SupabaseClient)
+      .from('adi_entries')
+      .select(BACKUP_ADI_ENTRY_SELECT)
+      .eq('user_id', user.id)
+      .order('date', { ascending: true })
+      .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<AdiEntry>>,
   ])
 
   assertNoQueryError('profiles', profile.error)
@@ -328,6 +369,10 @@ export async function fetchUserBackupData(
     dashboardPreferences: dashboardPreferences.error ? null : dashboardPreferences.data,
     dataIntegrityIssues: dataIntegrityIssues.error ? [] : (dataIntegrityIssues.data ?? []),
     financialScenarios: financialScenarios.error ? [] : (financialScenarios.data ?? []),
+    dependentBeneficiaries: dependentBeneficiaries.error ? [] : (dependentBeneficiaries.data ?? []),
+    accountPurposeLinks: accountPurposeLinks.error ? [] : (accountPurposeLinks.data ?? []),
+    financeTransferMetadata: financeTransferMetadata.error ? [] : (financeTransferMetadata.data ?? []),
+    adiEntries: adiEntries.error ? [] : (adiEntries.data ?? []),
   }
 }
 

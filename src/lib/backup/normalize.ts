@@ -20,6 +20,10 @@ export function normalizeAuroraBackup(backup: AuroraBackupV1): AuroraBackupV1 {
       automationRules: sortById(backup.data.automationRules ?? []),
       automationApplicationBatches: sortById(backup.data.automationApplicationBatches ?? []),
       automationRuleApplications: sortById(backup.data.automationRuleApplications ?? []),
+      dependentBeneficiaries: sortById(backup.data.dependentBeneficiaries ?? []),
+      accountPurposeLinks: sortById(backup.data.accountPurposeLinks ?? []),
+      financeTransferMetadata: sortById(backup.data.financeTransferMetadata ?? []),
+      adiEntries: sortById(backup.data.adiEntries ?? []),
     },
   }) as AuroraBackupV1
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   ArrowLeftRight,
   Activity,
+  BadgeEuro,
   BarChart3,
   Bell,
   Cake,
@@ -16,6 +17,7 @@ import {
   HandCoins,
   LayoutDashboard,
   Loader2,
+  PiggyBank,
   Plus,
   Repeat,
   RefreshCw,
@@ -108,6 +110,13 @@ export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'scenarios', group: 'Navigazione', title: 'Scenari', subtitle: 'Simulazioni "what if"', href: '/scenarios', keywords: ['scenari', 'simulazioni', 'what if', 'proiezioni'], icon: FlaskConical },
   { id: 'affordability', group: 'Navigazione', title: 'Posso permettermelo?', subtitle: 'Valuta la sostenibilità di un acquisto', href: '/affordability', keywords: ['permettermelo', 'acquisto', 'sostenibilità', 'rata', 'spesa'], icon: ShoppingCart },
   { id: 'affordability-calculate', group: 'Azioni rapide', title: 'Valuta un acquisto', subtitle: 'Simula la sostenibilità di una spesa', href: '/affordability', keywords: ['valuta acquisto', 'posso permettermelo', 'sostenibile', 'rata sostenibile', 'affordability'], icon: ShoppingCart },
+  { id: 'aurora-savings-open', group: 'Navigazione', title: 'Apri Risparmi di Aurora', subtitle: 'Patrimonio dedicato e separato', href: '/aurora', keywords: ['aurora', 'risparmi aurora', 'piano accumulo'], icon: PiggyBank },
+  { id: 'aurora-new-account', group: 'Azioni rapide', title: 'Nuovo conto Aurora', subtitle: 'Crea un conto nel perimetro Aurora', href: '/aurora?action=new-account', keywords: ['nuovo conto aurora', 'conto aurora', 'fondo aurora'], icon: PiggyBank },
+  { id: 'aurora-new-income', group: 'Azioni rapide', title: 'Nuova entrata Aurora', subtitle: 'Registra un versamento nel patrimonio Aurora', href: '/aurora?action=income', keywords: ['entrata aurora', 'versamento aurora'], icon: Plus },
+  { id: 'aurora-new-transfer', group: 'Azioni rapide', title: 'Nuovo giroconto Aurora', subtitle: 'Sposta denaro tra personale e Aurora', href: '/aurora?action=transfer', keywords: ['giroconto aurora', 'trasferimento aurora'], icon: ArrowLeftRight },
+  { id: 'adi-open', group: 'Navigazione', title: 'Apri gestione ADI', subtitle: 'Residuo, accrediti e spese ammesse', href: '/adi', keywords: ['adi', 'assegno inclusione', 'gestione adi'], icon: BadgeEuro },
+  { id: 'adi-credit', group: 'Azioni rapide', title: 'Registra accredito ADI', subtitle: 'Aggiungi un accredito al fondo ADI separato', href: '/adi?action=credit', keywords: ['accredito adi', 'entrata adi'], icon: BadgeEuro },
+  { id: 'adi-debit', group: 'Azioni rapide', title: 'Registra spesa ADI', subtitle: 'Registra una spesa pagata con ADI', href: '/adi?action=debit', keywords: ['spesa adi', 'pagato con adi', 'supermercato adi', 'benzina adi'], icon: BadgeEuro },
 ]
 
 function commandScore(query: string, command: QuickCommand): number {

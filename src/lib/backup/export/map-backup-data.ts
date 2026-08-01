@@ -35,6 +35,10 @@ import type {
   AuroraBackupDataV1,
   AuroraBackupDashboardPreferencesV1,
   AuroraBackupDataIntegrityIssueV1,
+  AuroraBackupDependentBeneficiaryV1,
+  AuroraBackupAccountPurposeLinkV1,
+  AuroraBackupAdiEntryV1,
+  AuroraBackupFinanceTransferMetadataV1,
   AuroraBackupFinancialHealthSnapshotV1,
   AuroraBackupFinancialScenarioV1,
   AuroraBackupLoanPaymentV1,
@@ -86,6 +90,18 @@ export function mapUserBackupDataToV1Data(input: UserBackupData): AuroraBackupDa
       : {}),
     ...(input.financialScenarios && input.financialScenarios.length > 0
       ? { financialScenarios: input.financialScenarios.map(mapFinancialScenario) }
+      : {}),
+    ...(input.dependentBeneficiaries && input.dependentBeneficiaries.length > 0
+      ? { dependentBeneficiaries: input.dependentBeneficiaries.map(mapDependentBeneficiary) }
+      : {}),
+    ...(input.accountPurposeLinks && input.accountPurposeLinks.length > 0
+      ? { accountPurposeLinks: input.accountPurposeLinks.map(mapAccountPurposeLink) }
+      : {}),
+    ...(input.financeTransferMetadata && input.financeTransferMetadata.length > 0
+      ? { financeTransferMetadata: input.financeTransferMetadata.map(mapFinanceTransferMetadata) }
+      : {}),
+    ...(input.adiEntries && input.adiEntries.length > 0
+      ? { adiEntries: input.adiEntries.map(mapAdiEntry) }
       : {}),
   }
 }
@@ -427,5 +443,60 @@ export function mapFinancialScenario(row: Record<string, unknown>): AuroraBackup
     is_favorite: row.is_favorite as boolean,
     created_at: row.created_at as string | undefined,
     updated_at: row.updated_at as string | undefined,
+  }
+}
+
+export function mapDependentBeneficiary(row: NonNullable<UserBackupData['dependentBeneficiaries']>[number]): AuroraBackupDependentBeneficiaryV1 {
+  return {
+    id: row.id,
+    name: row.name,
+    relationship: row.relationship,
+    notes: row.notes,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+export function mapAccountPurposeLink(row: NonNullable<UserBackupData['accountPurposeLinks']>[number]): AuroraBackupAccountPurposeLinkV1 {
+  return {
+    id: row.id,
+    account_id: row.account_id,
+    beneficiary_id: row.beneficiary_id,
+    purpose: row.purpose,
+    label: row.label,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+export function mapAdiEntry(row: NonNullable<UserBackupData['adiEntries']>[number]): AuroraBackupAdiEntryV1 {
+  return {
+    id: row.id,
+    transaction_id: row.transaction_id,
+    entry_type: row.entry_type,
+    adi_category: row.adi_category,
+    amount: row.amount,
+    date: row.date,
+    reference_period: row.reference_period,
+    description: row.description,
+    note: row.note,
+    funding_source: row.funding_source,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+export function mapFinanceTransferMetadata(row: NonNullable<UserBackupData['financeTransferMetadata']>[number]): AuroraBackupFinanceTransferMetadataV1 {
+  return {
+    id: row.id,
+    source_transaction_id: row.source_transaction_id,
+    destination_transaction_id: row.destination_transaction_id,
+    source_scope: row.source_scope,
+    destination_scope: row.destination_scope,
+    reason: row.reason,
+    note: row.note,
+    idempotency_key: row.idempotency_key,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   }
 }

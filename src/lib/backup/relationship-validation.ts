@@ -10,6 +10,7 @@ export function validateBackupRelationships(backup: AuroraBackupV1): BackupValid
   const automationBatchIds = new Set(backup.data.automationApplicationBatches.map((batch) => batch.id))
   const loanIds = new Set(backup.data.loans.map((loan) => loan.id))
   const birthdayIds = new Set(backup.data.birthdays.map((birthday) => birthday.id))
+  const beneficiaryIds = new Set((backup.data.dependentBeneficiaries ?? []).map((beneficiary) => beneficiary.id))
 
   backup.data.categories.forEach((category, index) => {
     if (category.parent_id === category.id) {
@@ -96,6 +97,30 @@ export function validateBackupRelationships(backup: AuroraBackupV1): BackupValid
     }
     if (application.application_batch_id && !automationBatchIds.has(application.application_batch_id)) {
       issues.push(issue('AUTOMATION_APPLICATION_BATCH_MISSING', 'warning', ['data', 'automationRuleApplications', index, 'application_batch_id'], 'Batch dell’applicazione automazione mancante.'))
+    }
+  })
+
+  ;(backup.data.accountPurposeLinks ?? []).forEach((link, index) => {
+    if (!accountIds.has(link.account_id)) {
+      issues.push(issue('ACCOUNT_PURPOSE_ACCOUNT_MISSING', 'error', ['data', 'accountPurposeLinks', index, 'account_id'], 'Conto del collegamento patrimoniale mancante.'))
+    }
+    if (link.beneficiary_id && !beneficiaryIds.has(link.beneficiary_id)) {
+      issues.push(issue('ACCOUNT_PURPOSE_BENEFICIARY_MISSING', 'error', ['data', 'accountPurposeLinks', index, 'beneficiary_id'], 'Beneficiario del collegamento patrimoniale mancante.'))
+    }
+  })
+
+  ;(backup.data.adiEntries ?? []).forEach((entry, index) => {
+    if (entry.transaction_id && !transactionIds.has(entry.transaction_id)) {
+      issues.push(issue('ADI_TRANSACTION_MISSING', 'warning', ['data', 'adiEntries', index, 'transaction_id'], 'Transazione collegata al record ADI mancante.'))
+    }
+  })
+
+  ;(backup.data.financeTransferMetadata ?? []).forEach((metadata, index) => {
+    if (!transactionIds.has(metadata.source_transaction_id)) {
+      issues.push(issue('FINANCE_TRANSFER_SOURCE_MISSING', 'warning', ['data', 'financeTransferMetadata', index, 'source_transaction_id'], 'Transazione origine del metadato giroconto mancante.'))
+    }
+    if (!transactionIds.has(metadata.destination_transaction_id)) {
+      issues.push(issue('FINANCE_TRANSFER_DESTINATION_MISSING', 'warning', ['data', 'financeTransferMetadata', index, 'destination_transaction_id'], 'Transazione destinazione del metadato giroconto mancante.'))
     }
   })
 

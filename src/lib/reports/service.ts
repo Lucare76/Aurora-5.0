@@ -11,6 +11,7 @@ import type {
   ReportTransactionTypeFilter,
 } from './types'
 import { ReportInputError } from './types'
+import { filterPersonalAccounts, filterPersonalTransactions, getDependentAccountIds } from '@/lib/dependent-finance/calculations'
 
 const MAX_CUSTOM_RANGE_DAYS = 366 * 5
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -148,7 +149,7 @@ export async function buildReportPayload(
   const from = earliestQueryDate(period.from, previousPeriod.from)
   const to = latestQueryDate(period.to)
 
-  const [accountsRes, categoriesRes, transactionsRes, recurringRes] = await Promise.all([
+  const [accountsRes, categoriesRes, transactionsRes, recurringRes, accountPurposeRes] = await Promise.all([
     supabase
       .from('accounts')
       .select('id,name,type,balance,currency,color,is_active,is_hidden')
@@ -165,24 +166,33 @@ export async function buildReportPayload(
       .order('date', { ascending: true }),
     supabase
       .from('recurring_rules')
-      .select('id')
+      .select('id,account_id')
       .eq('is_active', true),
+    supabase
+      .from('account_purpose_links')
+      .select('account_id,purpose'),
   ])
 
   if (accountsRes.error || categoriesRes.error || transactionsRes.error || recurringRes.error) {
     throw new ReportInputError('REPORT_FAILED', 'Report non disponibile.')
   }
 
-  const accounts = (accountsRes.data ?? []) as ReportAccountInput[]
+  const accountPurposeLinks = accountPurposeRes.error ? [] : (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
+  const accounts = filterPersonalAccounts((accountsRes.data ?? []) as ReportAccountInput[], accountPurposeLinks)
   const categories = (categoriesRes.data ?? []) as ReportCategoryInput[]
-  const transactions = (transactionsRes.data ?? []) as ReportTransactionInput[]
+  const transactions = filterPersonalTransactions((transactionsRes.data ?? []) as ReportTransactionInput[], accountPurposeLinks)
+  const dedicatedAccountIds = getDependentAccountIds(accountPurposeLinks)
+  const activeRecurringRulesCount = (recurringRes.data ?? []).filter((rule) => {
+    const accountId = (rule as { account_id?: string | null }).account_id
+    return !accountId || !dedicatedAccountIds.has(accountId)
+  }).length
   assertFilterOwnership(filters, accounts, categories)
 
   const computed = computeAdvancedReport({
     accounts,
     categories,
     transactions,
-    activeRecurringRulesCount: (recurringRes.data ?? []).length,
+    activeRecurringRulesCount,
     period,
     previousPeriod,
     accountFilter: filters.account,

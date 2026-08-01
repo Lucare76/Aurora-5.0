@@ -27,6 +27,10 @@ const loanType = z.enum(['given', 'received'])
 const automationMatchMode = z.enum(['ALL', 'ANY'])
 const automationApplicationMode = z.enum(['SUGGESTED', 'MANUAL', 'AUTOMATIC', 'BULK'])
 const automationApplicationResult = z.enum(['APPLIED', 'SKIPPED', 'CONFLICT', 'FAILED', 'REVERTED'])
+const assetPurpose = z.enum(['PERSONAL', 'DEPENDENT_AURORA', 'ADI', 'DEPENDENT'])
+const financeScope = z.enum(['PERSONAL', 'DEPENDENT_AURORA', 'ADI'])
+const adiEntryType = z.enum(['credit', 'debit'])
+const adiCategory = z.enum(['SUPERMERCATO', 'BENZINA', 'ABBIGLIAMENTO_AURORA'])
 
 export const profileSchema = z.object({
   id: uuid.optional(),
@@ -324,6 +328,57 @@ export const dataIntegrityIssueSchema = z.object({
   updated_at: maybeTimestamp,
 }).passthrough()
 
+export const dependentBeneficiarySchema = z.object({
+  id: uuid,
+  user_id: uuid.optional(),
+  name: shortString.min(1),
+  relationship: shortString.min(1),
+  notes: notesString.nullable().optional(),
+  created_at: maybeTimestamp,
+  updated_at: maybeTimestamp,
+}).passthrough()
+
+export const accountPurposeLinkSchema = z.object({
+  id: uuid,
+  user_id: uuid.optional(),
+  account_id: uuid,
+  beneficiary_id: uuid.nullable().optional(),
+  purpose: assetPurpose,
+  label: shortString.nullable().optional(),
+  created_at: maybeTimestamp,
+  updated_at: maybeTimestamp,
+}).passthrough()
+
+export const adiEntrySchema = z.object({
+  id: uuid,
+  user_id: uuid.optional(),
+  transaction_id: uuid.nullable().optional(),
+  entry_type: adiEntryType,
+  adi_category: adiCategory.nullable().optional(),
+  amount: money.positive(),
+  date: dateOnly,
+  reference_period: z.string().regex(/^\d{4}-\d{2}$/).nullable().optional(),
+  description: descriptionString.min(1),
+  note: notesString.nullable().optional(),
+  funding_source: z.literal('ADI'),
+  created_at: maybeTimestamp,
+  updated_at: maybeTimestamp,
+}).passthrough()
+
+export const financeTransferMetadataSchema = z.object({
+  id: uuid,
+  user_id: uuid.optional(),
+  source_transaction_id: uuid,
+  destination_transaction_id: uuid,
+  source_scope: financeScope,
+  destination_scope: financeScope,
+  reason: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
+  idempotency_key: z.string().nullable().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+}).passthrough()
+
 const collection = <T extends z.ZodType>(schema: T) =>
   z.array(schema).max(BACKUP_LIMITS.maxRecordsPerCollection)
 
@@ -366,6 +421,10 @@ export const auroraBackupV1Schema = z.object({
     financialHealthSnapshots: collection(financialHealthSnapshotSchema).optional(),
     dashboardPreferences: dashboardPreferencesSchema.optional(),
     dataIntegrityIssues: collection(dataIntegrityIssueSchema).optional(),
+    dependentBeneficiaries: collection(dependentBeneficiarySchema).optional(),
+    accountPurposeLinks: collection(accountPurposeLinkSchema).optional(),
+    financeTransferMetadata: collection(financeTransferMetadataSchema).optional(),
+    adiEntries: collection(adiEntrySchema).optional(),
   }).passthrough(),
   integrity: z.object({
     recordCounts: z.record(z.string(), z.number().int().min(0)),

@@ -4,6 +4,7 @@ import { runTravelAffordabilityEngine } from '@/lib/affordability/travel/engine'
 import { travelInputSchema } from '@/lib/affordability/travel/validation'
 import type { AffordabilityDbData } from '@/lib/affordability/types'
 import type { TravelInput } from '@/lib/affordability/travel/types'
+import { filterPersonalAccounts, filterPersonalTransactions, getDependentAccountIds } from '@/lib/dependent-finance/calculations'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,13 +46,13 @@ export async function POST(request: Request) {
   }
   const input = parsed.data as TravelInput
 
-  const [accountsRes, recurringRes, txRes, loansRes, loanPaymentsRes, goalsRes, contribRes] =
+  const [accountsRes, recurringRes, txRes, loansRes, loanPaymentsRes, goalsRes, contribRes, accountPurposeRes] =
     await Promise.all([
       supabase.from('accounts').select('*').eq('user_id', user.id),
-      supabase.from('recurring_rules').select('id,type,amount,frequency,start_date,end_date,next_due_date,is_active').eq('user_id', user.id),
+      supabase.from('recurring_rules').select('id,account_id,type,amount,frequency,start_date,end_date,next_due_date,is_active').eq('user_id', user.id),
       supabase
         .from('transactions')
-        .select('id,type,amount,date,transfer_peer_id')
+        .select('id,account_id,type,amount,date,transfer_peer_id')
         .eq('user_id', user.id)
         .order('date', { ascending: false })
         .limit(500),
@@ -59,12 +60,15 @@ export async function POST(request: Request) {
       supabase.from('loan_payments').select('id,loan_id,amount,paid_at').eq('user_id', user.id),
       supabase.from('savings_goals').select('id,name,target_amount,current_amount,target_date,status,archived').eq('user_id', user.id),
       supabase.from('goal_contributions').select('id,goal_id,amount,date').eq('user_id', user.id),
+      supabase.from('account_purpose_links').select('account_id,purpose').eq('user_id', user.id),
     ])
 
+  const accountPurposeLinks = accountPurposeRes.error ? [] : (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
+  const dedicatedAccountIds = getDependentAccountIds(accountPurposeLinks)
   const dbData: AffordabilityDbData = {
-    accounts: (accountsRes.data ?? []) as AffordabilityDbData['accounts'],
-    recurringRules: (recurringRes.data ?? []) as AffordabilityDbData['recurringRules'],
-    recentTransactions: (txRes.data ?? []) as AffordabilityDbData['recentTransactions'],
+    accounts: filterPersonalAccounts((accountsRes.data ?? []) as AffordabilityDbData['accounts'], accountPurposeLinks),
+    recurringRules: ((recurringRes.data ?? []) as AffordabilityDbData['recurringRules']).filter((rule) => !rule.account_id || !dedicatedAccountIds.has(rule.account_id)),
+    recentTransactions: filterPersonalTransactions((txRes.data ?? []) as AffordabilityDbData['recentTransactions'], accountPurposeLinks),
     loans: (loansRes.data ?? []) as AffordabilityDbData['loans'],
     loanPayments: (loanPaymentsRes.data ?? []) as AffordabilityDbData['loanPayments'],
     goals: (goalsRes.data ?? []) as AffordabilityDbData['goals'],
