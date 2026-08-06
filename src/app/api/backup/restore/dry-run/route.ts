@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
+import { backupContainsPrivateFinance } from '@/lib/access/private-finance-backup'
 
 import {
   fetchCurrentUserDataSnapshot,
@@ -81,6 +83,10 @@ export async function POST(request: Request) {
         restorePlan: [],
         issues: inspection.issues,
       }, 200)
+    }
+
+    if (!canAccessPrivateFinance(user.email) && backupContainsPrivateFinance(inspection.normalizedBackup)) {
+      return json({ error: { code: 'FORBIDDEN', message: 'Accesso non autorizzato.' } }, 403)
     }
 
     const snapshot = await fetchCurrentUserDataSnapshot(supabase, user)

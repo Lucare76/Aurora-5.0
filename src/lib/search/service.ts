@@ -93,7 +93,12 @@ function subtitle(parts: Array<string | null | undefined | false>): string {
   return parts.filter(Boolean).join(' · ')
 }
 
-export async function searchAurora(supabase: SupabaseClient, rawQuery: string, userId: string): Promise<SearchPayload> {
+export async function searchAurora(
+  supabase: SupabaseClient,
+  rawQuery: string,
+  userId: string,
+  options: { canAccessPrivateFinance?: boolean } = {},
+): Promise<SearchPayload> {
   const query = normalizeSearchQuery(rawQuery)
   if (query.length < MIN_QUERY_LENGTH) return { query, groups: [], totalResults: 0, truncated: false }
 
@@ -186,6 +191,9 @@ export async function searchAurora(supabase: SupabaseClient, rawQuery: string, u
   const accountScopes = new Map(((accountPurposeRes.data ?? []) as SearchRow[]).map((link) => [link.account_id, normalizeFinanceScope(link.purpose)]))
 
   for (const tx of (txRes.data ?? []) as SearchRow[]) {
+    const scope = accountScopes.get(tx.account_id) ?? 'PERSONAL'
+    if ((scope === 'DEPENDENT_AURORA' || scope === 'ADI') && !options.canAccessPrivateFinance) continue
+
     const cat = tx.category_id ? categoryById.get(tx.category_id) : null
     results.push({
       id: tx.id,
@@ -200,13 +208,15 @@ export async function searchAurora(supabase: SupabaseClient, rawQuery: string, u
 
   for (const account of (accountRes.data ?? []) as SearchRow[]) {
     const scope = accountScopes.get(account.id) ?? 'PERSONAL'
+    if ((scope === 'DEPENDENT_AURORA' || scope === 'ADI') && !options.canAccessPrivateFinance) continue
+
     results.push({
       id: account.id,
       type: 'ACCOUNT',
       title: account.name,
-      subtitle: subtitle([scope === 'DEPENDENT_AURORA' ? 'Perimetro Aurora' : 'Perimetro personale', `Saldo ${formatCurrency(Number(account.balance), account.currency)}`, ACCOUNT_TYPE_LABELS[account.type as AccountType], account.is_active ? 'Attivo' : 'Inattivo']),
+      subtitle: subtitle([scope === 'DEPENDENT_AURORA' ? 'Perimetro Aurora' : scope === 'ADI' ? 'Perimetro ADI' : 'Perimetro personale', `Saldo ${formatCurrency(Number(account.balance), account.currency)}`, ACCOUNT_TYPE_LABELS[account.type as AccountType], account.is_active ? 'Attivo' : 'Inattivo']),
       metadata: [account.type, account.currency, scope],
-      href: scope === 'DEPENDENT_AURORA' ? '/aurora' : '/accounts',
+      href: scope === 'DEPENDENT_AURORA' ? '/aurora' : scope === 'ADI' ? '/adi' : '/accounts',
       score: 0,
     })
   }

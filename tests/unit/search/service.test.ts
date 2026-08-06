@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupSearchResults, normalizeSearchQuery, scoreSearchResult } from '@/lib/search/service'
+import { groupSearchResults, normalizeSearchQuery, scoreSearchResult, searchAurora } from '@/lib/search/service'
 import type { SearchResult } from '@/lib/search/types'
 
 const baseResult: SearchResult = {
@@ -44,4 +44,61 @@ describe('global search service', () => {
     expect(payload.groups[0].results).toHaveLength(5)
     expect(payload.totalResults).toBe(5)
   })
+
+  it('non espone conti ADI nella ricerca se l utente non è autorizzato', async () => {
+    const supabase = searchSupabaseMock({
+      accounts: [{ id: 'adi-account', name: 'Carta ADI', type: 'other', balance: 100, currency: 'EUR', is_active: true }],
+      accountPurposeLinks: [{ account_id: 'adi-account', purpose: 'ADI' }],
+    })
+
+    const payload = await searchAurora(supabase as never, 'carta', 'user-1', { canAccessPrivateFinance: false })
+
+    expect(payload.totalResults).toBe(0)
+  })
+
+  it('espone conti ADI nella ricerca solo se l utente è autorizzato', async () => {
+    const supabase = searchSupabaseMock({
+      accounts: [{ id: 'adi-account', name: 'Carta ADI', type: 'other', balance: 100, currency: 'EUR', is_active: true }],
+      accountPurposeLinks: [{ account_id: 'adi-account', purpose: 'ADI' }],
+    })
+
+    const payload = await searchAurora(supabase as never, 'carta', 'user-1', { canAccessPrivateFinance: true })
+
+    expect(payload.groups[0].results[0]).toMatchObject({
+      title: 'Carta ADI',
+      href: '/adi',
+    })
+  })
+
+  it('non espone conti Aurora nella ricerca se l utente non è autorizzato', async () => {
+    const supabase = searchSupabaseMock({
+      accounts: [{ id: 'aurora-account', name: 'Aurora piano', type: 'savings', balance: 100, currency: 'EUR', is_active: true }],
+      accountPurposeLinks: [{ account_id: 'aurora-account', purpose: 'DEPENDENT_AURORA' }],
+    })
+
+    const payload = await searchAurora(supabase as never, 'aurora', 'user-1', { canAccessPrivateFinance: false })
+
+    expect(payload.totalResults).toBe(0)
+  })
 })
+
+function searchSupabaseMock(data: { accounts?: unknown[]; accountPurposeLinks?: unknown[] }) {
+  return {
+    from(table: string) {
+      return queryBuilder(table === 'accounts'
+        ? data.accounts ?? []
+        : table === 'account_purpose_links'
+          ? data.accountPurposeLinks ?? []
+          : [])
+    },
+  }
+}
+
+function queryBuilder(data: unknown[]) {
+  const builder: Record<string, unknown> = {}
+  for (const method of ['select', 'eq', 'or', 'order', 'limit', 'in'] as const) {
+    builder[method] = () => builder
+  }
+  ;(builder as { then: (resolve: (value: { data: unknown[]; error: null }) => unknown) => unknown }).then = (resolve) => resolve({ data, error: null })
+  return builder
+}

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
 
 import type {
   Account,
@@ -344,7 +345,7 @@ export async function fetchUserBackupData(
   // (e.g., before migration 00020 is applied to production)
   // Financial health snapshot errors are non-fatal for the same compatibility reason.
 
-  return {
+  const rawData: UserBackupData = {
     user,
     profile: profile.data,
     accounts: accounts.data ?? [],
@@ -373,6 +374,23 @@ export async function fetchUserBackupData(
     accountPurposeLinks: accountPurposeLinks.error ? [] : (accountPurposeLinks.data ?? []),
     financeTransferMetadata: financeTransferMetadata.error ? [] : (financeTransferMetadata.data ?? []),
     adiEntries: adiEntries.error ? [] : (adiEntries.data ?? []),
+  }
+
+  if (canAccessPrivateFinance(user.email)) return rawData
+
+  const privateAccountIds = new Set((rawData.accountPurposeLinks ?? [])
+    .filter((link) => link.purpose === 'DEPENDENT_AURORA' || link.purpose === 'DEPENDENT' || link.purpose === 'ADI')
+    .map((link) => link.account_id))
+
+  return {
+    ...rawData,
+    accounts: rawData.accounts.filter((account) => !privateAccountIds.has(account.id)),
+    transactions: rawData.transactions.filter((transaction) => !privateAccountIds.has(transaction.account_id)),
+    recurringRules: rawData.recurringRules.filter((rule) => !privateAccountIds.has(rule.account_id)),
+    dependentBeneficiaries: [],
+    accountPurposeLinks: [],
+    financeTransferMetadata: [],
+    adiEntries: [],
   }
 }
 

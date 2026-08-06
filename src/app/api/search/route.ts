@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
 import { createClient } from '@/lib/supabase/server'
 import { MAX_QUERY_LENGTH, MIN_QUERY_LENGTH, normalizeSearchQuery, searchAurora } from '@/lib/search/service'
 
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
   if ((queries[0] ?? '').length > MAX_QUERY_LENGTH) return json({ error: 'QUERY_TOO_LONG' }, 400)
 
   try {
-    const payload = await searchAurora(supabase, query, user.id)
+    const payload = await searchAurora(supabase, query, user.id, { canAccessPrivateFinance: canAccessPrivateFinance(user.email) })
     return json(payload, 200)
   } catch (err) {
     console.error('[aurora-search]', { code: (err as { code?: string })?.code })

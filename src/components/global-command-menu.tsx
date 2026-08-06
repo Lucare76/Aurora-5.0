@@ -110,6 +110,9 @@ export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'scenarios', group: 'Navigazione', title: 'Scenari', subtitle: 'Simulazioni "what if"', href: '/scenarios', keywords: ['scenari', 'simulazioni', 'what if', 'proiezioni'], icon: FlaskConical },
   { id: 'affordability', group: 'Navigazione', title: 'Posso permettermelo?', subtitle: 'Valuta la sostenibilità di un acquisto', href: '/affordability', keywords: ['permettermelo', 'acquisto', 'sostenibilità', 'rata', 'spesa'], icon: ShoppingCart },
   { id: 'affordability-calculate', group: 'Azioni rapide', title: 'Valuta un acquisto', subtitle: 'Simula la sostenibilità di una spesa', href: '/affordability', keywords: ['valuta acquisto', 'posso permettermelo', 'sostenibile', 'rata sostenibile', 'affordability'], icon: ShoppingCart },
+]
+
+const privateFinanceQuickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'aurora-savings-open', group: 'Navigazione', title: 'Apri Risparmi di Aurora', subtitle: 'Patrimonio dedicato e separato', href: '/aurora', keywords: ['aurora', 'risparmi aurora', 'piano accumulo'], icon: PiggyBank },
   { id: 'aurora-new-account', group: 'Azioni rapide', title: 'Nuovo conto Aurora', subtitle: 'Crea un conto nel perimetro Aurora', href: '/aurora?action=new-account', keywords: ['nuovo conto aurora', 'conto aurora', 'fondo aurora'], icon: PiggyBank },
   { id: 'aurora-new-income', group: 'Azioni rapide', title: 'Nuova entrata Aurora', subtitle: 'Registra un versamento nel patrimonio Aurora', href: '/aurora?action=income', keywords: ['entrata aurora', 'versamento aurora'], icon: Plus },
@@ -118,6 +121,10 @@ export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'adi-credit', group: 'Azioni rapide', title: 'Registra accredito ADI', subtitle: 'Aggiungi un accredito al fondo ADI separato', href: '/adi?action=credit', keywords: ['accredito adi', 'entrata adi'], icon: BadgeEuro },
   { id: 'adi-debit', group: 'Azioni rapide', title: 'Registra spesa ADI', subtitle: 'Registra una spesa pagata con ADI', href: '/adi?action=debit', keywords: ['spesa adi', 'pagato con adi', 'supermercato adi', 'benzina adi'], icon: BadgeEuro },
 ]
+
+export function getQuickCommands(canAccessPrivateFinance: boolean): Array<QuickCommand & { icon: LucideIcon }> {
+  return canAccessPrivateFinance ? [...quickCommands, ...privateFinanceQuickCommands] : quickCommands
+}
 
 function commandScore(query: string, command: QuickCommand): number {
   const q = query.toLowerCase().trim()
@@ -135,7 +142,15 @@ function groupItems(items: CommandItem[]) {
   return [...groups.entries()]
 }
 
-export function GlobalCommandMenu({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function GlobalCommandMenu({
+  open,
+  onOpenChange,
+  canAccessPrivateFinance = false,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  canAccessPrivateFinance?: boolean
+}) {
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -143,6 +158,7 @@ export function GlobalCommandMenu({ open, onOpenChange }: { open: boolean; onOpe
   const router = useRouter()
   const { data, loading, error, minQueryLength } = useGlobalSearch(open, query)
   const trimmed = query.trim()
+  const visibleQuickCommands = useMemo(() => getQuickCommands(canAccessPrivateFinance), [canAccessPrivateFinance])
 
   useEffect(() => {
     if (!open) return
@@ -160,7 +176,7 @@ export function GlobalCommandMenu({ open, onOpenChange }: { open: boolean; onOpe
   }, [open])
 
   const items = useMemo<CommandItem[]>(() => {
-    const local = quickCommands
+    const local = visibleQuickCommands
       .map((command) => ({ command, score: commandScore(trimmed, command) }))
       .filter(({ score }) => trimmed.length === 0 || score > 0)
       .sort((a, b) => b.score - a.score)
@@ -186,7 +202,7 @@ export function GlobalCommandMenu({ open, onOpenChange }: { open: boolean; onOpe
     )
 
     return trimmed.length < minQueryLength ? local : [...local.slice(0, 5), ...remote]
-  }, [data?.groups, minQueryLength, trimmed])
+  }, [data?.groups, minQueryLength, trimmed, visibleQuickCommands])
 
   useEffect(() => {
     setActiveIndex(0)

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
 import { createClient } from '@/lib/supabase/server'
 import { ADI_CATEGORIES } from '@/lib/dependent-finance/constants'
 import { buildAdiSummary, canRegisterAdiDebit } from '@/lib/dependent-finance/calculations'
@@ -47,6 +48,20 @@ function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
 }
 
+function forbidden() {
+  return json({ error: { code: 'FORBIDDEN', message: 'Accesso non autorizzato.' } }, 403)
+}
+
+async function requireAdiAccess() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return { supabase, user: null, response: json({ error: 'Non autenticato' }, 401) }
+  if (!canAccessPrivateFinance(user.email)) return { supabase, user, response: forbidden() }
+
+  return { supabase, user, response: null }
+}
+
 async function readEntries(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data, error } = await supabase
     .from('adi_entries')
@@ -60,9 +75,8 @@ async function readEntries(supabase: Awaited<ReturnType<typeof createClient>>, u
 }
 
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return json({ error: 'Non autenticato' }, 401)
+  const { supabase, user, response } = await requireAdiAccess()
+  if (response) return response
 
   const url = new URL(request.url)
   const month = url.searchParams.get('month')
@@ -88,9 +102,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return json({ error: 'Non autenticato' }, 401)
+  const { supabase, user, response } = await requireAdiAccess()
+  if (response) return response
 
   const parsed = createSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {
@@ -157,9 +170,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return json({ error: 'Non autenticato' }, 401)
+  const { supabase, user, response } = await requireAdiAccess()
+  if (response) return response
 
   const parsed = updateSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {

@@ -5,7 +5,7 @@ vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
 
 import { createClient } from '@/lib/supabase/server'
 
-const USER = { id: 'user-1' }
+const USER = { id: 'user-1', email: 'luca_renna@hotmail.com' }
 
 function request(body: unknown): Request {
   return { json: () => Promise.resolve(body), url: 'http://localhost/api/adi' } as Request
@@ -45,6 +45,7 @@ function supabaseMock(options: {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  process.env.PRIVATE_FINANCE_ACCOUNT_EMAIL = 'luca_renna@hotmail.com'
   ;(createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(supabaseMock())
 })
 
@@ -53,6 +54,29 @@ describe('/api/adi', () => {
     ;(createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(supabaseMock({ user: null }))
     const res = await POST(request({}))
     expect(res.status).toBe(401)
+  })
+
+  it('blocca utenti autenticati non autorizzati prima di leggere dati ADI', async () => {
+    const client = supabaseMock({ user: { id: 'user-2', email: 'altro@example.com' } })
+    ;(createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(client)
+
+    const res = await GET({ url: 'http://localhost/api/adi' } as Request)
+    const body = await res.json()
+
+    expect(res.status).toBe(403)
+    expect(body.error).toEqual({ code: 'FORBIDDEN', message: 'Accesso non autorizzato.' })
+    expect(client.from).not.toHaveBeenCalled()
+  })
+
+  it('fallisce chiuso se PRIVATE_FINANCE_ACCOUNT_EMAIL non è configurata', async () => {
+    delete process.env.PRIVATE_FINANCE_ACCOUNT_EMAIL
+    const client = supabaseMock()
+    ;(createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(client)
+
+    const res = await GET({ url: 'http://localhost/api/adi' } as Request)
+
+    expect(res.status).toBe(403)
+    expect(client.from).not.toHaveBeenCalled()
   })
 
   it('restituisce il saldo ADI', async () => {

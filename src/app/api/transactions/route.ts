@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
 import { createClient } from '@/lib/supabase/server'
 import { diffPatch } from '@/lib/automation/actions'
 import { evaluateTransactionDraft, recordAutomaticApplications } from '@/lib/automation/service'
@@ -140,6 +141,34 @@ function validationError(error: z.ZodError) {
   )
 }
 
+function forbidden() {
+  return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Accesso non autorizzato.' } }, { status: 403 })
+}
+
+function isPrivateFinanceScope(scope?: string | null): boolean {
+  return scope === 'DEPENDENT_AURORA' || scope === 'DEPENDENT' || scope === 'ADI'
+}
+
+async function assertNoPrivateFinanceBypass(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  user: { id: string; email?: string | null },
+  accountIds: Array<string | null | undefined>,
+): Promise<boolean> {
+  if (canAccessPrivateFinance(user.email)) return true
+
+  const ids = [...new Set(accountIds.filter(Boolean) as string[])]
+  if (ids.length === 0) return true
+
+  const { data, error } = await supabase
+    .from('account_purpose_links')
+    .select('account_id,purpose')
+    .eq('user_id', user.id)
+    .in('account_id', ids)
+
+  if (error) return false
+  return !((data ?? []) as Array<{ purpose?: string | null }>).some((link) => isPrivateFinanceScope(link.purpose))
+}
+
 async function readJson(request: Request): Promise<unknown> {
   try {
     return await request.json()
@@ -168,6 +197,11 @@ export async function POST(request: Request) {
     }
 
     const original = parsed.data
+    const createAccounts = original.type === 'transfer'
+      ? [original.account_id, original.destination_account_id]
+      : [original.account_id]
+    if (!(await assertNoPrivateFinanceBypass(supabase, user, createAccounts))) return forbidden()
+
     let d = original
     let automationResult: Awaited<ReturnType<typeof evaluateTransactionDraft>> | null = null
 
@@ -269,6 +303,15 @@ export async function PATCH(request: Request) {
     }
 
     const d = parsed.data
+    const { data: currentTransaction, error: currentError } = await supabase
+      .from('transactions')
+      .select('account_id')
+      .eq('id', d.transaction_id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (currentError) return NextResponse.json({ error: 'Movimento non verificabile' }, { status: 500 })
+    if (!(await assertNoPrivateFinanceBypass(supabase, user, [currentTransaction?.account_id, d.account_id, d.destination_account_id]))) return forbidden()
 
     const { data, error } = await supabase.rpc('update_transaction_atomic', {
       p_transaction_id: d.transaction_id,
@@ -312,6 +355,16 @@ export async function DELETE(request: Request) {
     if (!parsed.success) {
       return validationError(parsed.error)
     }
+
+    const { data: currentTransaction, error: currentError } = await supabase
+      .from('transactions')
+      .select('account_id')
+      .eq('id', parsed.data.transaction_id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (currentError) return NextResponse.json({ error: 'Movimento non verificabile' }, { status: 500 })
+    if (!(await assertNoPrivateFinanceBypass(supabase, user, [currentTransaction?.account_id]))) return forbidden()
 
     const { error } = await supabase.rpc('delete_transaction_atomic', {
       p_transaction_id: parsed.data.transaction_id,

@@ -37,6 +37,8 @@ function mockSupabase(options?: {
   authenticated?: boolean
   rpcError?: string | null
   rpcData?: unknown
+  accountPurposeLinks?: unknown[]
+  transaction?: unknown
 }) {
   const calls: RpcCall[] = []
 
@@ -44,10 +46,15 @@ function mockSupabase(options?: {
     auth: {
       getUser: vi.fn().mockResolvedValue({
         data: {
-          user: options?.authenticated === false ? null : { id: userId },
+          user: options?.authenticated === false ? null : { id: userId, email: 'user@example.com' },
         },
       }),
     },
+    from: vi.fn((table: string) => {
+      if (table === 'account_purpose_links') return query(options?.accountPurposeLinks ?? [])
+      if (table === 'transactions') return query(options?.transaction ?? { account_id: accountId })
+      return query([])
+    }),
     rpc: vi.fn().mockImplementation((name: string, params: Record<string, unknown>) => {
       calls.push({ name, params })
 
@@ -66,6 +73,15 @@ function mockSupabase(options?: {
   } as never)
 
   return calls
+}
+
+function query(data: unknown, error: unknown = null) {
+  const builder: Record<string, unknown> = {}
+  for (const method of ['select', 'eq', 'in', 'maybeSingle'] as const) {
+    builder[method] = vi.fn(() => builder)
+  }
+  ;(builder as { then: (resolve: (value: { data: unknown; error: unknown }) => unknown) => unknown }).then = (resolve) => resolve({ data, error })
+  return builder
 }
 
 async function importRoute() {

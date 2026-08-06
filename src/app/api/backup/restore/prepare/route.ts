@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
+import { backupContainsPrivateFinance } from '@/lib/access/private-finance-backup'
 
 import {
   assertJsonFilename,
   buildRestorePreparation,
   byteLength,
   getAuthenticatedRestoreUser,
+  inspectAuroraBackup,
   MAX_RESTORE_BACKUP_BYTES,
   parseJsonSafely,
   readRestoreSnapshot,
@@ -43,6 +46,12 @@ export async function POST(request: Request) {
     const { filename, content } = parsed.data
     if (!assertJsonFilename(filename)) return json(error('INVALID_BACKUP_FILE_TYPE'), 415)
     if (byteLength(content) > MAX_RESTORE_BACKUP_BYTES) return json(error('PAYLOAD_TOO_LARGE'), 413)
+
+    const backupPayload = parseJsonSafely(content)
+    const inspection = inspectAuroraBackup(backupPayload.ok ? backupPayload.value : null)
+    if (inspection.normalizedBackup && !canAccessPrivateFinance(user.email) && backupContainsPrivateFinance(inspection.normalizedBackup)) {
+      return json({ error: { code: 'FORBIDDEN', message: 'Accesso non autorizzato.' } }, 403)
+    }
 
     const snapshot = await readRestoreSnapshot(supabase, user)
     const prepared = await buildRestorePreparation(content, snapshot)

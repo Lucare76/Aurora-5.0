@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
+import { backupContainsPrivateFinance } from '@/lib/access/private-finance-backup'
 
 import {
   assertJsonFilename,
@@ -53,6 +55,9 @@ export async function POST(request: Request) {
 
     const snapshot = await readRestoreSnapshot(supabase, user)
     const validated = await validateBackupForRealRestore(content, snapshot)
+    if (!canAccessPrivateFinance(user.email) && backupContainsPrivateFinance(validated.backup)) {
+      return json({ error: { code: 'FORBIDDEN', message: 'Accesso non autorizzato.' } }, 403)
+    }
 
     const { data: tokenRow, error: tokenError } = await supabase
       .from('backup_restore_tokens')
