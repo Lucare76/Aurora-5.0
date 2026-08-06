@@ -8,8 +8,10 @@ import type {
   MinimalAccount,
   MinimalTransaction,
 } from './types'
+import { AURORA_ACCOUNT_SUGGESTION } from './constants'
 
 type AccountScopeLink = { account_id: string; purpose: string | null | undefined }
+type AccountIdentity = { id: string; name?: string | null }
 
 function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100
@@ -54,6 +56,29 @@ export function getAccountIdsByScope(
   return new Set(links.filter((link) => normalizeFinanceScope(link.purpose) === scope).map((link) => link.account_id))
 }
 
+function normalizeAccountName(name: string | null | undefined): string {
+  return (name ?? '').trim().toLowerCase()
+}
+
+export function isSharedAuroraAccumulationAccount(account: AccountIdentity): boolean {
+  return normalizeAccountName(account.name) === normalizeAccountName(AURORA_ACCOUNT_SUGGESTION)
+}
+
+export function getSharedAuroraAccountIds(accounts: AccountIdentity[], links: AccountScopeLink[]): Set<string> {
+  const auroraIds = getAccountIdsByScope(links, 'DEPENDENT_AURORA')
+  return new Set(accounts.filter((account) => auroraIds.has(account.id) && isSharedAuroraAccumulationAccount(account)).map((account) => account.id))
+}
+
+export function getPersonalExcludedAccountIds(links: AccountScopeLink[], accounts: AccountIdentity[] = []): Set<string> {
+  const sharedAuroraIds = getSharedAuroraAccountIds(accounts, links)
+  return new Set(
+    links
+      .filter((link) => normalizeFinanceScope(link.purpose) !== 'PERSONAL')
+      .filter((link) => !sharedAuroraIds.has(link.account_id))
+      .map((link) => link.account_id),
+  )
+}
+
 export function filterAccountsByScope<T extends { id: string }>(
   accounts: T[],
   links: AccountScopeLink[],
@@ -61,7 +86,8 @@ export function filterAccountsByScope<T extends { id: string }>(
 ): T[] {
   const scopedIds = getAccountIdsByScope(links, scope)
   if (scope === 'PERSONAL') {
-    return accounts.filter((account) => !links.some((link) => link.account_id === account.id && normalizeFinanceScope(link.purpose) !== 'PERSONAL'))
+    const excludedIds = getPersonalExcludedAccountIds(links, accounts)
+    return accounts.filter((account) => !excludedIds.has(account.id))
   }
   return accounts.filter((account) => scopedIds.has(account.id))
 }
@@ -77,11 +103,12 @@ export function filterTransactionsByScope<T extends { account_id?: string | null
   transactions: T[],
   links: AccountScopeLink[],
   scope: FinanceScope,
+  accounts: AccountIdentity[] = [],
 ): T[] {
   const scopedIds = getAccountIdsByScope(links, scope)
   if (scope === 'PERSONAL') {
-    const nonPersonalIds = new Set(links.filter((link) => normalizeFinanceScope(link.purpose) !== 'PERSONAL').map((link) => link.account_id))
-    return transactions.filter((transaction) => !transaction.account_id || !nonPersonalIds.has(transaction.account_id))
+    const excludedIds = getPersonalExcludedAccountIds(links, accounts)
+    return transactions.filter((transaction) => !transaction.account_id || !excludedIds.has(transaction.account_id))
   }
   return transactions.filter((transaction) => Boolean(transaction.account_id && scopedIds.has(transaction.account_id)))
 }
@@ -89,8 +116,9 @@ export function filterTransactionsByScope<T extends { account_id?: string | null
 export function filterPersonalTransactions<T extends { account_id?: string | null }>(
   transactions: T[],
   links: AccountScopeLink[],
+  accounts: AccountIdentity[] = [],
 ): T[] {
-  return filterTransactionsByScope(transactions, links, 'PERSONAL')
+  return filterTransactionsByScope(transactions, links, 'PERSONAL', accounts)
 }
 
 export function classifyTransferDirection(

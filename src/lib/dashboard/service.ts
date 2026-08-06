@@ -10,7 +10,7 @@ import {
 import type { EnrichedBudgetEntry, EnrichedBudgetSummary } from '@/lib/budgets/service'
 import { buildGoalSummary } from '@/lib/goals/service'
 import type { GoalSummary } from '@/lib/goals/service'
-import { filterPersonalAccounts, filterPersonalTransactions, getDependentAccountIds } from '@/lib/dependent-finance/calculations'
+import { filterPersonalAccounts, filterPersonalTransactions, getPersonalExcludedAccountIds } from '@/lib/dependent-finance/calculations'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -740,10 +740,11 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
   ])
 
   const accountPurposeLinks = accountPurposeRes.error ? [] : (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
-  const dedicatedAccountIds = getDependentAccountIds(accountPurposeLinks)
-  const accounts    = filterPersonalAccounts((accountsRes.data ?? []) as DashboardAccount[], accountPurposeLinks)
+  const rawAccounts = (accountsRes.data ?? []) as DashboardAccount[]
+  const dedicatedAccountIds = getPersonalExcludedAccountIds(accountPurposeLinks, rawAccounts)
+  const accounts    = filterPersonalAccounts(rawAccounts, accountPurposeLinks)
   const categories  = (categoriesRes.data ?? []) as CatRow[]
-  const allTxs      = filterPersonalTransactions((txRes.data ?? []) as TxRow[], accountPurposeLinks)
+  const allTxs      = filterPersonalTransactions((txRes.data ?? []) as TxRow[], accountPurposeLinks, rawAccounts)
   const budgets     = (budgetsRes.data ?? []) as { id: string; category_id: string; amount: number }[]
   const goals       = (goalsRes.data ?? []) as any[]
   const rules       = ((rulesRes.data ?? []) as Array<DashboardUpcomingRule & { account_id?: string }>)

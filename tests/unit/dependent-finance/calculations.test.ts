@@ -34,25 +34,32 @@ describe('dependent finance calculations', () => {
 
   it('filtra conti personali, Aurora e ADI in modo separato', () => {
     const accounts = [
-      { id: 'personal-1', balance: 1000 },
-      { id: 'aurora-1', balance: 5000 },
-      { id: 'aurora-2', balance: 300 },
-      { id: 'adi-1', balance: 200 },
+      { id: 'personal-1', name: 'Bancoposta', balance: 1000 },
+      { id: 'aurora-1', name: 'Aurora piano di accumulo', balance: 5000 },
+      { id: 'aurora-2', name: 'Libretto Aurora', balance: 300 },
+      { id: 'adi-1', name: 'ADI', balance: 200 },
     ]
-    expect(filterPersonalAccounts(accounts, links).map((account) => account.id)).toEqual(['personal-1'])
+    expect(filterPersonalAccounts(accounts, links).map((account) => account.id)).toEqual(['personal-1', 'aurora-1'])
     expect(filterAccountsByScope(accounts, links, 'DEPENDENT_AURORA').map((account) => account.id)).toEqual(['aurora-1', 'aurora-2'])
     expect(filterAccountsByScope(accounts, links, 'ADI').map((account) => account.id)).toEqual(['adi-1'])
   })
 
-  it('filtra movimenti personali e Aurora senza aggregazioni incrociate', () => {
+  it('mantiene nel personale solo i movimenti del conto ponte Aurora piano di accumulo', () => {
+    const accounts = [
+      { id: 'personal-1', name: 'Bancoposta' },
+      { id: 'aurora-1', name: 'Aurora piano di accumulo' },
+      { id: 'aurora-2', name: 'Libretto Aurora' },
+      { id: 'adi-1', name: 'ADI' },
+    ]
     const transactions = [
       { id: 'tx-1', account_id: 'personal-1', amount: 100 },
       { id: 'tx-2', account_id: 'aurora-1', amount: 500 },
-      { id: 'tx-3', account_id: 'adi-1', amount: 50 },
+      { id: 'tx-3', account_id: 'aurora-2', amount: 300 },
+      { id: 'tx-4', account_id: 'adi-1', amount: 50 },
     ]
-    expect(filterPersonalTransactions(transactions, links).map((tx) => tx.id)).toEqual(['tx-1'])
-    expect(filterTransactionsByScope(transactions, links, 'DEPENDENT_AURORA').map((tx) => tx.id)).toEqual(['tx-2'])
-    expect(filterTransactionsByScope(transactions, links, 'ADI').map((tx) => tx.id)).toEqual(['tx-3'])
+    expect(filterPersonalTransactions(transactions, links, accounts).map((tx) => tx.id)).toEqual(['tx-1', 'tx-2'])
+    expect(filterTransactionsByScope(transactions, links, 'DEPENDENT_AURORA').map((tx) => tx.id)).toEqual(['tx-2', 'tx-3'])
+    expect(filterTransactionsByScope(transactions, links, 'ADI').map((tx) => tx.id)).toEqual(['tx-4'])
   })
 
   it('classifica i giroconti tra perimetri', () => {

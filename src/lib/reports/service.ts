@@ -11,7 +11,7 @@ import type {
   ReportTransactionTypeFilter,
 } from './types'
 import { ReportInputError } from './types'
-import { filterPersonalAccounts, filterPersonalTransactions, getDependentAccountIds } from '@/lib/dependent-finance/calculations'
+import { filterPersonalAccounts, filterPersonalTransactions, getPersonalExcludedAccountIds } from '@/lib/dependent-finance/calculations'
 
 const MAX_CUSTOM_RANGE_DAYS = 366 * 5
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -178,10 +178,11 @@ export async function buildReportPayload(
   }
 
   const accountPurposeLinks = accountPurposeRes.error ? [] : (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
-  const accounts = filterPersonalAccounts((accountsRes.data ?? []) as ReportAccountInput[], accountPurposeLinks)
+  const rawAccounts = (accountsRes.data ?? []) as ReportAccountInput[]
+  const accounts = filterPersonalAccounts(rawAccounts, accountPurposeLinks)
   const categories = (categoriesRes.data ?? []) as ReportCategoryInput[]
-  const transactions = filterPersonalTransactions((transactionsRes.data ?? []) as ReportTransactionInput[], accountPurposeLinks)
-  const dedicatedAccountIds = getDependentAccountIds(accountPurposeLinks)
+  const transactions = filterPersonalTransactions((transactionsRes.data ?? []) as ReportTransactionInput[], accountPurposeLinks, rawAccounts)
+  const dedicatedAccountIds = getPersonalExcludedAccountIds(accountPurposeLinks, rawAccounts)
   const activeRecurringRulesCount = (recurringRes.data ?? []).filter((rule) => {
     const accountId = (rule as { account_id?: string | null }).account_id
     return !accountId || !dedicatedAccountIds.has(accountId)

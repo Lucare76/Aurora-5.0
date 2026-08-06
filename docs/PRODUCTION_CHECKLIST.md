@@ -4,6 +4,15 @@ Questo documento elenca i controlli da effettuare prima di un deploy in produzio
 
 ---
 
+## Assistente finanziario Aurora 6.0
+
+- [ ] Lasciare `FINANCIAL_ASSISTANT_ENABLED=false` finché la UI chat e i controlli di produzione non sono approvati
+- [ ] Verificare che `PRIVATE_FINANCE_ACCOUNT_EMAIL` sia valorizzata solo negli ambienti autorizzati
+- [ ] Confermare che gli endpoint `/api/financial-assistant/query` e `/api/financial-assistant/capabilities` rispondano in sola lettura
+- [ ] Controllare log applicativi sanitizzati: nessun importo dettagliato, email, token o ID completo
+
+---
+
 ## 1. Dipendenze e sicurezza
 
 - [ ] `npm audit` non riporta vulnerabilità HIGH o CRITICAL non analizzate

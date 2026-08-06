@@ -4,6 +4,14 @@ Aurora è uno strumento personale per tenere traccia delle proprie finanze. I da
 
 ---
 
+## Assistente finanziario read-only
+
+Aurora 6.0 introduce le fondamenta server-side dell'assistente finanziario. La funzione è disattivata di default tramite `FINANCIAL_ASSISTANT_ENABLED=false` e, quando abilitata, lavora solo in lettura: può spiegare riepiloghi, budget, obiettivi, salute finanziaria e simulazioni, ma non crea, modifica o elimina movimenti, conti o dati contabili.
+
+Le aree private Aurora e ADI sono disponibili solo all'account autorizzato configurato lato server con `PRIVATE_FINANCE_ACCOUNT_EMAIL`.
+
+---
+
 ## 1. Cos'è Aurora
 
 Aurora è un'applicazione web per la gestione finanziaria personale. Permette di:

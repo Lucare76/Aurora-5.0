@@ -181,7 +181,7 @@ export function AuroraSavingsPageClient() {
             <div className="flex-1">
               <h2 className="text-lg font-semibold text-slate-950">Imposta il conto fonte Aurora</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Seleziona il conto reale già esistente. “Aurora piano di accumulo” resta lo stesso conto, non viene copiato e non entra nel patrimonio personale.
+                Seleziona il conto reale già esistente. “Aurora piano di accumulo” resta lo stesso conto, non viene copiato e rimane incluso anche nel patrimonio personale.
               </p>
               <form onSubmit={(event) => { event.preventDefault(); void submit({ action: 'linkAccount', accountId: selectedAccountId }) }} className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <select value={selectedAccountId} onChange={(event) => setSelectedAccountId(event.target.value)} className="min-h-11 flex-1 rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm" aria-label="Conto fonte Aurora">
@@ -205,7 +205,7 @@ export function AuroraSavingsPageClient() {
       <section className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-800">
         <div className="flex items-start gap-2">
           <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>Aurora e ADI sono perimetri separati: non aumentano il patrimonio personale totale, la disponibilità personale, l’affordability o la salute finanziaria personale.</p>
+          <p>Aurora e ADI sono perimetri separati: solo “Aurora piano di accumulo” rimane condiviso con il patrimonio personale; gli altri conti Aurora e ADI non aumentano patrimonio totale, affordability o salute finanziaria personale.</p>
         </div>
       </section>
 
@@ -241,7 +241,7 @@ export function AuroraSavingsPageClient() {
       <section className="grid gap-4 xl:grid-cols-2">
         <form onSubmit={(event) => { event.preventDefault(); void submit({ action: 'createTransaction', type: movement.type, accountId: movement.accountId, amount: Number(movement.amount.replace(',', '.')), date: movement.date, description: movement.description, notes: movement.notes || null }) }} className="rounded-2xl border border-[#e5e7f0] bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold text-slate-950">Nuovo movimento Aurora</h2>
-          <p className="mt-1 text-sm text-slate-500">Entrate e uscite Aurora usano i conti dedicati e non entrano nelle statistiche personali.</p>
+          <p className="mt-1 text-sm text-slate-500">Entrate e uscite Aurora usano i conti dedicati; solo il conto “Aurora piano di accumulo” resta comune al perimetro personale.</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <Field label="Tipo"><select value={movement.type} onChange={(e) => setMovement({ ...movement, type: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3"><option value="income">Entrata</option><option value="expense">Uscita</option></select></Field>
             <Field label="Conto Aurora"><select required value={movement.accountId} onChange={(e) => setMovement({ ...movement, accountId: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3">{data?.auroraAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></Field>

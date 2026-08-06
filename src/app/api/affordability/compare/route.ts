@@ -17,7 +17,7 @@ import { adaptTravelScenario } from '@/lib/decision-comparison/adapters/travel-a
 import { compareDecisions } from '@/lib/decision-comparison/engine'
 import { DecisionComparisonError } from '@/lib/decision-comparison/types'
 import { MIN_SCENARIOS, MAX_SCENARIOS } from '@/lib/decision-comparison/constants'
-import { filterPersonalAccounts, filterPersonalTransactions, getDependentAccountIds } from '@/lib/dependent-finance/calculations'
+import { filterPersonalAccounts, filterPersonalTransactions, getPersonalExcludedAccountIds } from '@/lib/dependent-finance/calculations'
 import type {
   ComparisonProfile,
   DecisionComparisonErrorCode,
@@ -161,12 +161,13 @@ async function loadDbData(supabase: Awaited<ReturnType<typeof createClient>>, us
   assertQuerySucceeded('goal_contributions', contribRes)
 
   const accountPurposeLinks = accountPurposeRes.error ? [] : (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
-  const dedicatedAccountIds = getDependentAccountIds(accountPurposeLinks)
+  const rawAccounts = (accountsRes.data ?? []) as AffordabilityDbData['accounts']
+  const dedicatedAccountIds = getPersonalExcludedAccountIds(accountPurposeLinks, rawAccounts)
 
   return {
-    accounts: filterPersonalAccounts((accountsRes.data ?? []) as AffordabilityDbData['accounts'], accountPurposeLinks),
+    accounts: filterPersonalAccounts(rawAccounts, accountPurposeLinks),
     recurringRules: ((recurringRes.data ?? []) as AffordabilityDbData['recurringRules']).filter((rule) => !rule.account_id || !dedicatedAccountIds.has(rule.account_id)),
-    recentTransactions: filterPersonalTransactions((txRes.data ?? []) as AffordabilityDbData['recentTransactions'], accountPurposeLinks),
+    recentTransactions: filterPersonalTransactions((txRes.data ?? []) as AffordabilityDbData['recentTransactions'], accountPurposeLinks, rawAccounts),
     loans: (loansRes.data ?? []) as AffordabilityDbData['loans'],
     loanPayments: (loanPaymentsRes.data ?? []) as AffordabilityDbData['loanPayments'],
     goals: (goalsRes.data ?? []) as AffordabilityDbData['goals'],

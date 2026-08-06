@@ -14,7 +14,7 @@ import type { Account, Budget, Category, Database, Loan, LoanPayment, RecurringR
 import type { HealthNotification, HealthPeriod, MonthlyCashFlowMetric, ProjectedLiquidityInput } from './types'
 import { calculateFinancialHealth } from './engine'
 import { buildMonthPeriod, dateKey, addMonths, previousComparablePeriod, roundMoney } from './helpers'
-import { filterPersonalAccounts, filterPersonalTransactions, getDependentAccountIds } from '@/lib/dependent-finance/calculations'
+import { filterPersonalAccounts, filterPersonalTransactions, getPersonalExcludedAccountIds } from '@/lib/dependent-finance/calculations'
 
 export class FinancialHealthInputError extends Error {
   constructor(
@@ -182,10 +182,11 @@ export async function buildFinancialHealthPayload(
   if (required.some((res) => res.error)) throw new FinancialHealthInputError('FINANCIAL_HEALTH_CALCULATION_FAILED', 'Calcolo non disponibile.')
 
   const accountPurposeLinks = accountPurposeRes.error ? [] : (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
-  const dedicatedAccountIds = getDependentAccountIds(accountPurposeLinks)
-  const accounts = filterPersonalAccounts((accountsRes.data ?? []) as Account[], accountPurposeLinks)
+  const rawAccounts = (accountsRes.data ?? []) as Account[]
+  const dedicatedAccountIds = getPersonalExcludedAccountIds(accountPurposeLinks, rawAccounts)
+  const accounts = filterPersonalAccounts(rawAccounts, accountPurposeLinks)
   const categories = (categoriesRes.data ?? []) as Category[]
-  const transactions = filterPersonalTransactions((transactionsRes.data ?? []) as Transaction[], accountPurposeLinks)
+  const transactions = filterPersonalTransactions((transactionsRes.data ?? []) as Transaction[], accountPurposeLinks, rawAccounts)
   const budgets = (budgetsRes.data ?? []) as Budget[]
   const recurringRules = ((recurringRes.data ?? []) as RecurringRule[]).filter((rule) => !dedicatedAccountIds.has(rule.account_id))
   const goals = (goalsRes.data ?? []) as SavingsGoal[]
