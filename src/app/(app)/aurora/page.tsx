@@ -29,7 +29,6 @@ type Payload = {
   auroraAccounts: Account[]
   transactions: Tx[]
   summary: Summary
-  monitoredTotal: { personal: number; aurora: number; adi: number; total: number; disclaimer: string }
   schemaReady: boolean
   schemaMessage: string | null
 }
@@ -114,7 +113,7 @@ export default function AuroraSavingsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-950">Aurora</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            Patrimonio dedicato ad Aurora, separato da personale e ADI. Conti, movimenti e statistiche usano solo il perimetro Aurora.
+            Patrimonio dedicato ad Aurora, separato dal patrimonio personale e da ADI. Il valore segue pari pari i conti fonte Aurora reali.
           </p>
         </div>
         <button type="button" onClick={load} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#e5e7f0] bg-white px-4 text-sm font-semibold text-slate-700">
@@ -144,16 +143,16 @@ export default function AuroraSavingsPage() {
           <div className="flex items-start gap-3">
             <Wallet className="mt-1 h-5 w-5 text-indigo-600" />
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-slate-950">Collega il primo conto Aurora</h2>
+              <h2 className="text-lg font-semibold text-slate-950">Imposta il conto fonte Aurora</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Seleziona il conto reale già esistente. Il conto suggerito è “Aurora piano di accumulo” e non verrà copiato.
+                Seleziona il conto reale già esistente. “Aurora piano di accumulo” resta lo stesso conto, non viene copiato e non entra nel patrimonio personale.
               </p>
               <form onSubmit={(event) => { event.preventDefault(); void submit({ action: 'linkAccount', accountId: selectedAccountId }) }} className="mt-4 flex flex-col gap-3 sm:flex-row">
-                <select value={selectedAccountId} onChange={(event) => setSelectedAccountId(event.target.value)} className="min-h-11 flex-1 rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm" aria-label="Conto da collegare ad Aurora">
+                <select value={selectedAccountId} onChange={(event) => setSelectedAccountId(event.target.value)} className="min-h-11 flex-1 rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm" aria-label="Conto fonte Aurora">
                   <option value="">Seleziona conto...</option>
                   {data?.accounts.map((account) => <option key={account.id} value={account.id}>{account.name} - {formatCurrency(Number(account.balance), account.currency)}</option>)}
                 </select>
-                <Button type="submit" disabled={!schemaReady || !selectedAccountId || saving} className="gap-2">{saving && <Loader2 className="h-4 w-4 animate-spin" />}Collega conto</Button>
+                <Button type="submit" disabled={!schemaReady || !selectedAccountId || saving} className="gap-2">{saving && <Loader2 className="h-4 w-4 animate-spin" />}Usa come fonte Aurora</Button>
               </form>
             </div>
           </div>
@@ -170,13 +169,7 @@ export default function AuroraSavingsPage() {
       <section className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-800">
         <div className="flex items-start gap-2">
           <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>{data?.monitoredTotal.disclaimer}</p>
-        </div>
-        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-4">
-          <span>Personale: <strong>{formatCurrency(data?.monitoredTotal.personal ?? 0)}</strong></span>
-          <span>Aurora: <strong>{formatCurrency(data?.monitoredTotal.aurora ?? 0)}</strong></span>
-          <span>ADI: <strong>{formatCurrency(data?.monitoredTotal.adi ?? 0)}</strong></span>
-          <span>Totale monitorato: <strong>{formatCurrency(data?.monitoredTotal.total ?? 0)}</strong></span>
+          <p>Aurora e ADI sono perimetri separati: non aumentano il patrimonio personale totale, la disponibilità personale, l’affordability o la salute finanziaria personale.</p>
         </div>
       </section>
 
@@ -184,7 +177,7 @@ export default function AuroraSavingsPage() {
         <div className="rounded-2xl border border-[#e5e7f0] bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2"><Landmark className="h-5 w-5 text-indigo-600" /><h2 className="text-base font-semibold text-slate-950">Conti Aurora</h2></div>
           <div className="mt-4 space-y-3">
-            {(data?.summary.byAccount ?? []).length === 0 ? <p className="text-sm text-slate-500">Collega o crea un conto per iniziare.</p> : data!.summary.byAccount.map((account) => (
+            {(data?.summary.byAccount ?? []).length === 0 ? <p className="text-sm text-slate-500">Imposta un conto fonte o crea un conto Aurora per iniziare.</p> : data!.summary.byAccount.map((account) => (
               <div key={account.accountId} className="rounded-xl border border-[#e5e7f0] p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div><p className="font-semibold text-slate-950">{account.name}</p><p className="text-xs text-slate-500">{account.type} · {account.isActive ? 'Attivo' : 'Archiviato'}</p></div>

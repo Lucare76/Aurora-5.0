@@ -33,6 +33,16 @@ const createSchema = z.discriminatedUnion('entryType', [
   }).strict(),
 ])
 
+const updateSchema = z.object({
+  entryId: z.string().uuid(),
+  amount: money,
+  date: isoDate,
+  referencePeriod: period,
+  adiCategory: z.enum(ADI_CATEGORIES).nullable().optional(),
+  description: z.string().trim().min(1).max(500),
+  note: z.string().trim().max(5000).nullable().optional(),
+}).strict()
+
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
 }
@@ -143,5 +153,91 @@ export async function POST(request: Request) {
     return json({ data }, 201)
   } catch {
     return json({ error: 'Errore interno nella gestione ADI.' }, 500)
+  }
+}
+
+export async function PATCH(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return json({ error: 'Non autenticato' }, 401)
+
+  const parsed = updateSchema.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) {
+    return json({
+      error: 'Dati ADI non validi.',
+      field: parsed.error.issues[0]?.path.join('.') ?? 'payload',
+      details: process.env.NODE_ENV === 'production' ? undefined : parsed.error.flatten(),
+    }, 400)
+  }
+
+  try {
+    const body = parsed.data
+    const entries = await readEntries(supabase, user.id)
+    const current = entries.find((entry) => entry.id === body.entryId)
+    if (!current) return json({ error: 'Movimento ADI non trovato o non autorizzato.' }, 404)
+
+    const nextEntries = entries.map((entry) => {
+      if (entry.id !== body.entryId) return entry
+      return {
+        ...entry,
+        amount: body.amount,
+        date: body.date,
+        reference_period: current.entry_type === 'credit' ? body.referencePeriod ?? null : current.reference_period,
+        adi_category: current.entry_type === 'debit' ? body.adiCategory ?? current.adi_category : null,
+        description: body.description,
+        note: body.note ?? null,
+      }
+    })
+
+    if (buildAdiSummary(nextEntries).balance < 0) {
+      return json({ error: 'La modifica porterebbe il residuo ADI sotto zero.' }, 409)
+    }
+
+    if (current.entry_type === 'debit') {
+      if (!body.adiCategory) return json({ error: 'Seleziona una categoria ADI valida.' }, 400)
+      if (current.transaction_id) {
+        const { data: tx, error: txError } = await supabase
+          .from('transactions')
+          .select('id,user_id,type,amount')
+          .eq('id', current.transaction_id)
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        if (txError) return json({ error: 'Transazione collegata non verificabile.' }, 500)
+        if (!tx) return json({ error: 'Transazione collegata non trovata o non autorizzata.' }, 404)
+        if (tx.type !== 'expense') return json({ error: 'ADI può essere collegata solo a spese.' }, 400)
+        if (Number(tx.amount) < body.amount) return json({ error: 'La spesa ADI non può superare l’importo della transazione collegata.' }, 400)
+      }
+    }
+
+    const payload = current.entry_type === 'credit'
+      ? {
+        amount: body.amount,
+        date: body.date,
+        reference_period: body.referencePeriod ?? null,
+        description: body.description,
+        note: body.note ?? null,
+        adi_category: null,
+      }
+      : {
+        amount: body.amount,
+        date: body.date,
+        adi_category: body.adiCategory,
+        description: body.description,
+        note: body.note ?? null,
+      }
+
+    const { data, error } = await supabase
+      .from('adi_entries')
+      .update(payload)
+      .eq('id', body.entryId)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (error) return json({ error: 'Modifica movimento ADI non riuscita.' }, 500)
+    return json({ data })
+  } catch {
+    return json({ error: 'Errore interno nella modifica ADI.' }, 500)
   }
 }

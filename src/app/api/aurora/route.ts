@@ -7,7 +7,6 @@ import {
   classifyTransferDirection,
   filterAccountsByScope,
   getAccountScopeMap,
-  normalizeFinanceScope,
 } from '@/lib/dependent-finance/calculations'
 import type { AccountPurposeLink, FinanceScope } from '@/lib/dependent-finance/types'
 
@@ -199,9 +198,6 @@ export async function GET() {
       .limit(1000)
     : { data: [], error: null }
 
-  const adiEntriesRes = schemaReady
-    ? await supabase.from('adi_entries').select('*').eq('user_id', user.id)
-    : { data: [], error: null }
   if (transactionsRes.error) return json({ error: 'Movimenti Aurora non disponibili.' }, 500)
 
   const transactions = (transactionsRes.data ?? []).map((tx) => ({
@@ -210,11 +206,6 @@ export async function GET() {
   }))
 
   const auroraPatrimony = buildAuroraScopeSummary({ accounts: auroraAccounts, transactions, links })
-  const personalPatrimony = accounts
-    .filter((account) => account.is_active !== false)
-    .filter((account) => normalizeFinanceScope(links.find((link) => link.account_id === account.id)?.purpose) === 'PERSONAL')
-    .reduce((sum, account) => sum + Number(account.balance ?? 0), 0)
-  const adiBalance = (adiEntriesRes.data ?? []).reduce((sum, entry: any) => sum + (entry.entry_type === 'credit' ? Number(entry.amount) : -Number(entry.amount)), 0)
 
   return json({
     data: {
@@ -226,15 +217,8 @@ export async function GET() {
       links,
       transactions,
       summary: auroraPatrimony,
-      monitoredTotal: {
-        personal: personalPatrimony,
-        aurora: auroraPatrimony.balance,
-        adi: adiBalance,
-        total: personalPatrimony + auroraPatrimony.balance + adiBalance,
-        disclaimer: 'Il totale monitorato include patrimoni separati e non rappresenta denaro interamente disponibile per le spese personali.',
-      },
       schemaReady,
-      schemaMessage: schemaReady ? null : 'Lo schema Aurora/ADI non è ancora attivo su questo ambiente. Applica la migration 00030 prima di collegare conti o registrare movimenti dedicati.',
+      schemaMessage: schemaReady ? null : 'Lo schema Aurora/ADI non è ancora attivo su questo ambiente. Applica la migration 00030 prima di impostare conti fonte o registrare movimenti dedicati.',
     },
   })
 }

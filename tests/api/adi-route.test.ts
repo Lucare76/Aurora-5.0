@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { GET, POST } from '@/app/api/adi/route'
+import { GET, PATCH, POST } from '@/app/api/adi/route'
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }))
 
@@ -13,7 +13,7 @@ function request(body: unknown): Request {
 
 function query(data: unknown, error: unknown = null) {
   const builder: Record<string, unknown> = {}
-  for (const method of ['select', 'eq', 'order', 'maybeSingle', 'insert', 'single'] as const) {
+  for (const method of ['select', 'eq', 'order', 'maybeSingle', 'insert', 'update', 'single'] as const) {
     builder[method] = vi.fn(() => builder)
   }
   ;(builder as { then: (resolve: (value: { data: unknown; error: unknown }) => unknown) => unknown }).then = (resolve) => resolve({ data, error })
@@ -34,6 +34,7 @@ function supabaseMock(options: {
       if (table === 'adi_entries') {
         const builder = query(entries)
         ;(builder.insert as ReturnType<typeof vi.fn>).mockReturnValue(query(inserted))
+        ;(builder.update as ReturnType<typeof vi.fn>).mockReturnValue(query(inserted))
         return builder
       }
       if (table === 'transactions') return query(options.transaction ?? null)
@@ -135,5 +136,61 @@ describe('/api/adi', () => {
       paidWithAdi: true,
     }))
     expect(res.status).toBe(404)
+  })
+
+  it('modifica un accredito ADI valido', async () => {
+    ;(createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(supabaseMock({
+      entries: [{ id: '11111111-1111-4111-8111-111111111111', entry_type: 'credit', amount: 500, date: '2026-08-01', adi_category: null, reference_period: '2026-08', description: 'ADI', note: null }],
+      inserted: { id: '11111111-1111-4111-8111-111111111111', amount: 450 },
+    }))
+    const res = await PATCH(request({
+      entryId: '11111111-1111-4111-8111-111111111111',
+      amount: 450,
+      date: '2026-08-02',
+      referencePeriod: '2026-08',
+      adiCategory: null,
+      description: 'ADI corretta',
+      note: null,
+    }))
+    expect(res.status).toBe(200)
+  })
+
+  it('modifica una spesa ADI valida', async () => {
+    ;(createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(supabaseMock({
+      entries: [
+        { id: 'credit-1', entry_type: 'credit', amount: 500, date: '2026-08-01', adi_category: null, reference_period: '2026-08', description: 'ADI', note: null },
+        { id: '11111111-1111-4111-8111-111111111111', entry_type: 'debit', amount: 100, date: '2026-08-03', adi_category: 'SUPERMERCATO', reference_period: null, description: 'Spesa', note: null, transaction_id: null },
+      ],
+      inserted: { id: '11111111-1111-4111-8111-111111111111', amount: 120 },
+    }))
+    const res = await PATCH(request({
+      entryId: '11111111-1111-4111-8111-111111111111',
+      amount: 120,
+      date: '2026-08-03',
+      referencePeriod: null,
+      adiCategory: 'BENZINA',
+      description: 'Benzina corretta',
+      note: 'correzione',
+    }))
+    expect(res.status).toBe(200)
+  })
+
+  it('blocca una modifica che manderebbe il residuo ADI sotto zero', async () => {
+    ;(createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(supabaseMock({
+      entries: [
+        { id: 'credit-1', entry_type: 'credit', amount: 100, date: '2026-08-01', adi_category: null, reference_period: '2026-08', description: 'ADI', note: null },
+        { id: '11111111-1111-4111-8111-111111111111', entry_type: 'debit', amount: 50, date: '2026-08-03', adi_category: 'SUPERMERCATO', reference_period: null, description: 'Spesa', note: null, transaction_id: null },
+      ],
+    }))
+    const res = await PATCH(request({
+      entryId: '11111111-1111-4111-8111-111111111111',
+      amount: 120,
+      date: '2026-08-03',
+      referencePeriod: null,
+      adiCategory: 'SUPERMERCATO',
+      description: 'Troppo alta',
+      note: null,
+    }))
+    expect(res.status).toBe(409)
   })
 })

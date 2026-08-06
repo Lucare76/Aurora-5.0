@@ -72,16 +72,16 @@ Statistiche ADI:
 - accettano solo Supermercato, Benzina, Abbigliamento Aurora;
 - mostrano ricevuto, speso, residuo, utilizzo, categorie e andamento mensile.
 
-## Totale monitorato
+## Separazione dal patrimonio totale
 
-La pagina Aurora espone un totale informativo composto da:
+Aurora e ADI non vengono aggregati nel patrimonio personale totale.
 
-- patrimonio personale;
-- patrimonio Aurora;
-- residuo ADI;
-- totale monitorato.
+Regole operative:
 
-Non viene chiamato disponibilita e non viene usato per Financial Health, affordability, budget personali o decision comparison.
+- il patrimonio personale include solo `PERSONAL`;
+- Aurora usa i conti fonte reali marcati `DEPENDENT_AURORA`, ma resta un perimetro separato;
+- ADI usa solo il ledger `adi_entries`, ma resta un perimetro separato;
+- non viene mostrato un totale aggregato personale + Aurora + ADI nella pagina Aurora.
 
 ## Sicurezza e RLS
 
