@@ -10,6 +10,32 @@ Aurora 6.0 introduce le fondamenta server-side dell'assistente finanziario. La f
 
 Le aree private Aurora e ADI sono disponibili solo all'account autorizzato configurato lato server con `PRIVATE_FINANCE_ACCOUNT_EMAIL`.
 
+### Chiedi ad Aurora
+
+Quando il flag è abilitato, la voce **Chiedi ad Aurora** apre una chat deterministica. Puoi scrivere domande in italiano come:
+
+- Quanto ho speso questo mese?
+- Quali categorie pesano di più?
+- Quanti mesi copre il mio fondo di emergenza?
+- Come stanno andando i miei budget?
+- Perché il mio Financial Health è cambiato?
+- Posso permettermi una spesa di 2.000 €?
+
+Se l'account è autorizzato, la chat mostra anche suggerimenti per **Risparmi Aurora** e **ADI**. Gli scope disponibili vengono caricati dal server: non puoi selezionare aree non autorizzate.
+
+Ogni risposta mostra:
+
+- una sintesi leggibile;
+- il periodo interpretato quando disponibile;
+- il perimetro dati usato;
+- evidenze e citazioni interne;
+- eventuali input mancanti;
+- azioni di navigazione verso pagine Aurora autorizzate.
+
+La conversazione vive solo nel browser e viene persa al refresh. In questo sprint nessun dato viene inviato a provider AI esterni e non viene salvata cronologia cloud.
+
+Richieste fuori perimetro, come raccomandazioni su ETF o istruzioni per creare, modificare, eliminare o trasferire denaro, vengono rifiutate perché l'assistente è in modalità sola lettura.
+
 ---
 
 ## 1. Cos'è Aurora

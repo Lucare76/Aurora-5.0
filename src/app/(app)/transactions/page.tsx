@@ -374,12 +374,20 @@ export default function TransactionsPage() {
 
   const fetchTransactions = async () => {
     setLoading(true)
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      setTransactions([])
+      setLoading(false)
+      toast.error('Sessione scaduta. Accedi di nuovo.')
+      return
+    }
     const range = useDateRange
       ? { start: dateRangeFrom, end: dateRangeTo }
       : getMonthRange(selectedMonth)
     let query = db
       .from('transactions')
       .select(TRANSACTION_SELECT)
+      .eq('user_id', user.id)
       .gte('date', range.start)
       .lte('date', range.end)
       .order('date', { ascending: false })
@@ -396,7 +404,7 @@ export default function TransactionsPage() {
       const rows = (data ?? []) as TransactionWithPeer[]
       const peerIds = rows.map((row) => row.transfer_peer_id).filter(Boolean) as string[]
       const { data: peers } = peerIds.length > 0
-        ? await db.from('transactions').select(TRANSACTION_SELECT).in('id', peerIds)
+        ? await db.from('transactions').select(TRANSACTION_SELECT).eq('user_id', user.id).in('id', peerIds)
         : { data: [] }
       const peerRows = (peers ?? []) as Transaction[]
       const peerById = new Map(peerRows.map((peer) => [peer.id, peer]))
@@ -421,10 +429,13 @@ export default function TransactionsPage() {
 
   const getTransferPeer = async (transaction: Transaction) => {
     if (!transaction.transfer_peer_id) return null
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) return null
     const { data } = await db
       .from('transactions')
       .select(TRANSACTION_SELECT)
       .eq('id', transaction.transfer_peer_id)
+      .eq('user_id', user.id)
       .maybeSingle()
     return data as Transaction | null
   }

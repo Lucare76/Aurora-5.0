@@ -17,6 +17,7 @@ import {
   HandCoins,
   LayoutDashboard,
   Loader2,
+  MessageCircle,
   PiggyBank,
   Plus,
   Repeat,
@@ -53,7 +54,19 @@ const typeIcons: Record<SearchResultType, LucideIcon> = {
   AUTOMATION_RULE: Sparkles,
 }
 
+const ASSISTANT_UI_ENABLED = process.env.NEXT_PUBLIC_FINANCIAL_ASSISTANT_ENABLED === 'true' || process.env.FINANCIAL_ASSISTANT_ENABLED === 'true'
+
+const assistantQuickCommands: Array<QuickCommand & { icon: LucideIcon }> = ASSISTANT_UI_ENABLED
+  ? [
+      { id: 'assistant-open', group: 'Navigazione', title: 'Apri Chiedi ad Aurora', subtitle: 'Chat finanziaria deterministica in sola lettura', href: '/assistant', keywords: ['chiedi ad aurora', 'assistente', 'chat finanziaria'], icon: MessageCircle },
+      { id: 'assistant-spending-month', group: 'Azioni rapide', title: 'Quanto ho speso questo mese?', subtitle: 'Apri la chat con una domanda sui movimenti', href: '/assistant?q=Quanto%20ho%20speso%20questo%20mese%3F', keywords: ['spese mese', 'quanto ho speso'], icon: MessageCircle },
+      { id: 'assistant-emergency-fund', group: 'Azioni rapide', title: 'Controlla il fondo di emergenza', subtitle: 'Chiedi quanti mesi copre la liquidità', href: '/assistant?q=Quanti%20mesi%20copre%20il%20mio%20fondo%20di%20emergenza%3F', keywords: ['fondo emergenza', 'mesi senza reddito'], icon: MessageCircle },
+      { id: 'assistant-health', group: 'Azioni rapide', title: 'Spiega Financial Health', subtitle: 'Chiedi quali fattori incidono sullo score', href: '/assistant?q=Perche%20il%20mio%20Financial%20Health%20e%20cambiato%3F', keywords: ['financial health', 'score', 'spiega salute finanziaria'], icon: MessageCircle },
+    ]
+  : []
+
 export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
+  ...assistantQuickCommands,
   { id: 'new-transaction', group: 'Azioni rapide', title: 'Nuovo movimento', subtitle: 'Apri il form transazioni', href: '/transactions?action=create', keywords: ['nuova transazione', 'nuovo movimento', 'entrata', 'uscita'], icon: Plus },
   { id: 'new-transfer', group: 'Azioni rapide', title: 'Nuovo trasferimento', subtitle: 'Apri i movimenti e scegli Giroconto', href: '/transactions?action=create&type=transfer', keywords: ['giroconto', 'trasferimento'], icon: ArrowLeftRight },
   { id: 'new-budget', group: 'Azioni rapide', title: 'Nuovo budget', subtitle: 'Crea un budget mensile', href: '/budgets?action=create', keywords: ['budget', 'nuovo budget'], icon: Target },

@@ -14,14 +14,27 @@ export function useAccounts() {
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true)
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      setAccounts([])
+      setLoading(false)
+      return
+    }
+
     const [accountsRes, purposeLinksRes] = await Promise.all([
       supabase
         .from('accounts')
         .select('*')
+        .eq('user_id', user.id)
         .order('name', { ascending: true }),
       supabase
         .from('account_purpose_links')
-        .select('account_id,purpose'),
+        .select('account_id,purpose')
+        .eq('user_id', user.id),
     ])
 
     if (!accountsRes.error && accountsRes.data) {

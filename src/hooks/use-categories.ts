@@ -30,9 +30,21 @@ export function useCategories() {
 
   const fetchCategories = useCallback(async () => {
     setLoading(true)
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      setCategories([])
+      setLoading(false)
+      return
+    }
+
     const { data, error } = await supabase
       .from('categories')
       .select('*')
+      .eq('user_id', user.id)
       .order('sort_order', { ascending: true })
 
     if (!error && data) setCategories(data)

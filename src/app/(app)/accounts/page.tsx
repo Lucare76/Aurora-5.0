@@ -152,7 +152,9 @@ export default function AccountsPage() {
 
   const toggleHide = async (account: Account) => {
     try {
-      const { error } = await db.from('accounts').update({ is_hidden: !account.is_hidden }).eq('id', account.id)
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) throw new Error('Sessione scaduta. Accedi di nuovo.')
+      const { error } = await db.from('accounts').update({ is_hidden: !account.is_hidden }).eq('id', account.id).eq('user_id', user.id)
       if (error) throw error
       await refetch()
     } catch {
@@ -211,10 +213,13 @@ export default function AccountsPage() {
   const onEdit: SubmitHandler<AccountForm> = async (values) => {
     if (!editingAccount) return
     try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) throw new Error('Sessione scaduta. Accedi di nuovo.')
       const { error } = await db
         .from('accounts')
         .update({ name: values.name, type: values.type, color: values.color, currency: values.currency.toUpperCase(), balance: values.balance })
         .eq('id', editingAccount.id)
+        .eq('user_id', user.id)
       if (error) throw error
       toast.success('Conto aggiornato')
       setEditingAccount(null)
@@ -227,7 +232,9 @@ export default function AccountsPage() {
   const toggleAccount = async (account: Account) => {
     try {
       setBusyId(account.id)
-      const { error } = await db.from('accounts').update({ is_active: !account.is_active }).eq('id', account.id)
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) throw new Error('Sessione scaduta. Accedi di nuovo.')
+      const { error } = await db.from('accounts').update({ is_active: !account.is_active }).eq('id', account.id).eq('user_id', user.id)
       if (error) throw error
       toast.success(account.is_active ? 'Conto disattivato' : 'Conto riattivato')
       await refetch()
@@ -243,7 +250,9 @@ export default function AccountsPage() {
     if (!deletingAccount) return
     try {
       setBusyId(deletingAccount.id)
-      const { error } = await db.from('accounts').delete().eq('id', deletingAccount.id)
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) throw new Error('Sessione scaduta. Accedi di nuovo.')
+      const { error } = await db.from('accounts').delete().eq('id', deletingAccount.id).eq('user_id', user.id)
       if (error) throw error
       toast.success('Conto eliminato')
       setDeletingAccount(null)

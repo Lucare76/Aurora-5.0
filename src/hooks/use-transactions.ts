@@ -22,9 +22,21 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true)
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      setTransactions([])
+      setLoading(false)
+      return
+    }
+
     let query = supabase
       .from('transactions')
       .select(TRANSACTION_SELECT)
+      .eq('user_id', user.id)
       .order('date', { ascending: false })
 
     if (options.accountId) {

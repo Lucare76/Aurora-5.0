@@ -64,10 +64,28 @@ export default function CategoriesPage() {
 
   const fetchData = async () => {
     setLoading(true)
-    const { data: transactionRows, error: transactionError } = await db.from('transactions').select('category_id')
-    if (transactionError) toast.error('Errore nel caricamento delle categorie')
-    setTxCategoryIds(transactionRows ?? [])
-    setLoading(false)
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+      if (userError || !user) {
+        setTxCategoryIds([])
+        return
+      }
+
+      const { data: transactionRows, error: transactionError } = await db
+        .from('transactions')
+        .select('category_id')
+        .eq('user_id', user.id)
+      if (transactionError) throw transactionError
+      setTxCategoryIds(transactionRows ?? [])
+    } catch {
+      toast.error('Errore nel caricamento delle categorie')
+      setTxCategoryIds([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -145,7 +163,7 @@ export default function CategoriesPage() {
       }
 
       const { error } = editingCategory
-        ? await db.from('categories').update(payload).eq('id', editingCategory.id)
+        ? await db.from('categories').update(payload).eq('id', editingCategory.id).eq('user_id', user.id)
         : await db.from('categories').insert(payload)
 
       if (error) throw error
@@ -170,7 +188,13 @@ export default function CategoriesPage() {
     }
 
     try {
-      const { error } = await db.from('categories').delete().eq('id', category.id)
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+      if (userError || !user) throw new Error('Sessione scaduta. Accedi di nuovo.')
+
+      const { error } = await db.from('categories').delete().eq('id', category.id).eq('user_id', user.id)
       if (error) throw error
       toast.success('Categoria eliminata')
       setOpenMenuId(null)

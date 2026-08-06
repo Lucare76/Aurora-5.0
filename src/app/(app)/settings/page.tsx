@@ -270,11 +270,15 @@ export default function SettingsPage() {
   }
 
   const exportTransactions = async () => {
+    if (!user) {
+      toast.error('Sessione scaduta. Accedi di nuovo.')
+      return
+    }
     try {
       const [txRes, catRes, accRes] = await Promise.all([
-        db.from('transactions').select(TRANSACTION_SELECT).order('date', { ascending: false }).order('created_at', { ascending: false }),
-        db.from('categories').select('id,name'),
-        db.from('accounts').select('id,name,user_id'),
+        db.from('transactions').select(TRANSACTION_SELECT).eq('user_id', user.id).order('date', { ascending: false }).order('created_at', { ascending: false }),
+        db.from('categories').select('id,name').eq('user_id', user.id),
+        db.from('accounts').select('id,name,user_id').eq('user_id', user.id),
       ])
       if (txRes.error) throw txRes.error
 

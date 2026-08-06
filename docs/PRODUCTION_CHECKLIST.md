@@ -8,7 +8,16 @@ Questo documento elenca i controlli da effettuare prima di un deploy in produzio
 
 - [ ] Lasciare `FINANCIAL_ASSISTANT_ENABLED=false` finché la UI chat e i controlli di produzione non sono approvati
 - [ ] Verificare che `PRIVATE_FINANCE_ACCOUNT_EMAIL` sia valorizzata solo negli ambienti autorizzati
-- [ ] Confermare che gli endpoint `/api/financial-assistant/query` e `/api/financial-assistant/capabilities` rispondano in sola lettura
+- [ ] Confermare che gli endpoint `/api/financial-assistant/query`, `/api/financial-assistant/chat` e `/api/financial-assistant/capabilities` rispondano in sola lettura
+- [ ] Verificare feature flag fail-closed: nessuna pagina, comando o capability quando `FINANCIAL_ASSISTANT_ENABLED=false`
+- [ ] Eseguire test parser: normalizzazione, accenti, punteggiatura, intent, confidenza, prompt injection
+- [ ] Eseguire test periodi: mese corrente, mese scorso, ultimi 3/6/12 mesi, input ambigui
+- [ ] Eseguire test importi: `2000`, `2.000`, `2.000,50`, `2 mila euro`, `€ 2.000`
+- [ ] Verificare scope: PERSONAL sempre disponibile, AURORA/ADI solo per account autorizzati
+- [ ] Verificare che richieste di scrittura producano risposta sicura e nessuna mutazione
+- [ ] Verificare che evidenze e citazioni derivino solo dal risultato server
+- [ ] Verificare mobile 320/360/390/430 px, tastiera, focus, aria-live e zoom 200%
+- [ ] Verificare errori sanitizzati: 401, 403, 429, unsupported, input mancante, errore interno
 - [ ] Controllare log applicativi sanitizzati: nessun importo dettagliato, email, token o ID completo
 
 ---

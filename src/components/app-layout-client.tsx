@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MessageCircle,
   MoreHorizontal,
   PiggyBank,
   Repeat,
@@ -43,9 +44,11 @@ interface NavItem {
 }
 
 const PRIVATE_FINANCE_PATHS = new Set(['/aurora', '/adi'])
+const ASSISTANT_UI_ENABLED = process.env.NEXT_PUBLIC_FINANCIAL_ASSISTANT_ENABLED === 'true' || process.env.FINANCIAL_ASSISTANT_ENABLED === 'true'
 
 const allNavItems: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  ...(ASSISTANT_UI_ENABLED ? [{ path: '/assistant', label: 'Chiedi ad Aurora', icon: MessageCircle }] : []),
   { path: '/transactions', label: 'Movimenti', icon: ArrowLeftRight },
   { path: '/accounts', label: 'Conti', icon: Wallet },
   { path: '/categories', label: 'Categorie', icon: Tag },
@@ -75,6 +78,7 @@ const bottomNavItems: NavItem[] = [
 ]
 
 const allMoreItems: NavItem[] = [
+  ...(ASSISTANT_UI_ENABLED ? [{ path: '/assistant', label: 'Chiedi ad Aurora', icon: MessageCircle }] : []),
   { path: '/goals', label: 'Obiettivi', icon: PiggyBank },
   { path: '/categories', label: 'Categorie', icon: Tag },
   { path: '/reports', label: 'Report', icon: BarChart3 },
