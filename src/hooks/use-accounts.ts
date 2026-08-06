@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { filterPersonalAccounts } from '@/lib/dependent-finance/calculations'
 import type { Account } from '@/types/database'
+
+type AccountPurposeLink = { account_id: string; purpose: string | null }
 
 export function useAccounts() {
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -11,12 +14,20 @@ export function useAccounts() {
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('accounts')
-      .select('*')
-      .order('name', { ascending: true })
+    const [accountsRes, purposeLinksRes] = await Promise.all([
+      supabase
+        .from('accounts')
+        .select('*')
+        .order('name', { ascending: true }),
+      supabase
+        .from('account_purpose_links')
+        .select('account_id,purpose'),
+    ])
 
-    if (!error && data) setAccounts(data)
+    if (!accountsRes.error && accountsRes.data) {
+      const purposeLinks = purposeLinksRes.error ? [] : (purposeLinksRes.data ?? []) as AccountPurposeLink[]
+      setAccounts(filterPersonalAccounts(accountsRes.data, purposeLinks))
+    }
     setLoading(false)
   }, [supabase])
 
