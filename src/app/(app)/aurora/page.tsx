@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, ArrowLeftRight, BadgeCheck, Landmark, Loader2, Plus, RefreshCw, Wallet } from 'lucide-react'
+import { AlertCircle, ArrowLeftRight, BadgeCheck, Landmark, Loader2, Pencil, Plus, Save, Trash2, X, RefreshCw, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/lib/utils'
 
 type Account = { id: string; name: string; balance: number; currency: string; is_active: boolean; type: string; color?: string | null }
-type Tx = { id: string; account_id: string; type: string; amount: number; date: string; description: string | null; transfer_peer_id: string | null }
+type Tx = { id: string; account_id: string; type: string; amount: number; date: string; description: string | null; notes?: string | null; transfer_peer_id: string | null }
 type Summary = {
   balance: number
   liquidity: number
@@ -58,6 +58,7 @@ export default function AuroraSavingsPage() {
   const [accountForm, setAccountForm] = useState({ name: '', type: 'savings', balance: '0', currency: 'EUR', color: '#6366f1' })
   const [movement, setMovement] = useState({ type: 'income', accountId: '', amount: '', date: today, description: '', notes: '' })
   const [transfer, setTransfer] = useState({ sourceAccountId: '', destinationAccountId: '', amount: '', date: today, description: '', reason: '', notes: '' })
+  const [editingMovement, setEditingMovement] = useState<{ transactionId: string; type: string; accountId: string; amount: string; date: string; description: string; notes: string } | null>(null)
 
   async function load() {
     setLoading(true)
@@ -97,6 +98,41 @@ export default function AuroraSavingsPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  function startEditMovement(tx: Tx) {
+    setEditingMovement({
+      transactionId: tx.id,
+      type: tx.type === 'expense' ? 'expense' : 'income',
+      accountId: tx.account_id,
+      amount: String(Number(tx.amount)),
+      date: tx.date,
+      description: tx.description ?? '',
+      notes: tx.notes ?? '',
+    })
+  }
+
+  async function saveMovementEdit(event: React.FormEvent) {
+    event.preventDefault()
+    if (!editingMovement) return
+    await submit({
+      action: 'updateTransaction',
+      transactionId: editingMovement.transactionId,
+      type: editingMovement.type,
+      accountId: editingMovement.accountId,
+      amount: Number(editingMovement.amount.replace(',', '.')),
+      date: editingMovement.date,
+      description: editingMovement.description,
+      notes: editingMovement.notes || null,
+      categoryId: null,
+    })
+    setEditingMovement(null)
+  }
+
+  async function deleteMovement(tx: Tx) {
+    const ok = window.confirm('Eliminare questo movimento Aurora? Il saldo del conto verrà aggiornato dalla logica atomica esistente.')
+    if (!ok) return
+    await submit({ action: 'deleteTransaction', transactionId: tx.id })
   }
 
   const maxMonthly = useMemo(() => Math.max(...(data?.summary.monthlyTrend.map((row) => Math.max(row.income + row.transfersIn, row.expenses + row.transfersOut)) ?? [0]), 1), [data?.summary.monthlyTrend])
@@ -253,8 +289,33 @@ export default function AuroraSavingsPage() {
           <div className="divide-y divide-[#e5e7f0]">
             {(data?.summary.recentTransactions ?? []).length === 0 ? <p className="p-5 text-sm text-slate-500">Nessun movimento Aurora registrato.</p> : data!.summary.recentTransactions.slice(0, 8).map((tx) => (
               <div key={tx.id} className="flex items-center justify-between gap-3 p-4">
-                <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-950">{tx.description ?? 'Movimento Aurora'}</p><p className="text-xs text-slate-500">{tx.date}</p></div>
-                <p className={tx.type === 'expense' ? 'text-sm font-bold tabular-nums text-red-600' : 'text-sm font-bold tabular-nums text-emerald-600'}>{tx.type === 'expense' ? '-' : '+'}{formatCurrency(Number(tx.amount))}</p>
+                {editingMovement?.transactionId === tx.id ? (
+                  <form onSubmit={saveMovementEdit} className="w-full space-y-3 rounded-xl bg-slate-50 p-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Tipo"><select value={editingMovement.type} onChange={(event) => setEditingMovement({ ...editingMovement, type: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3"><option value="income">Entrata</option><option value="expense">Uscita</option></select></Field>
+                      <Field label="Conto"><select value={editingMovement.accountId} onChange={(event) => setEditingMovement({ ...editingMovement, accountId: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3">{data?.auroraAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></Field>
+                      <Field label="Importo"><input required type="number" min="0.01" step="0.01" value={editingMovement.amount} onChange={(event) => setEditingMovement({ ...editingMovement, amount: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
+                      <Field label="Data"><input required type="date" value={editingMovement.date} onChange={(event) => setEditingMovement({ ...editingMovement, date: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
+                      <Field label="Descrizione"><input required value={editingMovement.description} onChange={(event) => setEditingMovement({ ...editingMovement, description: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
+                      <Field label="Note"><input value={editingMovement.notes} onChange={(event) => setEditingMovement({ ...editingMovement, notes: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="submit" disabled={saving} className="gap-2">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Salva</Button>
+                      <button type="button" onClick={() => setEditingMovement(null)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#e5e7f0] bg-white px-4 text-sm font-semibold text-slate-700"><X className="h-4 w-4" />Annulla</button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-950">{tx.description ?? 'Movimento Aurora'}</p><p className="text-xs text-slate-500">{tx.date}{tx.transfer_peer_id ? ' · Giroconto' : ''}</p></div>
+                    <div className="flex items-center gap-2">
+                      <p className={tx.type === 'expense' ? 'text-sm font-bold tabular-nums text-red-600' : 'text-sm font-bold tabular-nums text-emerald-600'}>{tx.type === 'expense' ? '-' : '+'}{formatCurrency(Number(tx.amount))}</p>
+                      {!tx.transfer_peer_id && (
+                        <button type="button" onClick={() => startEditMovement(tx)} className="rounded-lg border border-[#e5e7f0] bg-white p-2 text-slate-500 hover:bg-slate-50" aria-label="Modifica movimento Aurora"><Pencil className="h-4 w-4" /></button>
+                      )}
+                      <button type="button" onClick={() => void deleteMovement(tx)} className="rounded-lg border border-red-100 bg-white p-2 text-red-500 hover:bg-red-50" aria-label="Elimina movimento Aurora"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>

@@ -9,7 +9,7 @@ export const FINANCE_SCOPE_LABELS: Record<FinanceScope, string> = {
   ADI: 'ADI',
 }
 
-export const AURORA_SCOPE = 'DEPENDENT_AURORA' as const
+export const AURORA_SCOPE = 'DEPENDENT' as const
 export const LEGACY_AURORA_PURPOSE = 'DEPENDENT' as const
 
 export const ADI_CATEGORY_LABELS: Record<AdiCategory, string> = {

@@ -29,7 +29,7 @@ create table if not exists public.account_purpose_links (
   user_id uuid not null references auth.users(id) on delete cascade,
   account_id uuid not null references public.accounts(id) on delete cascade,
   beneficiary_id uuid references public.dependent_beneficiaries(id) on delete cascade,
-  purpose text not null default 'DEPENDENT_AURORA',
+  purpose text not null default 'DEPENDENT',
   label text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

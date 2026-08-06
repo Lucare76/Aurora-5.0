@@ -5,7 +5,7 @@ const route = readFileSync('src/app/api/aurora/route.ts', 'utf8')
 
 describe('/api/aurora contract', () => {
   it('espone azioni server-side per conti, movimenti e giroconti Aurora', () => {
-    for (const action of ['linkAccount', 'createAccount', 'updateAccount', 'createTransaction', 'createTransfer']) {
+    for (const action of ['linkAccount', 'createAccount', 'updateAccount', 'createTransaction', 'updateTransaction', 'deleteTransaction', 'createTransfer']) {
       expect(route).toContain(`z.literal('${action}')`)
     }
   })
@@ -18,6 +18,8 @@ describe('/api/aurora contract', () => {
 
   it('riusa la RPC atomica esistente per movimenti e giroconti', () => {
     expect(route.match(/create_transaction_atomic/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
+    expect(route).toContain('update_transaction_atomic')
+    expect(route).toContain('delete_transaction_atomic')
     expect(route).toContain("p_type: 'transfer'")
     expect(route).toContain('p_destination_account_id: body.destinationAccountId')
   })

@@ -20,7 +20,7 @@ describe('dependent finance migration', () => {
 
   it('supporta i tre perimetri contabili espliciti', () => {
     expect(sql).toContain("'PERSONAL', 'DEPENDENT_AURORA', 'ADI'")
-    expect(sql).toContain("purpose text not null default 'DEPENDENT_AURORA'")
+    expect(sql).toContain("purpose text not null default 'DEPENDENT'")
     expect(sql).toContain("purpose in ('PERSONAL', 'DEPENDENT_AURORA', 'ADI', 'DEPENDENT')")
   })
 

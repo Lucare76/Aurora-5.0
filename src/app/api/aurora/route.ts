@@ -53,6 +53,21 @@ const actionSchema = z.discriminatedUnion('action', [
     notes: z.string().trim().max(5000).nullable().optional(),
   }).strict(),
   z.object({
+    action: z.literal('updateTransaction'),
+    transactionId: uuid,
+    type: z.enum(['income', 'expense']),
+    accountId: uuid,
+    amount: money,
+    date: isoDate,
+    description: z.string().trim().min(1).max(500),
+    categoryId: uuid.nullable().optional(),
+    notes: z.string().trim().max(5000).nullable().optional(),
+  }).strict(),
+  z.object({
+    action: z.literal('deleteTransaction'),
+    transactionId: uuid,
+  }).strict(),
+  z.object({
     action: z.literal('createTransfer'),
     sourceAccountId: uuid,
     destinationAccountId: uuid,
@@ -138,6 +153,28 @@ async function assertAuroraAccount(supabase: Supabase, userId: string, accountId
   return accountRes.data
 }
 
+async function assertAuroraTransaction(supabase: Supabase, userId: string, transactionId: string) {
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('id,user_id,account_id,transfer_peer_id,type')
+    .eq('id', transactionId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error) throw new Error('TRANSACTION_VERIFY_FAILED')
+  if (!data) throw new Error('TRANSACTION_NOT_FOUND')
+
+  const links = await readScopeLinks(supabase, userId)
+  const scopes = getAccountScopeMap(links)
+  const accountScope = scopes.get(data.account_id) ?? 'PERSONAL'
+  const peerScope = data.transfer_peer_id ? scopes.get(data.transfer_peer_id) ?? 'PERSONAL' : 'PERSONAL'
+  if (accountScope !== 'DEPENDENT_AURORA' && peerScope !== 'DEPENDENT_AURORA') {
+    throw new Error('AURORA_SCOPE_REQUIRED')
+  }
+
+  return data
+}
+
 function errorResponse(error: unknown) {
   const message = error instanceof Error ? error.message : 'UNKNOWN'
   const map: Record<string, [string, number]> = {
@@ -145,6 +182,8 @@ function errorResponse(error: unknown) {
     SCHEMA_NOT_READY: ['Schema Aurora/ADI non ancora attivo su questo ambiente. Applica la migration 00030 prima di usare questa funzione.', 503],
     ACCOUNT_VERIFY_FAILED: ['Conto non verificabile.', 500],
     ACCOUNT_NOT_FOUND: ['Conto non trovato o non autorizzato.', 404],
+    TRANSACTION_VERIFY_FAILED: ['Movimento non verificabile.', 500],
+    TRANSACTION_NOT_FOUND: ['Movimento non trovato o non autorizzato.', 404],
     LINK_FAILED: ['Collegamento del conto non riuscito.', 500],
     AURORA_SCOPE_REQUIRED: ['Seleziona un conto del perimetro Aurora.', 400],
     PERSONAL_DESTINATION_REASON_REQUIRED: ['Indica il motivo del trasferimento dal patrimonio di Aurora al personale.', 400],
@@ -183,16 +222,29 @@ export async function GET() {
     }, 500)
   }
 
-  const beneficiary = schemaReady ? beneficiariesRes.data ?? null : null
-  const auroraAccounts = filterAccountsByScope(accounts, links, 'DEPENDENT_AURORA')
-  const linkedAccount = auroraAccounts[0] ?? null
   const suggestedAccount = accounts.find((account) => account.name.toLowerCase() === AURORA_ACCOUNT_SUGGESTION.toLowerCase()) ?? null
+  let beneficiary = schemaReady ? beneficiariesRes.data ?? null : null
+  let effectiveLinks = links
+  let auroraAccounts = filterAccountsByScope(accounts, effectiveLinks, 'DEPENDENT_AURORA')
+
+  if (schemaReady && auroraAccounts.length === 0 && suggestedAccount) {
+    try {
+      await linkAuroraAccount(supabase, user.id, suggestedAccount.id)
+      effectiveLinks = await readScopeLinks(supabase, user.id)
+      auroraAccounts = filterAccountsByScope(accounts, effectiveLinks, 'DEPENDENT_AURORA')
+      beneficiary = (await supabase.from('dependent_beneficiaries').select('*').eq('user_id', user.id).eq('name', AURORA_BENEFICIARY_NAME).maybeSingle()).data ?? beneficiary
+    } catch (autoLinkError) {
+      console.warn('[aurora] suggested account auto-link skipped', { name: autoLinkError instanceof Error ? autoLinkError.message : 'unknown' })
+    }
+  }
+
+  const linkedAccount = auroraAccounts[0] ?? null
   const auroraIds = auroraAccounts.map((account) => account.id)
 
   const transactionsRes = auroraIds.length > 0
     ? await supabase
       .from('transactions')
-      .select('id,account_id,type,amount,date,description,category_id,transfer_peer_id,created_at')
+      .select('id,account_id,type,amount,date,description,notes,category_id,transfer_peer_id,created_at')
       .eq('user_id', user.id)
       .order('date', { ascending: false })
       .limit(1000)
@@ -205,7 +257,7 @@ export async function GET() {
     destination_account_id: tx.type === 'transfer' ? tx.transfer_peer_id : null,
   }))
 
-  const auroraPatrimony = buildAuroraScopeSummary({ accounts: auroraAccounts, transactions, links })
+  const auroraPatrimony = buildAuroraScopeSummary({ accounts: auroraAccounts, transactions, links: effectiveLinks })
 
   return json({
     data: {
@@ -214,7 +266,7 @@ export async function GET() {
       suggestedAccount,
       accounts,
       auroraAccounts,
-      links,
+      links: effectiveLinks,
       transactions,
       summary: auroraPatrimony,
       schemaReady,
@@ -293,6 +345,36 @@ export async function POST(request: Request) {
       })
       if (error) throw new Error('RPC_FAILED')
       return json({ data }, 201)
+    }
+
+    if (body.action === 'updateTransaction') {
+      await assertAuroraAccount(supabase, user.id, body.accountId)
+      const original = await assertAuroraTransaction(supabase, user.id, body.transactionId)
+      if (original.type === 'transfer') return json({ error: 'Modifica i giroconti Aurora dalla sezione trasferimenti.' }, 400)
+
+      const { data, error } = await supabase.rpc('update_transaction_atomic', {
+        p_transaction_id: body.transactionId,
+        p_account_id: body.accountId,
+        p_type: body.type,
+        p_amount: body.amount,
+        p_date: body.date,
+        p_description: body.description,
+        p_category_id: body.categoryId ?? null,
+        p_notes: body.notes ?? null,
+        p_destination_account_id: null,
+        p_clear_category: body.categoryId === null,
+      })
+      if (error) throw new Error('RPC_FAILED')
+      return json({ data })
+    }
+
+    if (body.action === 'deleteTransaction') {
+      await assertAuroraTransaction(supabase, user.id, body.transactionId)
+      const { error } = await supabase.rpc('delete_transaction_atomic', {
+        p_transaction_id: body.transactionId,
+      })
+      if (error) throw new Error('RPC_FAILED')
+      return json({ success: true })
     }
 
     const links = await readScopeLinks(supabase, user.id)
