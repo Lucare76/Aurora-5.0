@@ -19,8 +19,10 @@ export class DataIntegrityError extends Error {
 export async function fetchDataIntegrityInput(supabase: DataIntegritySupabase, userId: string): Promise<DataIntegrityInput> {
   const [
     accounts,
+    accountPurposeLinks,
     categories,
     transactions,
+    adiEntries,
     recurringRules,
     budgets,
     goals,
@@ -31,8 +33,10 @@ export async function fetchDataIntegrityInput(supabase: DataIntegritySupabase, u
     financialHealthSnapshots,
   ] = await Promise.all([
     supabase.from('accounts').select('id,user_id,name,type,color,icon,balance,currency,is_active,is_hidden,sort_order,created_at,updated_at').eq('user_id', userId) as unknown as Promise<QueryResult<DataIntegrityInput['accounts'][number]>>,
+    supabase.from('account_purpose_links').select('id,user_id,account_id,beneficiary_id,purpose,label,created_at,updated_at').eq('user_id', userId) as unknown as Promise<QueryResult<NonNullable<DataIntegrityInput['accountPurposeLinks']>[number]>>,
     supabase.from('categories').select('id,user_id,name,type,color,icon,parent_id,is_default,sort_order,created_at').eq('user_id', userId) as unknown as Promise<QueryResult<DataIntegrityInput['categories'][number]>>,
     supabase.from('transactions').select('id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at').eq('user_id', userId).order('date', { ascending: false }).limit(100000) as unknown as Promise<QueryResult<DataIntegrityInput['transactions'][number]>>,
+    supabase.from('adi_entries').select('id,transaction_id').eq('user_id', userId) as unknown as Promise<QueryResult<NonNullable<DataIntegrityInput['adiEntries']>[number]>>,
     supabase.from('recurring_rules').select('id,user_id,account_id,category_id,type,amount,description,frequency,start_date,end_date,next_due_date,last_run_date,is_active,auto_create,created_at,updated_at').eq('user_id', userId) as unknown as Promise<QueryResult<DataIntegrityInput['recurringRules'][number]>>,
     supabase.from('budgets').select('id,user_id,category_id,amount,month,year,created_at,updated_at').eq('user_id', userId) as unknown as Promise<QueryResult<DataIntegrityInput['budgets'][number]>>,
     supabase.from('savings_goals').select('id,user_id,name,target_amount,current_amount,target_date,icon,color,notes,status,archived,created_at,updated_at').eq('user_id', userId) as unknown as Promise<QueryResult<DataIntegrityInput['goals'][number]>>,
@@ -50,8 +54,10 @@ export async function fetchDataIntegrityInput(supabase: DataIntegritySupabase, u
     userId,
     now: new Date().toISOString(),
     accounts: accounts.data ?? [],
+    accountPurposeLinks: accountPurposeLinks.error ? [] : (accountPurposeLinks.data ?? []),
     categories: categories.data ?? [],
     transactions: transactions.data ?? [],
+    adiEntries: adiEntries.error ? [] : (adiEntries.data ?? []),
     recurringRules: recurringRules.data ?? [],
     budgets: budgets.data ?? [],
     goals: goals.data ?? [],

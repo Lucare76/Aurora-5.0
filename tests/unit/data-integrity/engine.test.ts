@@ -60,6 +60,93 @@ describe('data-integrity engine', () => {
     expect(result.issues.some((issue) => issue.ruleCode === 'TRANSFER_MISSING_COUNTERPART')).toBe(false)
   })
 
+  it('classifies high confidence transaction duplicates as warning, not critical certainty', () => {
+    const result = scanDataIntegrity(input({
+      transactions: [
+        input().transactions[0],
+        { ...input().transactions[0], id: 'tx-2' },
+      ],
+    }))
+    const issue = result.issues.find((item) => item.ruleCode === 'TRANSACTION_EXACT_DUPLICATE')
+    expect(issue?.severity).toBe('WARNING')
+    expect(issue?.title).toBe('Duplicato probabile ad alta confidenza')
+    expect(issue?.explanation).toBe('Movimenti duplicati probabili rilevati.')
+  })
+
+  it('does not flag same date and amount on a different account as duplicate', () => {
+    const result = scanDataIntegrity(input({
+      transactions: [
+        input().transactions[0],
+        { ...input().transactions[0], id: 'tx-other-account', account_id: 'acc-b' },
+      ],
+    }))
+    expect(result.issues.some((issue) => issue.ruleCode === 'TRANSACTION_EXACT_DUPLICATE')).toBe(false)
+  })
+
+  it('does not merge identical-looking transactions across personal and ADI scope', () => {
+    const result = scanDataIntegrity(input({
+      adiEntries: [{ id: 'adi-1', transaction_id: 'tx-adi' }],
+      transactions: [
+        input().transactions[0],
+        { ...input().transactions[0], id: 'tx-adi' },
+      ],
+    }))
+    expect(result.issues.some((issue) => issue.ruleCode === 'TRANSACTION_EXACT_DUPLICATE')).toBe(false)
+    expect(result.issues.some((issue) => issue.ruleCode === 'TRANSACTION_POSSIBLE_DUPLICATE')).toBe(false)
+  })
+
+  it('does not merge identical-looking personal and Aurora account movements', () => {
+    const result = scanDataIntegrity(input({
+      accountPurposeLinks: [{ id: 'link-aurora', user_id: 'user-a', account_id: 'acc-b', beneficiary_id: 'child-1', purpose: 'DEPENDENT', label: null, created_at: now, updated_at: now }],
+      transactions: [
+        input().transactions[0],
+        { ...input().transactions[0], id: 'tx-aurora', account_id: 'acc-b' },
+      ],
+    }))
+    expect(result.issues.some((issue) => issue.ruleCode === 'TRANSACTION_EXACT_DUPLICATE')).toBe(false)
+  })
+
+  it('leaves recurring transactions to recurring-specific duplicate rules', () => {
+    const result = scanDataIntegrity(input({
+      recurringRules: [
+        { id: 'rec-1', user_id: 'user-a', account_id: 'acc-a', category_id: 'cat-food', type: 'expense', amount: 10, description: 'DECO', frequency: 'monthly', start_date: '2026-07-01', end_date: null, next_due_date: '2026-08-01', last_run_date: null, is_active: true, auto_create: true, created_at: now, updated_at: now },
+      ],
+      transactions: [
+        { ...input().transactions[0], id: 'rec-tx-a', recurring_id: 'rec-1' },
+        { ...input().transactions[0], id: 'rec-tx-b', recurring_id: 'rec-2' },
+        { ...input().transactions[0], id: 'rec-tx-c', recurring_id: 'rec-1' },
+      ],
+    }))
+    expect(result.issues.some((issue) => issue.ruleCode === 'TRANSACTION_EXACT_DUPLICATE')).toBe(false)
+    expect(result.issues.some((issue) => issue.ruleCode === 'RECURRING_DUPLICATE_INSTANCE')).toBe(true)
+  })
+
+  it('uses external transaction id when available', () => {
+    const result = scanDataIntegrity(input({
+      transactions: [
+        { ...input().transactions[0], id: 'tx-source-a', receipt_data: { external_transaction_id: 'bank-123' } },
+        { ...input().transactions[0], id: 'tx-source-b', receipt_data: { external_transaction_id: 'bank-123' } },
+        { ...input().transactions[0], id: 'tx-source-c', receipt_data: { external_transaction_id: 'bank-999' } },
+      ],
+    }))
+    const exact = result.issues.filter((issue) => issue.ruleCode === 'TRANSACTION_EXACT_DUPLICATE')
+    expect(exact).toHaveLength(1)
+    expect(exact[0].entityIds).toEqual(['tx-source-a', 'tx-source-b'])
+  })
+
+  it('uses import fingerprint when available', () => {
+    const result = scanDataIntegrity(input({
+      transactions: [
+        { ...input().transactions[0], id: 'tx-import-a', receipt_data: { import_fingerprint: 'import-abc' } },
+        { ...input().transactions[0], id: 'tx-import-b', receipt_data: { import_fingerprint: 'import-abc' } },
+        { ...input().transactions[0], id: 'tx-import-c', receipt_data: { import_fingerprint: 'import-def' } },
+      ],
+    }))
+    const exact = result.issues.filter((issue) => issue.ruleCode === 'TRANSACTION_EXACT_DUPLICATE')
+    expect(exact).toHaveLength(1)
+    expect(exact[0].entityIds).toEqual(['tx-import-a', 'tx-import-b'])
+  })
+
   it('detects transfer anomalies conservatively', () => {
     const result = scanDataIntegrity(input({
       transactions: [

@@ -8,9 +8,11 @@ type Context = {
   categoryIds: Set<string>
   recurringIds: Set<string>
   transactionIds: Set<string>
+  adiTransactionIds: Set<string>
   goalIds: Set<string>
   loanIds: Set<string>
   accountById: Map<string, DataIntegrityInput['accounts'][number]>
+  accountScopeById: Map<string, string>
   categoryById: Map<string, DataIntegrityInput['categories'][number]>
   transactionById: Map<string, DataIntegrityInput['transactions'][number]>
   nowDate: string
@@ -78,13 +80,23 @@ function buildContext(input: DataIntegrityInput): Context {
     categoryIds: new Set(input.categories.map((item) => item.id)),
     recurringIds: new Set(input.recurringRules.map((item) => item.id)),
     transactionIds: new Set(input.transactions.map((item) => item.id)),
+    adiTransactionIds: new Set((input.adiEntries ?? []).map((item) => item.transaction_id).filter((id): id is string => Boolean(id))),
     goalIds: new Set(input.goals.map((item) => item.id)),
     loanIds: new Set(input.loans.map((item) => item.id)),
     accountById: new Map(input.accounts.map((item) => [item.id, item])),
+    accountScopeById: buildAccountScopeById(input),
     categoryById: new Map(input.categories.map((item) => [item.id, item])),
     transactionById: new Map(input.transactions.map((item) => [item.id, item])),
     nowDate: input.now.slice(0, 10),
   }
+}
+
+function buildAccountScopeById(input: DataIntegrityInput): Map<string, string> {
+  const scopes = new Map(input.accounts.map((account) => [account.id, 'PERSONAL']))
+  for (const link of input.accountPurposeLinks ?? []) {
+    scopes.set(link.account_id, link.purpose === 'DEPENDENT' ? 'AURORA' : 'PERSONAL')
+  }
+  return scopes
 }
 
 function materializeIssue(userId: string, draft: DataIntegrityIssueDraft): DataIntegrityIssue {
@@ -137,8 +149,55 @@ function daysBetween(from: string, to: string) {
   return Math.round((new Date(`${to.slice(0, 10)}T00:00:00`).getTime() - new Date(`${from.slice(0, 10)}T00:00:00`).getTime()) / 86400000)
 }
 
+function stableReceiptValue(receiptData: Record<string, unknown> | null, keys: string[]): string {
+  if (!receiptData) return ''
+  for (const key of keys) {
+    const value = receiptData[key]
+    if (typeof value === 'string' || typeof value === 'number') {
+      const normalized = normalizeText(String(value))
+      if (normalized) return normalized
+    }
+  }
+  return ''
+}
+
+function transactionScope(tx: DataIntegrityInput['transactions'][number], context: Context): string {
+  if (context.adiTransactionIds.has(tx.id)) return 'ADI'
+  return context.accountScopeById.get(tx.account_id) ?? 'PERSONAL'
+}
+
+function transactionSourceFingerprint(tx: DataIntegrityInput['transactions'][number]): string {
+  return stableReceiptValue(tx.receipt_data, [
+    'external_transaction_id',
+    'externalTransactionId',
+    'transaction_id',
+    'transactionId',
+    'import_fingerprint',
+    'importFingerprint',
+    'source_id',
+    'sourceId',
+    'fingerprint',
+    'idempotency_key',
+  ])
+}
+
+function duplicateIdentityKey(tx: DataIntegrityInput['transactions'][number], context: Context, includeCategory: boolean): string {
+  const parts = [
+    transactionScope(tx, context),
+    tx.account_id,
+    tx.type,
+    cents(Number(tx.amount)),
+    tx.date,
+    normalizeText(tx.description),
+    transactionSourceFingerprint(tx) || 'no-source',
+  ]
+  if (includeCategory) parts.push(tx.category_id ?? 'none')
+  return parts.join('|')
+}
+
 function scanTransactions(input: DataIntegrityInput, context: Context, add: (draft: DataIntegrityIssueDraft) => void) {
   const normalTransactions = input.transactions.filter((tx) => tx.type !== 'transfer' && !tx.transfer_peer_id)
+  const duplicateCandidates = normalTransactions.filter((tx) => !tx.recurring_id)
   for (const tx of input.transactions) {
     if (!context.accountIds.has(tx.account_id)) add(issue('TRANSACTION_ORPHAN_ACCOUNT', 'transaction', [tx.id], 'Il movimento punta a un conto non trovato.', 'Il saldo del conto e i report potrebbero essere incompleti.', 'Apri il movimento e assegna un conto valido.', [{ label: 'Conto', value: tx.account_id, kind: 'entity' }], `/transactions?id=${tx.id}`))
     if (tx.category_id && !context.categoryIds.has(tx.category_id)) add(issue('TRANSACTION_ORPHAN_CATEGORY', 'transaction', [tx.id, tx.category_id], 'Il movimento usa una categoria non presente.', 'Report, budget e classificazioni potrebbero non essere affidabili.', 'Riassegna una categoria esistente.', [{ label: 'Categoria', value: tx.category_id, kind: 'entity' }], `/transactions?id=${tx.id}`))
@@ -148,16 +207,17 @@ function scanTransactions(input: DataIntegrityInput, context: Context, add: (dra
     if (isDate(tx.date) && daysBetween(context.nowDate, tx.date) > 365) add(issue('TRANSACTION_FUTURE_ANOMALY', 'transaction', [tx.id], 'Il movimento e molto lontano nel futuro.', 'Potrebbe trattarsi di un errore di data o di una previsione inserita come movimento reale.', 'Verifica la data del movimento.', [{ label: 'Data', value: tx.date, kind: 'date' }], `/transactions?id=${tx.id}`))
   }
 
-  for (const rows of groupBy(normalTransactions, (tx) => [tx.account_id, tx.type, cents(Number(tx.amount)), tx.date, normalizeText(tx.description), tx.category_id ?? 'none'].join('|')).values()) {
+  for (const rows of groupBy(duplicateCandidates, (tx) => duplicateIdentityKey(tx, context, true)).values()) {
     if (rows.length <= 1) continue
-    add(issue('TRANSACTION_EXACT_DUPLICATE', 'transaction', rows.map((tx) => tx.id), 'Movimenti identici rilevati.', 'Il saldo potrebbe essere duplicato se una delle righe e stata inserita due volte.', 'Confronta i movimenti ed elimina l eventuale duplicato tramite il flusso esistente.', [
+    add(issue('TRANSACTION_EXACT_DUPLICATE', 'transaction', rows.map((tx) => tx.id), 'Movimenti duplicati probabili rilevati.', 'Il saldo potrebbe essere duplicato se una delle righe e stata inserita due volte.', 'Confronta i movimenti ed elimina l eventuale duplicato tramite il flusso esistente.', [
       { label: 'Movimenti', value: rows.length, kind: 'count' },
       { label: 'Importo', value: rows[0].amount, kind: 'money' },
       { label: 'Data', value: rows[0].date, kind: 'date' },
+      { label: 'Perimetro', value: transactionScope(rows[0], context), kind: 'text' },
     ], '/transactions'))
   }
 
-  for (const rows of groupBy(normalTransactions, (tx) => [tx.account_id, tx.type, cents(Number(tx.amount)), tx.date, normalizeText(tx.description)].join('|')).values()) {
+  for (const rows of groupBy(duplicateCandidates, (tx) => duplicateIdentityKey(tx, context, false)).values()) {
     const ids = new Set(rows.map((tx) => tx.category_id ?? 'none'))
     if (rows.length > 1 && ids.size > 1) add(issue('TRANSACTION_POSSIBLE_DUPLICATE', 'transaction', rows.map((tx) => tx.id), 'Movimenti molto simili rilevati.', 'Potrebbe esserci un duplicato, ma la categoria differente richiede verifica manuale.', 'Apri i movimenti e conferma se sono operazioni distinte.', [
       { label: 'Movimenti simili', value: rows.length, kind: 'count' },

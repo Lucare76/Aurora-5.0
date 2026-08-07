@@ -1,5 +1,7 @@
 import type {
   Account,
+  AccountPurposeLink,
+  AdiEntry,
   Budget,
   Category,
   FinancialHealthSnapshot,
@@ -153,6 +155,8 @@ export type DataIntegrityInput = {
   accounts: Account[]
   categories: Category[]
   transactions: Transaction[]
+  accountPurposeLinks?: AccountPurposeLink[]
+  adiEntries?: Pick<AdiEntry, 'id' | 'transaction_id'>[]
   recurringRules: RecurringRule[]
   budgets: Budget[]
   goals: SavingsGoal[]

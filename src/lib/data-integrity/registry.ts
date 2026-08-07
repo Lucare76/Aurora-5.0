@@ -4,7 +4,7 @@ import { DATA_INTEGRITY_RULESET_VERSION } from './constants'
 const commonActions = ['open_record', 'acknowledge', 'ignore', 'reopen'] as const
 
 export const DATA_INTEGRITY_RULES: DataIntegrityRuleDefinition[] = [
-  rule('TRANSACTION_EXACT_DUPLICATE', 'transactions', 'CRITICAL', 'Transazione duplicata certa', 'Due o piu movimenti condividono conto, tipo, data, importo, descrizione e categoria.', ['delete_duplicate_via_existing_flow']),
+  rule('TRANSACTION_EXACT_DUPLICATE', 'transactions', 'WARNING', 'Duplicato probabile ad alta confidenza', 'Due o piu movimenti condividono perimetro, conto, tipo, data, importo, descrizione, categoria e segnali di origine compatibili.', ['delete_duplicate_via_existing_flow']),
   rule('TRANSACTION_POSSIBLE_DUPLICATE', 'transactions', 'WARNING', 'Possibile transazione duplicata', 'Movimenti molto simili richiedono verifica manuale.', ['delete_duplicate_via_existing_flow']),
   rule('TRANSACTION_MISSING_CATEGORY', 'transactions', 'INFO', 'Movimento senza categoria', 'Un movimento non di giroconto non ha categoria associata.', ['recategorize']),
   rule('TRANSACTION_INVALID_AMOUNT', 'transactions', 'CRITICAL', 'Importo movimento non valido', 'Un movimento ha importo nullo, negativo o non finito.', []),
