@@ -189,6 +189,53 @@ describe('data-integrity engine', () => {
     ]))
   })
 
+  it('flags ordinary expense and income without category as info', () => {
+    const result = scanDataIntegrity(input({
+      transactions: [
+        { ...input().transactions[0], id: 'ordinary-expense', type: 'expense', category_id: null },
+        { ...input().transactions[0], id: 'ordinary-income', type: 'income', category_id: null },
+      ],
+    }))
+    const issues = result.issues.filter((issue) => issue.ruleCode === 'TRANSACTION_MISSING_CATEGORY')
+    expect(issues).toHaveLength(2)
+    expect(issues.every((issue) => issue.severity === 'INFO')).toBe(true)
+    expect(issues.map((issue) => issue.entityIds[0]).sort()).toEqual(['ordinary-expense', 'ordinary-income'])
+  })
+
+  it('does not flag transfers or legacy transfer peers without category as missing category', () => {
+    const result = scanDataIntegrity(input({
+      transactions: [
+        { ...input().transactions[0], id: 'modern-transfer', type: 'transfer', category_id: null, transfer_peer_id: 'acc-b' },
+        { ...input().transactions[0], id: 'legacy-income', type: 'income', category_id: null, transfer_peer_id: 'legacy-expense' },
+        { ...input().transactions[0], id: 'legacy-expense', type: 'expense', category_id: null, transfer_peer_id: 'legacy-income' },
+        { ...input().transactions[0], id: 'categorized', type: 'expense', category_id: 'cat-food', transfer_peer_id: null },
+      ],
+    }))
+    expect(result.issues.some((issue) => issue.ruleCode === 'TRANSACTION_MISSING_CATEGORY')).toBe(false)
+  })
+
+  it('keeps ordinary recurring transactions without category behavior unchanged', () => {
+    const result = scanDataIntegrity(input({
+      transactions: [
+        { ...input().transactions[0], id: 'recurring-uncat', category_id: null, recurring_id: 'missing-recurring-rule' },
+      ],
+    }))
+    expect(result.issues.some((issue) => issue.ruleCode === 'TRANSACTION_MISSING_CATEGORY')).toBe(true)
+    expect(result.issues.some((issue) => issue.ruleCode === 'TRANSACTION_ORPHAN_RECURRING')).toBe(true)
+  })
+
+  it('does not create 100 missing-category info issues for legacy transfer pairs', () => {
+    const legacyTransfers = Array.from({ length: 50 }, (_, index) => {
+      const n = String(index).padStart(2, '0')
+      return [
+        { ...input().transactions[0], id: `legacy-income-${n}`, type: 'income' as const, category_id: null, amount: index + 1, transfer_peer_id: `legacy-expense-${n}` },
+        { ...input().transactions[0], id: `legacy-expense-${n}`, type: 'expense' as const, category_id: null, amount: index + 1, transfer_peer_id: `legacy-income-${n}` },
+      ]
+    }).flat()
+    const result = scanDataIntegrity(input({ transactions: legacyTransfers }))
+    expect(result.issues.filter((issue) => issue.ruleCode === 'TRANSACTION_MISSING_CATEGORY')).toHaveLength(0)
+  })
+
   it('detects possible duplicates across different categories', () => {
     const result = scanDataIntegrity(input({
       categories: [

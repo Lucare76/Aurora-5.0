@@ -195,15 +195,19 @@ function duplicateIdentityKey(tx: DataIntegrityInput['transactions'][number], co
   return parts.join('|')
 }
 
+function isOrdinaryTransaction(tx: DataIntegrityInput['transactions'][number]): boolean {
+  return tx.type !== 'transfer' && !tx.transfer_peer_id
+}
+
 function scanTransactions(input: DataIntegrityInput, context: Context, add: (draft: DataIntegrityIssueDraft) => void) {
-  const normalTransactions = input.transactions.filter((tx) => tx.type !== 'transfer' && !tx.transfer_peer_id)
+  const normalTransactions = input.transactions.filter(isOrdinaryTransaction)
   const duplicateCandidates = normalTransactions.filter((tx) => !tx.recurring_id)
   for (const tx of input.transactions) {
     if (!context.accountIds.has(tx.account_id)) add(issue('TRANSACTION_ORPHAN_ACCOUNT', 'transaction', [tx.id], 'Il movimento punta a un conto non trovato.', 'Il saldo del conto e i report potrebbero essere incompleti.', 'Apri il movimento e assegna un conto valido.', [{ label: 'Conto', value: tx.account_id, kind: 'entity' }], `/transactions?id=${tx.id}`))
     if (tx.category_id && !context.categoryIds.has(tx.category_id)) add(issue('TRANSACTION_ORPHAN_CATEGORY', 'transaction', [tx.id, tx.category_id], 'Il movimento usa una categoria non presente.', 'Report, budget e classificazioni potrebbero non essere affidabili.', 'Riassegna una categoria esistente.', [{ label: 'Categoria', value: tx.category_id, kind: 'entity' }], `/transactions?id=${tx.id}`))
     if (tx.recurring_id && !context.recurringIds.has(tx.recurring_id)) add(issue('TRANSACTION_ORPHAN_RECURRING', 'transaction', [tx.id, tx.recurring_id], 'Il movimento punta a una ricorrenza non presente.', 'La ricorrenza potrebbe non essere piu tracciabile.', 'Verifica il movimento o scollega la ricorrenza se non esiste piu.', [{ label: 'Ricorrenza', value: tx.recurring_id, kind: 'entity' }], `/transactions?id=${tx.id}`))
     if (!Number.isFinite(Number(tx.amount)) || Number(tx.amount) <= 0) add(issue('TRANSACTION_INVALID_AMOUNT', 'transaction', [tx.id], 'Il movimento ha un importo non valido.', 'Un importo non valido puo alterare saldi e report.', 'Correggi l importo tramite il flusso movimento.', [{ label: 'Importo', value: Number(tx.amount), kind: 'money' }], `/transactions?id=${tx.id}`))
-    if (tx.type !== 'transfer' && !tx.category_id) add(issue('TRANSACTION_MISSING_CATEGORY', 'transaction', [tx.id], 'Il movimento non ha una categoria.', 'Budget e report per categoria saranno meno precisi.', 'Assegna una categoria coerente.', [{ label: 'Descrizione', value: tx.description ?? '', kind: 'text' }], `/transactions?id=${tx.id}`))
+    if (isOrdinaryTransaction(tx) && !tx.category_id) add(issue('TRANSACTION_MISSING_CATEGORY', 'transaction', [tx.id], 'Il movimento non ha una categoria.', 'Budget e report per categoria saranno meno precisi.', 'Assegna una categoria coerente.', [{ label: 'Descrizione', value: tx.description ?? '', kind: 'text' }], `/transactions?id=${tx.id}`))
     if (isDate(tx.date) && daysBetween(context.nowDate, tx.date) > 365) add(issue('TRANSACTION_FUTURE_ANOMALY', 'transaction', [tx.id], 'Il movimento e molto lontano nel futuro.', 'Potrebbe trattarsi di un errore di data o di una previsione inserita come movimento reale.', 'Verifica la data del movimento.', [{ label: 'Data', value: tx.date, kind: 'date' }], `/transactions?id=${tx.id}`))
   }
 
