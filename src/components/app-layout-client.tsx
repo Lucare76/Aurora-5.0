@@ -44,11 +44,15 @@ interface NavItem {
 }
 
 const PRIVATE_FINANCE_PATHS = new Set(['/aurora', '/adi'])
-const ASSISTANT_UI_ENABLED = process.env.NEXT_PUBLIC_FINANCIAL_ASSISTANT_ENABLED === 'true' || process.env.FINANCIAL_ASSISTANT_ENABLED === 'true'
 
-const allNavItems: NavItem[] = [
+function assistantNavItems(financialAssistantEnabled: boolean): NavItem[] {
+  return financialAssistantEnabled ? [{ path: '/assistant', label: 'Chiedi ad Aurora', icon: MessageCircle }] : []
+}
+
+function buildAllNavItems(financialAssistantEnabled: boolean): NavItem[] {
+  return [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  ...(ASSISTANT_UI_ENABLED ? [{ path: '/assistant', label: 'Chiedi ad Aurora', icon: MessageCircle }] : []),
+  ...assistantNavItems(financialAssistantEnabled),
   { path: '/transactions', label: 'Movimenti', icon: ArrowLeftRight },
   { path: '/accounts', label: 'Conti', icon: Wallet },
   { path: '/categories', label: 'Categorie', icon: Tag },
@@ -68,7 +72,8 @@ const allNavItems: NavItem[] = [
   { path: '/notifications', label: 'Avvisi', icon: Bell },
   { path: '/birthdays', label: 'Compleanni', icon: Cake },
   { path: '/settings', label: 'Impostazioni', icon: Settings },
-]
+  ]
+}
 
 const bottomNavItems: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -77,8 +82,9 @@ const bottomNavItems: NavItem[] = [
   { path: '/budgets', label: 'Budget', icon: Target },
 ]
 
-const allMoreItems: NavItem[] = [
-  ...(ASSISTANT_UI_ENABLED ? [{ path: '/assistant', label: 'Chiedi ad Aurora', icon: MessageCircle }] : []),
+function buildAllMoreItems(financialAssistantEnabled: boolean): NavItem[] {
+  return [
+  ...assistantNavItems(financialAssistantEnabled),
   { path: '/goals', label: 'Obiettivi', icon: PiggyBank },
   { path: '/categories', label: 'Categorie', icon: Tag },
   { path: '/reports', label: 'Report', icon: BarChart3 },
@@ -95,19 +101,20 @@ const allMoreItems: NavItem[] = [
   { path: '/notifications', label: 'Avvisi', icon: Bell },
   { path: '/birthdays', label: 'Compleanni', icon: Cake },
   { path: '/settings', label: 'Impostazioni', icon: Settings },
-]
+  ]
+}
 
 export function filterPrivateFinanceNavItems(items: NavItem[], canAccessPrivateFinance: boolean): NavItem[] {
   if (canAccessPrivateFinance) return items
   return items.filter((item) => !PRIVATE_FINANCE_PATHS.has(item.path))
 }
 
-export function getNavItems(canAccessPrivateFinance: boolean): NavItem[] {
-  return filterPrivateFinanceNavItems(allNavItems, canAccessPrivateFinance)
+export function getNavItems(canAccessPrivateFinance: boolean, financialAssistantEnabled = false): NavItem[] {
+  return filterPrivateFinanceNavItems(buildAllNavItems(financialAssistantEnabled), canAccessPrivateFinance)
 }
 
-export function getMoreItems(canAccessPrivateFinance: boolean): NavItem[] {
-  return filterPrivateFinanceNavItems(allMoreItems, canAccessPrivateFinance)
+export function getMoreItems(canAccessPrivateFinance: boolean, financialAssistantEnabled = false): NavItem[] {
+  return filterPrivateFinanceNavItems(buildAllMoreItems(financialAssistantEnabled), canAccessPrivateFinance)
 }
 
 function Logo({ compact = false }: { compact?: boolean }) {
@@ -268,7 +275,15 @@ function MoreSheet({ open, items, onClose }: { open: boolean; items: NavItem[]; 
   )
 }
 
-export function AppLayoutClient({ children, canAccessPrivateFinance }: { children: React.ReactNode; canAccessPrivateFinance: boolean }) {
+export function AppLayoutClient({
+  children,
+  canAccessPrivateFinance,
+  financialAssistantEnabled,
+}: {
+  children: React.ReactNode
+  canAccessPrivateFinance: boolean
+  financialAssistantEnabled: boolean
+}) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [commandOpen, setCommandOpen] = useState(false)
@@ -277,8 +292,8 @@ export function AppLayoutClient({ children, canAccessPrivateFinance }: { childre
   const pathname = usePathname()
 
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Utente Aurora'
-  const navItems = getNavItems(canAccessPrivateFinance)
-  const moreItems = getMoreItems(canAccessPrivateFinance)
+  const navItems = getNavItems(canAccessPrivateFinance, financialAssistantEnabled)
+  const moreItems = getMoreItems(canAccessPrivateFinance, financialAssistantEnabled)
   const isMoreActive = moreItems.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
 
   const handleSignOut = async () => {
@@ -405,7 +420,12 @@ export function AppLayoutClient({ children, canAccessPrivateFinance }: { childre
       </nav>
 
       <MoreSheet open={moreOpen} items={moreItems} onClose={() => setMoreOpen(false)} />
-      <GlobalCommandMenu open={commandOpen} onOpenChange={setCommandOpen} canAccessPrivateFinance={canAccessPrivateFinance} />
+      <GlobalCommandMenu
+        open={commandOpen}
+        onOpenChange={setCommandOpen}
+        canAccessPrivateFinance={canAccessPrivateFinance}
+        financialAssistantEnabled={financialAssistantEnabled}
+      />
     </div>
   )
 }

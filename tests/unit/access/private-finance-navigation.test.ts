@@ -30,4 +30,31 @@ describe('private finance navigation visibility', () => {
       'adi-debit',
     ])
   })
+
+  it('include Chiedi ad Aurora quando il flag server e attivo', () => {
+    expect(getNavItems(false, true).map((item) => item.path)).toContain('/assistant')
+    expect(getMoreItems(false, true).map((item) => item.path)).toContain('/assistant')
+    expect(getQuickCommands(false, true).map((command) => command.href)).toContain('/assistant')
+  })
+
+  it('esclude Chiedi ad Aurora quando il flag server e disattivo', () => {
+    expect(getNavItems(false, false).map((item) => item.path)).not.toContain('/assistant')
+    expect(getMoreItems(false, false).map((item) => item.path)).not.toContain('/assistant')
+    expect(getQuickCommands(false, false).some((command) => command.href.startsWith('/assistant'))).toBe(false)
+  })
+
+  it('mantiene ordine stabile con gli stessi input props', () => {
+    const first = getNavItems(true, true).map((item) => item.path)
+    const second = getNavItems(true, true).map((item) => item.path)
+    expect(second).toEqual(first)
+    expect(first.slice(0, 3)).toEqual(['/dashboard', '/assistant', '/transactions'])
+  })
+
+  it('gestisce insieme account privato e assistant senza cambiare ordine delle voci private', () => {
+    const paths = getNavItems(true, true).map((item) => item.path)
+    expect(paths).toContain('/assistant')
+    expect(paths).toContain('/aurora')
+    expect(paths).toContain('/adi')
+    expect(paths.indexOf('/aurora')).toBeLessThan(paths.indexOf('/adi'))
+  })
 })

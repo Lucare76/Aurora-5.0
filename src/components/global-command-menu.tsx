@@ -54,19 +54,18 @@ const typeIcons: Record<SearchResultType, LucideIcon> = {
   AUTOMATION_RULE: Sparkles,
 }
 
-const ASSISTANT_UI_ENABLED = process.env.NEXT_PUBLIC_FINANCIAL_ASSISTANT_ENABLED === 'true' || process.env.FINANCIAL_ASSISTANT_ENABLED === 'true'
-
-const assistantQuickCommands: Array<QuickCommand & { icon: LucideIcon }> = ASSISTANT_UI_ENABLED
-  ? [
+function getAssistantQuickCommands(financialAssistantEnabled: boolean): Array<QuickCommand & { icon: LucideIcon }> {
+  return financialAssistantEnabled
+    ? [
       { id: 'assistant-open', group: 'Navigazione', title: 'Apri Chiedi ad Aurora', subtitle: 'Chat finanziaria deterministica in sola lettura', href: '/assistant', keywords: ['chiedi ad aurora', 'assistente', 'chat finanziaria'], icon: MessageCircle },
       { id: 'assistant-spending-month', group: 'Azioni rapide', title: 'Quanto ho speso questo mese?', subtitle: 'Apri la chat con una domanda sui movimenti', href: '/assistant?q=Quanto%20ho%20speso%20questo%20mese%3F', keywords: ['spese mese', 'quanto ho speso'], icon: MessageCircle },
       { id: 'assistant-emergency-fund', group: 'Azioni rapide', title: 'Controlla il fondo di emergenza', subtitle: 'Chiedi quanti mesi copre la liquidità', href: '/assistant?q=Quanti%20mesi%20copre%20il%20mio%20fondo%20di%20emergenza%3F', keywords: ['fondo emergenza', 'mesi senza reddito'], icon: MessageCircle },
       { id: 'assistant-health', group: 'Azioni rapide', title: 'Spiega Financial Health', subtitle: 'Chiedi quali fattori incidono sullo score', href: '/assistant?q=Perche%20il%20mio%20Financial%20Health%20e%20cambiato%3F', keywords: ['financial health', 'score', 'spiega salute finanziaria'], icon: MessageCircle },
     ]
-  : []
+    : []
+}
 
 export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
-  ...assistantQuickCommands,
   { id: 'new-transaction', group: 'Azioni rapide', title: 'Nuovo movimento', subtitle: 'Apri il form transazioni', href: '/transactions?action=create', keywords: ['nuova transazione', 'nuovo movimento', 'entrata', 'uscita'], icon: Plus },
   { id: 'new-transfer', group: 'Azioni rapide', title: 'Nuovo trasferimento', subtitle: 'Apri i movimenti e scegli Giroconto', href: '/transactions?action=create&type=transfer', keywords: ['giroconto', 'trasferimento'], icon: ArrowLeftRight },
   { id: 'new-budget', group: 'Azioni rapide', title: 'Nuovo budget', subtitle: 'Crea un budget mensile', href: '/budgets?action=create', keywords: ['budget', 'nuovo budget'], icon: Target },
@@ -135,8 +134,9 @@ const privateFinanceQuickCommands: Array<QuickCommand & { icon: LucideIcon }> = 
   { id: 'adi-debit', group: 'Azioni rapide', title: 'Registra spesa ADI', subtitle: 'Registra una spesa pagata con ADI', href: '/adi?action=debit', keywords: ['spesa adi', 'pagato con adi', 'supermercato adi', 'benzina adi'], icon: BadgeEuro },
 ]
 
-export function getQuickCommands(canAccessPrivateFinance: boolean): Array<QuickCommand & { icon: LucideIcon }> {
-  return canAccessPrivateFinance ? [...quickCommands, ...privateFinanceQuickCommands] : quickCommands
+export function getQuickCommands(canAccessPrivateFinance: boolean, financialAssistantEnabled = false): Array<QuickCommand & { icon: LucideIcon }> {
+  const commands = [...getAssistantQuickCommands(financialAssistantEnabled), ...quickCommands]
+  return canAccessPrivateFinance ? [...commands, ...privateFinanceQuickCommands] : commands
 }
 
 function commandScore(query: string, command: QuickCommand): number {
@@ -159,10 +159,12 @@ export function GlobalCommandMenu({
   open,
   onOpenChange,
   canAccessPrivateFinance = false,
+  financialAssistantEnabled = false,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   canAccessPrivateFinance?: boolean
+  financialAssistantEnabled?: boolean
 }) {
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
@@ -171,7 +173,10 @@ export function GlobalCommandMenu({
   const router = useRouter()
   const { data, loading, error, minQueryLength } = useGlobalSearch(open, query)
   const trimmed = query.trim()
-  const visibleQuickCommands = useMemo(() => getQuickCommands(canAccessPrivateFinance), [canAccessPrivateFinance])
+  const visibleQuickCommands = useMemo(
+    () => getQuickCommands(canAccessPrivateFinance, financialAssistantEnabled),
+    [canAccessPrivateFinance, financialAssistantEnabled],
+  )
 
   useEffect(() => {
     if (!open) return

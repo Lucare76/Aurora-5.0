@@ -1,4 +1,5 @@
 import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
+import { isFinancialAssistantEnabled } from '@/lib/financial-assistant/scope-policy'
 import { createClient } from '@/lib/supabase/server'
 import { AppLayoutClient } from '@/components/app-layout-client'
 
@@ -8,6 +9,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const canAccessPrivateFinanceForUser = canAccessPrivateFinance(user?.email)
+  const financialAssistantEnabled = isFinancialAssistantEnabled()
 
-  return <AppLayoutClient canAccessPrivateFinance={canAccessPrivateFinanceForUser}>{children}</AppLayoutClient>
+  return (
+    <AppLayoutClient
+      canAccessPrivateFinance={canAccessPrivateFinanceForUser}
+      financialAssistantEnabled={financialAssistantEnabled}
+    >
+      {children}
+    </AppLayoutClient>
+  )
 }
