@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ArrowRight, LockKeyhole } from 'lucide-react'
+import { StatusBadge } from '@/components/ui/status-badge'
 import type { AssistantResult as AssistantResultType } from '@/lib/financial-assistant/types'
 import { AssistantCitations } from './AssistantCitations'
 import { AssistantEvidence } from './AssistantEvidence'
@@ -9,9 +10,9 @@ export function AssistantResult({ result }: { result: AssistantResultType }) {
   return (
     <article className="rounded-3xl border border-[#e5e7f0] bg-white p-4 shadow-sm md:p-5">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">Solo lettura</span>
-        {result.scope && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{result.scope}</span>}
-        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">Dati del gestionale</span>
+        <StatusBadge tone="success" label="Solo lettura" />
+        {result.scope && <StatusBadge tone="neutral" label={`Perimetro ${result.scope}`} />}
+        <StatusBadge tone="info" label="Dati del gestionale" />
       </div>
       <h3 className="text-lg font-bold text-slate-950">{result.status === 'NEEDS_INPUT' ? 'Servono alcuni dettagli' : 'Risposta di Aurora'}</h3>
       <p className="mt-2 leading-7 text-slate-700">{result.answer}</p>
@@ -34,6 +35,7 @@ export function AssistantResult({ result }: { result: AssistantResultType }) {
       )}
       {result.missingInputs.length > 0 && (
         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="mb-2"><StatusBadge tone="warning" label="Servono dettagli" /></div>
           <p className="font-bold">Per completare la valutazione mi servono ancora:</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             {result.missingInputs.map((input) => <li key={input.field}>{input.label}: {input.reason}</li>)}
@@ -44,6 +46,7 @@ export function AssistantResult({ result }: { result: AssistantResultType }) {
       <AssistantCitations citations={result.citations} />
       {result.warnings.length > 0 && (
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+          <div className="mb-2"><StatusBadge tone="warning" label="Da controllare" /></div>
           {result.warnings.join(' ')}
         </div>
       )}

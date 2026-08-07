@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { StatusBadge, issueStatusLabel, severityLabel, statusToneFromIssueStatus, statusToneFromSeverity } from '@/components/ui/status-badge'
 import { DATA_INTEGRITY_CATEGORY_LABELS } from '@/lib/data-integrity/constants'
 import type { DataIntegrityCategory, DataIntegrityIssue, DataIntegrityScanRunRow, DataIntegritySeverity, DataIntegrityStatus, DataIntegritySummary } from '@/lib/data-integrity/types'
 
@@ -21,23 +22,6 @@ type ApiPayload = {
 const severityOptions = ['all', 'CRITICAL', 'WARNING', 'INFO'] as const
 const statusOptions = ['open', 'acknowledged', 'ignored', 'resolved', 'stale', 'all'] as const
 const categoryOptions = ['all', ...Object.keys(DATA_INTEGRITY_CATEGORY_LABELS)] as Array<'all' | DataIntegrityCategory>
-
-function severityStyle(severity: DataIntegritySeverity) {
-  if (severity === 'CRITICAL') return 'border-red-200 bg-red-50 text-red-700'
-  if (severity === 'WARNING') return 'border-amber-200 bg-amber-50 text-amber-700'
-  return 'border-sky-200 bg-sky-50 text-sky-700'
-}
-
-function statusLabel(status: DataIntegrityStatus) {
-  const labels: Record<DataIntegrityStatus, string> = {
-    open: 'Aperta',
-    acknowledged: 'Riconosciuta',
-    ignored: 'Ignorata',
-    resolved: 'Risolta',
-    stale: 'Stale',
-  }
-  return labels[status]
-}
 
 function formatDateTime(value?: string | null) {
   if (!value) return 'Mai'
@@ -129,9 +113,9 @@ function DataIntegrityPageContent() {
   const selectedIssue = selected ?? activeIssues[0] ?? null
 
   const cards = useMemo(() => [
-    { label: 'Critical aperte', value: summary?.critical ?? 0, icon: ShieldAlert, className: 'text-red-600 bg-red-50' },
-    { label: 'Warning aperte', value: summary?.warning ?? 0, icon: AlertTriangle, className: 'text-amber-600 bg-amber-50' },
-    { label: 'Info aperte', value: summary?.info ?? 0, icon: Info, className: 'text-sky-600 bg-sky-50' },
+    { label: 'Critiche aperte', value: summary?.critical ?? 0, icon: ShieldAlert, className: 'text-red-600 bg-red-50' },
+    { label: 'Da controllare', value: summary?.warning ?? 0, icon: AlertTriangle, className: 'text-amber-600 bg-amber-50' },
+    { label: 'Informazioni', value: summary?.info ?? 0, icon: Info, className: 'text-sky-600 bg-sky-50' },
     { label: 'Stato integrità', value: summary?.statusLabel ?? 'Nessun dato', icon: ShieldCheck, className: 'text-indigo-600 bg-indigo-50' },
   ], [summary])
 
@@ -186,8 +170,8 @@ function DataIntegrityPageContent() {
         </CardHeader>
         <CardContent>
           <div className="mb-5 grid gap-3 md:grid-cols-3">
-            <Filter label="Stato" value={status} options={statusOptions.map((value) => ({ value, label: value === 'all' ? 'Tutti' : statusLabel(value as DataIntegrityStatus) }))} onChange={(value) => setStatus(value as typeof status)} />
-            <Filter label="Gravità" value={severity} options={severityOptions.map((value) => ({ value, label: value === 'all' ? 'Tutte' : value }))} onChange={(value) => setSeverity(value as typeof severity)} />
+            <Filter label="Stato" value={status} options={statusOptions.map((value) => ({ value, label: value === 'all' ? 'Tutti' : issueStatusLabel(value as DataIntegrityStatus) }))} onChange={(value) => setStatus(value as typeof status)} />
+            <Filter label="Priorità" value={severity} options={severityOptions.map((value) => ({ value, label: value === 'all' ? 'Tutte' : severityLabel(value as DataIntegritySeverity) }))} onChange={(value) => setSeverity(value as typeof severity)} />
             <Filter label="Categoria" value={category} options={categoryOptions.map((value) => ({ value, label: value === 'all' ? 'Tutte' : DATA_INTEGRITY_CATEGORY_LABELS[value] }))} onChange={(value) => setCategory(value as typeof category)} />
           </div>
 
@@ -203,9 +187,9 @@ function DataIntegrityPageContent() {
                 {activeIssues.map((issue) => (
                   <button key={issue.fingerprint} type="button" onClick={() => setSelected(issue)} className={`w-full rounded-2xl border p-4 text-left transition ${selectedIssue?.fingerprint === issue.fingerprint ? 'border-indigo-300 bg-indigo-50/60' : 'border-slate-200 bg-white hover:border-indigo-200'}`}>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${severityStyle(issue.severity)}`}>{issue.severity}</span>
+                      <StatusBadge tone={statusToneFromSeverity(issue.severity)} label={severityLabel(issue.severity)} />
                       <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">{DATA_INTEGRITY_CATEGORY_LABELS[issue.category]}</span>
-                      <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-500">{statusLabel(issue.status)}</span>
+                      <StatusBadge tone={statusToneFromIssueStatus(issue.status)} label={issueStatusLabel(issue.status)} />
                     </div>
                     <h3 className="mt-3 font-bold text-slate-950">{issue.title}</h3>
                     <p className="mt-1 text-sm text-slate-500">{issue.explanation}</p>
@@ -253,7 +237,7 @@ function IssueDetail({ issue, onStatus }: { issue: DataIntegrityIssue | null; on
         <Database className="h-6 w-6 text-indigo-500" />
       </div>
       <div className="mt-5 space-y-4">
-        <DetailBlock title="Perché è stata rilevata" text={issue.explanation} />
+        <DetailBlock title="Perché questa segnalazione?" text={issue.explanation} />
         <DetailBlock title="Impatto possibile" text={issue.impact} />
         <DetailBlock title="Proposta" text={issue.recommendation} />
         <div>
