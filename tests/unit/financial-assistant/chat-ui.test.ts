@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { appendMissingInputToMessage, buildAssistantChatPayload, visibleAssistantScopes, visibleAssistantSuggestions, type AssistantCapabilitiesResponse } from '@/app/(app)/assistant/chat-ui'
+import {
+  appendMissingInputToMessage,
+  assistantModeLabel,
+  buildAssistantChatPayload,
+  canUseSmartAssistant,
+  visibleAssistantScopes,
+  visibleAssistantSuggestions,
+  type AssistantCapabilitiesResponse,
+} from '@/app/(app)/assistant/chat-ui'
 
 const baseCapabilities: AssistantCapabilitiesResponse = {
   enabled: true,
@@ -28,10 +36,19 @@ describe('assistant chat UI logic', () => {
       message: 'Quanto ho speso?',
       scope: 'PERSONAL',
       draft: null,
+      privacyMode: 'ESSENTIAL_ONLY',
+      aiConsent: false,
     })
   })
 
   it('aggiunge un input mancante alla domanda locale senza salvare dati', () => {
     expect(appendMissingInputToMessage('Posso permettermi una spesa?', 'price', '2.000 €')).toBe('Posso permettermi una spesa? costo 2.000 €')
+  })
+
+  it('mostra la modalita intelligente solo quando AI e consenso sono attivi', () => {
+    const capabilities: AssistantCapabilitiesResponse = { ...baseCapabilities, aiAvailable: true }
+    expect(canUseSmartAssistant(capabilities)).toBe(true)
+    expect(assistantModeLabel(capabilities, 'SMART_REDACTED', true)).toBe('Modalita intelligente')
+    expect(assistantModeLabel(capabilities, 'SMART_REDACTED', false)).toBe('Modalita essenziale')
   })
 })

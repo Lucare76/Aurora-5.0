@@ -15,7 +15,12 @@ export type AssistantCapabilitiesResponse = {
   version: string
   scopes: FinancialAssistantScope[]
   capabilities: AssistantCapability[]
+  aiAvailable?: boolean
+  deterministicModeAvailable?: boolean
+  responseEnhancementAvailable?: boolean
 }
+
+export type AssistantPrivacyMode = 'ESSENTIAL_ONLY' | 'SMART_REDACTED'
 
 export function visibleAssistantSuggestions(capabilities: AssistantCapabilitiesResponse | null): string[] {
   if (!capabilities?.enabled) return []
@@ -31,8 +36,14 @@ export function visibleAssistantScopes(capabilities: AssistantCapabilitiesRespon
   return capabilities.scopes.filter((scope) => scope === 'PERSONAL' || scope === 'AURORA' || scope === 'ADI')
 }
 
-export function buildAssistantChatPayload(message: string, scope: FinancialAssistantScope, draft: Record<string, unknown> | null = null) {
-  return { message: message.trim(), scope, draft }
+export function buildAssistantChatPayload(
+  message: string,
+  scope: FinancialAssistantScope,
+  draft: Record<string, unknown> | null = null,
+  privacyMode: AssistantPrivacyMode = 'ESSENTIAL_ONLY',
+  aiConsent = false,
+) {
+  return { message: message.trim(), scope, draft, privacyMode, aiConsent }
 }
 
 export function appendMissingInputToMessage(message: string, field: string, value: string): string {
@@ -40,4 +51,13 @@ export function appendMissingInputToMessage(message: string, field: string, valu
   if (!cleanValue) return message
   const label = field === 'price' ? 'costo' : field
   return `${message.trim()} ${label} ${cleanValue}`.trim()
+}
+
+export function assistantModeLabel(capabilities: AssistantCapabilitiesResponse | null, privacyMode: AssistantPrivacyMode, aiConsent: boolean): string {
+  if (capabilities?.aiAvailable && privacyMode === 'SMART_REDACTED' && aiConsent) return 'Modalita intelligente'
+  return 'Modalita essenziale'
+}
+
+export function canUseSmartAssistant(capabilities: AssistantCapabilitiesResponse | null): boolean {
+  return Boolean(capabilities?.enabled && capabilities.aiAvailable)
 }

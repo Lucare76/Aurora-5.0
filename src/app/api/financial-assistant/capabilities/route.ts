@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { FINANCIAL_ASSISTANT_ENGINE_VERSION } from '@/lib/financial-assistant/constants'
 import { listAssistantCapabilities } from '@/lib/financial-assistant/intent-registry'
+import { isAssistantAiAvailable } from '@/lib/financial-assistant/providers/factory'
 import { getAllowedScopes, isFinancialAssistantEnabled } from '@/lib/financial-assistant/scope-policy'
 
 export async function GET() {
@@ -23,6 +24,8 @@ export async function GET() {
     version: FINANCIAL_ASSISTANT_ENGINE_VERSION,
     scopes: enabled ? allowedScopes : [],
     capabilities: enabled ? listAssistantCapabilities(allowedScopes) : [],
+    aiAvailable: enabled ? isAssistantAiAvailable() : false,
+    deterministicModeAvailable: true,
+    responseEnhancementAvailable: enabled ? isAssistantAiAvailable() : false,
   })
 }
-

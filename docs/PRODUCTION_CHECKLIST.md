@@ -279,3 +279,9 @@ Configurati in `next.config.ts` nella sezione `headers()`.
 - Il deploy non deve applicare migration remote senza verifica manuale.
 - Le migration vanno applicate nell'ambiente target con `supabase db push` solo dopo revisione.
 - I dati reali non vanno mai modificati durante test o debug.
+# Aurora 6.0 - Financial assistant AI provider
+
+- Keep `FINANCIAL_ASSISTANT_AI_ENABLED=false` unless the controlled provider is intentionally enabled.
+- Configure provider settings only on the server: `FINANCIAL_ASSISTANT_AI_PROVIDER`, `FINANCIAL_ASSISTANT_AI_MODEL`, `OPENAI_API_KEY`.
+- Confirm the assistant still works in essential deterministic mode when AI config is missing.
+- Do not expose provider model, key or request payloads to the browser.

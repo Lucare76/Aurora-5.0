@@ -8,12 +8,22 @@ import { AssistantErrorState } from './AssistantErrorState'
 import { AssistantHeader } from './AssistantHeader'
 import { AssistantMessage, type AssistantChatMessage } from './AssistantMessage'
 import { AssistantScopeSelector } from './AssistantScopeSelector'
-import { buildAssistantChatPayload, visibleAssistantScopes, visibleAssistantSuggestions, type AssistantCapabilitiesResponse } from './chat-ui'
+import {
+  assistantModeLabel,
+  buildAssistantChatPayload,
+  canUseSmartAssistant,
+  visibleAssistantScopes,
+  visibleAssistantSuggestions,
+  type AssistantCapabilitiesResponse,
+  type AssistantPrivacyMode,
+} from './chat-ui'
 import type { AssistantResult, FinancialAssistantScope } from '@/lib/financial-assistant/types'
 
 type ChatResponse = {
   result: AssistantResult
 }
+
+const AI_CONSENT_STORAGE_KEY = 'aurora.financial-assistant.ai-consent.v1'
 
 function messageId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -24,6 +34,8 @@ export function AssistantClient() {
   const [capabilityError, setCapabilityError] = useState<string | null>(null)
   const [scope, setScope] = useState<FinancialAssistantScope>('PERSONAL')
   const [input, setInput] = useState('')
+  const [privacyMode, setPrivacyMode] = useState<AssistantPrivacyMode>('ESSENTIAL_ONLY')
+  const [aiConsent, setAiConsent] = useState(false)
   const [messages, setMessages] = useState<AssistantChatMessage[]>([
     {
       id: 'notice',
@@ -56,6 +68,13 @@ export function AssistantClient() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    const savedConsent = window.localStorage.getItem(AI_CONSENT_STORAGE_KEY) === 'true'
+    setAiConsent(savedConsent)
+    if (savedConsent) setPrivacyMode('SMART_REDACTED')
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
     const query = new URLSearchParams(window.location.search).get('q')
     if (query) setInput(query)
   }, [])
@@ -66,6 +85,28 @@ export function AssistantClient() {
 
   const scopes = useMemo(() => visibleAssistantScopes(capabilities), [capabilities])
   const suggestions = useMemo(() => visibleAssistantSuggestions(capabilities), [capabilities])
+  const smartAvailable = canUseSmartAssistant(capabilities)
+  const modeLabel = assistantModeLabel(capabilities, privacyMode, aiConsent)
+
+  const enableSmartMode = () => {
+    setAiConsent(true)
+    setPrivacyMode('SMART_REDACTED')
+    if (typeof window !== 'undefined') window.localStorage.setItem(AI_CONSENT_STORAGE_KEY, 'true')
+    setMessages((current) => [
+      ...current,
+      { id: messageId('mode'), type: 'SYSTEM_NOTICE', content: 'Modalita intelligente attiva: Aurora invia solo testo e risultati redatti al provider AI.' },
+    ])
+  }
+
+  const disableSmartMode = () => {
+    setAiConsent(false)
+    setPrivacyMode('ESSENTIAL_ONLY')
+    if (typeof window !== 'undefined') window.localStorage.removeItem(AI_CONSENT_STORAGE_KEY)
+    setMessages((current) => [
+      ...current,
+      { id: messageId('mode'), type: 'SYSTEM_NOTICE', content: 'Modalita essenziale attiva: Aurora usa solo il motore deterministico locale.' },
+    ])
+  }
 
   const sendMessage = useCallback(async (text?: string) => {
     const message = (text ?? input).trim()
@@ -80,7 +121,7 @@ export function AssistantClient() {
       const response = await fetch('/api/financial-assistant/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildAssistantChatPayload(message, scope)),
+        body: JSON.stringify(buildAssistantChatPayload(message, scope, null, privacyMode, aiConsent)),
         signal: controller.signal,
       })
       const data = await response.json().catch(() => null) as ChatResponse | { error?: string } | null
@@ -107,7 +148,7 @@ export function AssistantClient() {
       setLoading(false)
       abortRef.current = null
     }
-  }, [input, loading, scope])
+  }, [aiConsent, input, loading, privacyMode, scope])
 
   const cancel = () => {
     abortRef.current?.abort()
@@ -148,11 +189,50 @@ export function AssistantClient() {
       <AssistantHeader />
       <div className="flex flex-col gap-3 rounded-3xl border border-[#e5e7f0] bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
         <AssistantScopeSelector scopes={scopes} value={scope} onChange={changeScope} />
-        <div className="text-xs leading-5 text-slate-500">
+        <div className="text-xs leading-5 text-slate-500 md:text-right">
+          <p className="font-semibold text-slate-700">{modeLabel}</p>
           <p>Aurora non modifica i tuoi dati.</p>
           <p>Le risposte sono basate sui dati del gestionale.</p>
         </div>
       </div>
+
+      {smartAvailable && !aiConsent && (
+        <div className="rounded-3xl border border-indigo-100 bg-indigo-50/70 p-4 text-sm text-slate-700">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="font-semibold text-slate-900">Modalita intelligente disponibile</p>
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                Se la attivi, Aurora invia al provider AI solo testo e risposte redatte, mai dati grezzi o scritture.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={enableSmartMode}
+                className="rounded-2xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              >
+                Attiva modalita intelligente
+              </button>
+              <button
+                type="button"
+                onClick={disableSmartMode}
+                className="rounded-2xl border border-[#e5e7f0] bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              >
+                Usa modalita essenziale
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {smartAvailable && aiConsent && (
+        <div className="flex items-center justify-between rounded-2xl border border-[#e5e7f0] bg-white px-4 py-3 text-xs text-slate-500">
+          <span>Modalita intelligente attiva con payload redatti.</span>
+          <button type="button" onClick={disableSmartMode} className="font-bold text-indigo-600 hover:text-indigo-700">
+            Disattiva
+          </button>
+        </div>
+      )}
 
       <div ref={liveRef} tabIndex={-1} aria-live="polite" className="space-y-4 outline-none">
         {messages.length <= 1 ? <AssistantEmptyState suggestions={suggestions} onPick={sendMessage} /> : messages.map((message) => <AssistantMessage key={message.id} message={message} />)}

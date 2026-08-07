@@ -1,8 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetAssistantRateLimit } from '@/lib/financial-assistant/rate-limit'
 
+const providerMocks = vi.hoisted(() => ({
+  classifyIntent: vi.fn(),
+  extractParameters: vi.fn(),
+  composeResponse: vi.fn(),
+  isAssistantAiAvailable: vi.fn(() => false),
+}))
+
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(),
+}))
+
+vi.mock('@/lib/financial-assistant/providers/factory', () => ({
+  isAssistantAiAvailable: providerMocks.isAssistantAiAvailable,
+  createFinancialLanguageProvider: vi.fn(() => ({
+    status: { available: providerMocks.isAssistantAiAvailable(), provider: providerMocks.isAssistantAiAvailable() ? 'openai' : 'none', reason: null },
+    classifyIntent: providerMocks.classifyIntent,
+    extractParameters: providerMocks.extractParameters,
+    composeResponse: providerMocks.composeResponse,
+  })),
+  getAssistantProviderStatus: vi.fn(() => ({ available: providerMocks.isAssistantAiAvailable(), provider: providerMocks.isAssistantAiAvailable() ? 'openai' : 'none', reason: null })),
 }))
 
 import { createClient } from '@/lib/supabase/server'
@@ -30,6 +48,10 @@ beforeEach(() => {
   vi.spyOn(console, 'info').mockImplementation(() => {})
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   resetAssistantRateLimit()
+  providerMocks.classifyIntent.mockReset()
+  providerMocks.extractParameters.mockReset()
+  providerMocks.composeResponse.mockReset()
+  providerMocks.isAssistantAiAvailable.mockReturnValue(false)
   process.env.FINANCIAL_ASSISTANT_ENABLED = 'true'
   process.env.PRIVATE_FINANCE_ACCOUNT_EMAIL = 'luca_renna@hotmail.com'
 })
@@ -101,5 +123,53 @@ describe('financial assistant chat API', () => {
     expect(response.status).toBe(200)
     expect(body.parsed.query.intent).toBe('personal.income_expense_summary')
     expect(body.result.readOnly).toBe(true)
+  })
+
+  it('non invoca il provider AI in modalita essenziale', async () => {
+    providerMocks.isAssistantAiAvailable.mockReturnValue(true)
+    mockClient({ id: 'user-1', email: 'user@example.com' })
+    const { POST } = await import('@/app/api/financial-assistant/chat/route')
+    const response = await POST(request({
+      message: 'Quanto ho speso questo mese?',
+      scope: 'PERSONAL',
+      privacyMode: 'ESSENTIAL_ONLY',
+      aiConsent: false,
+    }))
+    const body = await response.json()
+    expect(response.status).toBe(200)
+    expect(body.mode.aiAvailable).toBe(true)
+    expect(body.mode.aiClassificationUsed).toBe(false)
+    expect(providerMocks.classifyIntent).not.toHaveBeenCalled()
+    expect(providerMocks.composeResponse).not.toHaveBeenCalled()
+  })
+
+  it('usa AI redatta solo con consenso per classificare una richiesta a bassa confidenza', async () => {
+    providerMocks.isAssistantAiAvailable.mockReturnValue(true)
+    providerMocks.classifyIntent.mockResolvedValue({
+      supported: true,
+      confidence: 'MEDIUM',
+      intent: 'personal.income_expense_summary',
+      scope: 'PERSONAL',
+      period: 'CURRENT_MONTH',
+      parameters: {},
+      missingInputs: [],
+      reason: null,
+    })
+    mockClient({ id: 'user-1', email: 'user@example.com' })
+    const { POST } = await import('@/app/api/financial-assistant/chat/route')
+    const response = await POST(request({
+      message: 'fammi capire le spese',
+      scope: 'PERSONAL',
+      privacyMode: 'SMART_REDACTED',
+      aiConsent: true,
+    }))
+    const body = await response.json()
+    expect(response.status).toBe(200)
+    expect(body.mode.aiClassificationUsed).toBe(true)
+    expect(body.result.readOnly).toBe(true)
+    expect(providerMocks.classifyIntent).toHaveBeenCalledWith(expect.objectContaining({
+      requestedScope: 'PERSONAL',
+      allowedScopes: ['PERSONAL'],
+    }))
   })
 })
