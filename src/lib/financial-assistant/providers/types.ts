@@ -2,7 +2,7 @@ import type { AssistantResult, FinancialAssistantIntent, FinancialAssistantPerio
 import type { ParserConfidence } from '../natural-language'
 
 export type AssistantPrivacyMode = 'ESSENTIAL_ONLY' | 'SMART_REDACTED'
-export type AssistantProviderKind = 'none' | 'openai'
+export type AssistantProviderKind = 'none' | 'openai' | 'anthropic' | 'gemini'
 
 export type AssistantProviderStatus = {
   available: boolean

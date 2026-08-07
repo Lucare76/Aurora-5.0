@@ -20,6 +20,7 @@ vi.mock('@/lib/financial-assistant/providers/factory', () => ({
     extractParameters: providerMocks.extractParameters,
     composeResponse: providerMocks.composeResponse,
   })),
+  isUserAssistantAiAvailable: vi.fn(() => Promise.resolve(providerMocks.isAssistantAiAvailable())),
   getAssistantProviderStatus: vi.fn(() => ({ available: providerMocks.isAssistantAiAvailable(), provider: providerMocks.isAssistantAiAvailable() ? 'openai' : 'none', reason: null })),
 }))
 

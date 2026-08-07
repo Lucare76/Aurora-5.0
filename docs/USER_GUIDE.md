@@ -32,7 +32,38 @@ Ogni risposta mostra:
 - eventuali input mancanti;
 - azioni di navigazione verso pagine Aurora autorizzate.
 
-La conversazione vive solo nel browser e viene persa al refresh. In questo sprint nessun dato viene inviato a provider AI esterni e non viene salvata cronologia cloud.
+La conversazione vive solo nel browser e viene persa al refresh. La modalità essenziale è deterministica e non richiede provider AI esterni.
+
+### Provider AI personale
+
+In **Impostazioni → Provider AI** puoi abilitare una modalità intelligente opzionale con una tua API key personale.
+
+Provider supportati:
+
+- OpenAI
+- Anthropic Claude
+- Google Gemini
+
+Le richieste AI usano esclusivamente la chiave configurata nel tuo account. Se la chiave manca, è disabilitata o non è valida, Aurora torna automaticamente alla modalità deterministica.
+
+La API key:
+
+- viene salvata cifrata lato server;
+- non viene mostrata dopo il salvataggio;
+- viene visualizzata solo come maschera del tipo `************abcd`;
+- non viene inclusa nei backup;
+- non viene usata per altri utenti.
+
+### Utilizzo AI e costi stimati
+
+La sezione **Provider AI** mostra anche l'utilizzo AI aggregato:
+
+- richieste di oggi;
+- token totali di oggi;
+- riepilogo del mese corrente per provider e modello;
+- costo stimato quando Aurora dispone del pricing del modello.
+
+Il costo è solo una stima calcolata sui token restituiti dal provider. La fatturazione effettiva resta quella del provider AI. Aurora non salva prompt, risposte, conversazioni o dati finanziari nella telemetria: registra solo contatori giornalieri per utente, provider, modello e data.
 
 Richieste fuori perimetro, come raccomandazioni su ETF o istruzioni per creare, modificare, eliminare o trasferire denaro, vengono rifiutate perché l'assistente è in modalità sola lettura.
 
@@ -249,6 +280,8 @@ Il backup esporta tutti i tuoi dati in un file JSON scaricato nel tuo dispositiv
 
 **Il backup contiene i dati finanziari associati al tuo account. Non include password o credenziali di accesso.**
 
+Le impostazioni dei provider AI e la telemetria di utilizzo AI sono gestite separatamente: il backup non esporta API key personali, nemmeno in forma cifrata, e non esporta i contatori di utilizzo. Dopo un restore dovrai reinserire manualmente la chiave se vuoi riabilitare la modalità intelligente.
+
 È consigliabile creare un backup periodico e conservarlo in un luogo sicuro.
 
 Per creare un backup:
@@ -282,6 +315,7 @@ L'anteprima non modifica i dati. Il ripristino è disponibile solo su account vu
 Dalle impostazioni puoi:
 
 - aggiornare nome e valuta predefinita;
+- configurare il provider AI personale;
 - esportare le transazioni in CSV;
 - creare un backup;
 - ripristinare un backup;
@@ -308,6 +342,7 @@ Puoi anche aprire il command menu con **Ctrl+K** (o **Cmd+K** su Mac) per naviga
 - Ogni utente accede solo ai propri dati.
 - I dati sono protetti da Row Level Security sul database.
 - Le credenziali di accesso non vengono mai incluse nei backup.
+- Le API key dei provider AI non vengono mai incluse nei backup.
 - La chiave di servizio del database non è mai esposta al browser.
 - I file di backup sono scaricati localmente — non vengono caricati su server di terze parti.
 
@@ -317,6 +352,7 @@ Puoi anche aprire il command menu con **Ctrl+K** (o **Cmd+K** su Mac) per naviga
 
 - I dati inseriti in Aurora restano nel tuo account.
 - Aurora non è collegata alla banca e non accede a conti esterni.
+- La modalità AI intelligente invia al provider scelto solo evidenze e contesto redatti, non user_id, email, token Supabase, SQL o API key.
 - I dati non vengono venduti o condivisi con terze parti.
 - Puoi eliminare il tuo account contattando il supporto.
 

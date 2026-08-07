@@ -1,18 +1,19 @@
 ﻿'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import type { Resolver, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Download, LogOut, RefreshCcw, Save, Settings, Trash2, User } from 'lucide-react'
+import { Brain, Download, KeyRound, LogOut, RefreshCcw, Save, Settings, Trash2, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { StatusBadge, type StatusTone } from '@/components/ui/status-badge'
 import { buildTransactionExportRows, buildTransactionsCsv } from '@/domain/accounting/export'
 import { adaptTransactionRows } from '@/domain/accounting/transaction-adapter'
 import { createClient } from '@/lib/supabase/client'
@@ -27,11 +28,64 @@ const profileSchema = z.object({
 })
 
 type ProfileForm = z.infer<typeof profileSchema>
+type AiProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI'
+type AiProviderSettings = {
+  provider: AiProvider
+  enabled: boolean
+  configured: boolean
+  maskedApiKey: string | null
+  connectionStatus: 'not_configured' | 'configured' | 'verified' | 'error'
+  lastCheckedAt: string | null
+  lastError: string | null
+  updatedAt: string | null
+}
+type AiUsageSummary = {
+  requestCount: number
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  estimatedCost: number | null
+  currency: 'USD'
+  providers: string[]
+  models: string[]
+  lastRequestAt: string | null
+}
+type AiUsageResponse = {
+  today: AiUsageSummary
+  currentMonth: AiUsageSummary
+  pricingNote: string
+}
 
 const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
 const MAX_BACKUP_DRY_RUN_BYTES = 10 * 1024 * 1024
 const RESTORE_CONFIRMATION_PHRASE = 'RIPRISTINA AURORA'
 const REAL_RESTORE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BACKUP_RESTORE_REAL === 'true'
+const DEFAULT_AI_SETTINGS: AiProviderSettings = {
+  provider: 'OPENAI',
+  enabled: false,
+  configured: false,
+  maskedApiKey: null,
+  connectionStatus: 'not_configured',
+  lastCheckedAt: null,
+  lastError: null,
+  updatedAt: null,
+}
+const EMPTY_AI_USAGE_SUMMARY: AiUsageSummary = {
+  requestCount: 0,
+  inputTokens: 0,
+  outputTokens: 0,
+  totalTokens: 0,
+  estimatedCost: 0,
+  currency: 'USD',
+  providers: [],
+  models: [],
+  lastRequestAt: null,
+}
+const DEFAULT_AI_USAGE: AiUsageResponse = {
+  today: EMPTY_AI_USAGE_SUMMARY,
+  currentMonth: EMPTY_AI_USAGE_SUMMARY,
+  pricingNote: 'Il costo mostrato è una stima calcolata sui token registrati da Aurora. La fatturazione effettiva resta quella del provider.',
+}
 
 const READINESS_LABELS: Record<string, string> = {
   ready: 'Pronto',
@@ -67,6 +121,26 @@ const STEP_STATUS_LABELS: Record<string, string> = {
   ready: 'Ok',
   warning: 'Con avvisi',
   blocked: 'Bloccato',
+}
+
+const AI_PROVIDER_LABELS: Record<AiProvider, string> = {
+  OPENAI: 'OpenAI',
+  ANTHROPIC: 'Anthropic Claude',
+  GEMINI: 'Google Gemini',
+}
+
+const AI_CONNECTION_LABELS: Record<AiProviderSettings['connectionStatus'], string> = {
+  not_configured: 'Non configurato',
+  configured: 'Configurato',
+  verified: 'Connessione riuscita',
+  error: 'Errore',
+}
+
+const AI_CONNECTION_TONES: Record<AiProviderSettings['connectionStatus'], StatusTone> = {
+  not_configured: 'neutral',
+  configured: 'info',
+  verified: 'success',
+  error: 'critical',
 }
 
 function collectionLabel(name: string): string {
@@ -220,6 +294,15 @@ export default function SettingsPage() {
   const [restoreConfirm, setRestoreConfirm] = useState('')
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null)
   const [restoreBusy, setRestoreBusy] = useState(false)
+  const [aiSettings, setAiSettings] = useState<AiProviderSettings>(DEFAULT_AI_SETTINGS)
+  const [aiProvider, setAiProvider] = useState<AiProvider>('OPENAI')
+  const [aiEnabled, setAiEnabled] = useState(false)
+  const [aiApiKey, setAiApiKey] = useState('')
+  const [aiLoading, setAiLoading] = useState(true)
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiTesting, setAiTesting] = useState(false)
+  const [aiUsage, setAiUsage] = useState<AiUsageResponse>(DEFAULT_AI_USAGE)
+  const [aiUsageLoading, setAiUsageLoading] = useState(true)
 
   const defaultTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
   const form = useForm<ProfileForm>({
@@ -230,6 +313,47 @@ export default function SettingsPage() {
       timezone: profile?.timezone ?? defaultTimezone,
     },
   })
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadAiSettings() {
+      try {
+        setAiLoading(true)
+        const response = await fetch('/api/settings/ai-provider', { cache: 'no-store' })
+        const payload = await response.json().catch(() => null) as { data?: AiProviderSettings } | null
+        if (!response.ok || !payload?.data) throw new Error('Impostazioni AI non disponibili')
+        if (cancelled) return
+        setAiSettings(payload.data)
+        setAiProvider(payload.data.provider)
+        setAiEnabled(payload.data.enabled)
+      } catch {
+        if (!cancelled) toast.error('Impostazioni AI non disponibili')
+      } finally {
+        if (!cancelled) setAiLoading(false)
+      }
+    }
+    void loadAiSettings()
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadAiUsage() {
+      try {
+        setAiUsageLoading(true)
+        const response = await fetch('/api/ai-provider/usage', { cache: 'no-store' })
+        const payload = await response.json().catch(() => null) as { data?: AiUsageResponse } | null
+        if (!response.ok || !payload?.data) throw new Error('Utilizzo AI non disponibile')
+        if (!cancelled) setAiUsage(payload.data)
+      } catch {
+        if (!cancelled) setAiUsage(DEFAULT_AI_USAGE)
+      } finally {
+        if (!cancelled) setAiUsageLoading(false)
+      }
+    }
+    void loadAiUsage()
+    return () => { cancelled = true }
+  }, [])
 
   const onSaveProfile: SubmitHandler<ProfileForm> = async (values) => {
     if (!user) return
@@ -266,6 +390,70 @@ export default function SettingsPage() {
       toast.error(error instanceof Error ? error.message : 'Errore durante la rigenerazione')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const saveAiProviderSettings = async () => {
+    try {
+      setAiBusy(true)
+      const response = await fetch('/api/settings/ai-provider', {
+        method: 'PUT',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: aiProvider,
+          enabled: aiEnabled,
+          apiKey: aiApiKey.trim() || undefined,
+        }),
+      })
+      const payload = await response.json().catch(() => null) as { data?: AiProviderSettings; message?: string } | null
+      if (!response.ok || !payload?.data) throw new Error(payload?.message ?? 'Impostazioni AI non salvate')
+      setAiSettings(payload.data)
+      setAiProvider(payload.data.provider)
+      setAiEnabled(payload.data.enabled)
+      setAiApiKey('')
+      toast.success('Provider AI salvato')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Errore durante il salvataggio AI')
+    } finally {
+      setAiBusy(false)
+    }
+  }
+
+  const testAiConnection = async () => {
+    if (!aiApiKey.trim()) {
+      toast.error('Inserisci la API key da verificare.')
+      return
+    }
+    try {
+      setAiTesting(true)
+      const response = await fetch('/api/settings/ai-provider/test', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: aiProvider, apiKey: aiApiKey.trim() }),
+      })
+      const payload = await response.json().catch(() => null) as { data?: { ok: boolean; message: string } } | null
+      if (!response.ok || !payload?.data?.ok) throw new Error(payload?.data?.message ?? 'Verifica connessione non riuscita')
+      toast.success('Connessione riuscita')
+      setAiSettings((current) => ({
+        ...current,
+        provider: aiProvider,
+        connectionStatus: 'verified',
+        lastCheckedAt: new Date().toISOString(),
+        lastError: null,
+      }))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Provider non raggiungibile')
+      setAiSettings((current) => ({
+        ...current,
+        provider: aiProvider,
+        connectionStatus: 'error',
+        lastCheckedAt: new Date().toISOString(),
+        lastError: error instanceof Error ? error.message : 'Provider non raggiungibile',
+      }))
+    } finally {
+      setAiTesting(false)
     }
   }
 
@@ -505,6 +693,123 @@ export default function SettingsPage() {
           </Button>
         </SectionCard>
 
+        <SectionCard
+          title="Provider AI"
+          description="Configura il provider AI personale. Le richieste AI utilizzeranno esclusivamente la tua API key."
+          icon={Brain}
+        >
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusBadge
+                tone={AI_CONNECTION_TONES[aiSettings.connectionStatus]}
+                label={AI_CONNECTION_LABELS[aiSettings.connectionStatus]}
+              />
+              {aiSettings.maskedApiKey ? (
+                <span className="inline-flex items-center gap-2 rounded-full border border-[#e5e7f0] bg-[#f8f9fc] px-3 py-1 text-xs font-semibold text-slate-600">
+                  <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                  {aiSettings.maskedApiKey}
+                </span>
+              ) : null}
+              {aiSettings.lastCheckedAt ? (
+                <span className="text-xs text-slate-500">
+                  Ultima verifica: {new Date(aiSettings.lastCheckedAt).toLocaleString('it-IT')}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-[1fr_1.4fr]">
+              <div className="space-y-2">
+                <Label>Provider</Label>
+                <SelectField value={aiProvider} onChange={(event) => setAiProvider(event.target.value as AiProvider)} disabled={aiLoading || aiBusy || aiTesting}>
+                  {Object.entries(AI_PROVIDER_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </SelectField>
+              </div>
+              <div className="space-y-2">
+                <Label>API key personale</Label>
+                <Input
+                  type="password"
+                  value={aiApiKey}
+                  onChange={(event) => setAiApiKey(event.target.value)}
+                  placeholder={aiSettings.maskedApiKey ?? 'Incolla una nuova API key'}
+                  autoComplete="off"
+                  className="h-11 border-[#e5e7f0] bg-white text-slate-950"
+                  disabled={aiLoading || aiBusy || aiTesting}
+                />
+                <p className="text-xs text-slate-500">
+                  La chiave viene cifrata sul server. Aurora non la mostra, non la esporta nei backup e non la invia al browser dopo il salvataggio.
+                </p>
+              </div>
+            </div>
+
+            <label className="flex items-start gap-3 rounded-2xl border border-[#e5e7f0] bg-[#f8f9fc] p-4 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={aiEnabled}
+                onChange={(event) => setAiEnabled(event.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                disabled={aiLoading || aiBusy || aiTesting}
+              />
+              <span>
+                <span className="block font-semibold text-slate-950">Abilita modalità intelligente</span>
+                Se manca una configurazione valida, Chiedi ad Aurora continuerà automaticamente in modalità deterministica.
+              </span>
+            </label>
+
+            {aiSettings.lastError ? (
+              <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {aiSettings.lastError}
+              </p>
+            ) : null}
+
+            <div className="rounded-2xl border border-[#e5e7f0] bg-[#f8f9fc] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">Utilizzo AI — {new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}</p>
+                  <p className="mt-1 text-xs text-slate-500">Token e costo stimato delle chiamate AI esterne registrate da Aurora.</p>
+                </div>
+                <StatusBadge
+                  tone={aiUsage.currentMonth.requestCount > 0 ? (aiUsage.currentMonth.estimatedCost == null ? 'warning' : 'success') : 'neutral'}
+                  label={aiUsage.currentMonth.requestCount > 0 ? (aiUsage.currentMonth.estimatedCost == null ? 'Costo non disponibile' : 'Attivo') : 'Nessun utilizzo'}
+                />
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <AiUsageMetric label="Oggi - richieste" value={aiUsageLoading ? '...' : formatCount(aiUsage.today.requestCount)} />
+                <AiUsageMetric label="Oggi - token" value={aiUsageLoading ? '...' : formatCount(aiUsage.today.totalTokens)} />
+                <AiUsageMetric label="Oggi - costo stimato" value={aiUsageLoading ? '...' : formatEstimatedUsd(aiUsage.today.estimatedCost)} />
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-[#e5e7f0] bg-white p-4">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <AiUsageMetric label="Provider" value={aiUsage.currentMonth.providers.join(', ') || 'Nessuno'} />
+                  <AiUsageMetric label="Modello" value={aiUsage.currentMonth.models.join(', ') || 'Nessuno'} />
+                  <AiUsageMetric label="Richieste" value={formatCount(aiUsage.currentMonth.requestCount)} />
+                  <AiUsageMetric label="Token input" value={formatCount(aiUsage.currentMonth.inputTokens)} />
+                  <AiUsageMetric label="Token output" value={formatCount(aiUsage.currentMonth.outputTokens)} />
+                  <AiUsageMetric label="Token totali" value={formatCount(aiUsage.currentMonth.totalTokens)} />
+                  <AiUsageMetric label="Costo stimato" value={formatEstimatedUsd(aiUsage.currentMonth.estimatedCost)} />
+                  <AiUsageMetric label="Ultima richiesta" value={aiUsage.currentMonth.lastRequestAt ? new Date(aiUsage.currentMonth.lastRequestAt).toLocaleString('it-IT') : 'Nessuna'} />
+                </div>
+              </div>
+
+              <p className="mt-3 text-xs leading-5 text-slate-500">{aiUsage.pricingNote}</p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Button type="button" className="gap-2" onClick={saveAiProviderSettings} disabled={aiLoading || aiBusy || aiTesting}>
+                <Save className="h-4 w-4" />
+                {aiBusy ? 'Salvataggio...' : 'Salva provider AI'}
+              </Button>
+              <Button type="button" variant="outline" className="gap-2" onClick={testAiConnection} disabled={aiLoading || aiBusy || aiTesting || !aiApiKey.trim()}>
+                <KeyRound className="h-4 w-4" />
+                {aiTesting ? 'Verifica...' : 'Verifica connessione'}
+              </Button>
+            </div>
+          </div>
+        </SectionCard>
+
         <SectionCard title="Dati" description="Esporta le transazioni in formato CSV." icon={Download}>
           <Button variant="outline" className="gap-2" onClick={exportTransactions}>
             <Download className="h-4 w-4" />
@@ -742,6 +1047,29 @@ function ReportMetric({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-sm font-semibold text-slate-950">{value}</p>
     </div>
   )
+}
+
+function AiUsageMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-1 break-words text-sm font-semibold tabular-nums text-slate-950">{value}</p>
+    </div>
+  )
+}
+
+function formatCount(value: number): string {
+  return new Intl.NumberFormat('it-IT').format(value)
+}
+
+function formatEstimatedUsd(value: number | null): string {
+  if (value == null) return 'Costo non disponibile'
+  return new Intl.NumberFormat('it-IT', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  }).format(value)
 }
 
 const DUPE_CODES = new Set(['RESTORE_LOGICAL_DUPLICATE', 'RESTORE_ID_COLLISION', 'RESTORE_DUPLICATE'])

@@ -11,6 +11,8 @@ export type FinanceScope = 'PERSONAL' | 'DEPENDENT_AURORA' | 'ADI'
 export type AssetPurpose = FinanceScope | 'DEPENDENT'
 export type AdiEntryType = 'credit' | 'debit'
 export type AdiCategory = 'SUPERMERCATO' | 'BENZINA' | 'ABBIGLIAMENTO_AURORA'
+export type AiProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI'
+export type AiProviderConnectionStatus = 'not_configured' | 'configured' | 'verified' | 'error'
 
 export interface Profile {
   id: string
@@ -20,6 +22,36 @@ export interface Profile {
   locale: string
   timezone: string
   onboarding_done: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AiProviderSetting {
+  id: string
+  user_id: string
+  provider: AiProvider
+  encrypted_api_key: string | null
+  api_key_last4: string | null
+  enabled: boolean
+  connection_status: AiProviderConnectionStatus
+  last_checked_at: string | null
+  last_error: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AiUsageDaily {
+  id: string
+  user_id: string
+  provider: AiProvider
+  model: string
+  usage_date: string
+  request_count: number
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+  estimated_cost_usd: number | null
+  last_request_at: string | null
   created_at: string
   updated_at: string
 }

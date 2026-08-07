@@ -78,6 +78,11 @@ describe('backup export API route', () => {
     })
     expect(body.data.accounts[0]).not.toHaveProperty('user_id')
     expect(body.data.transactions[0]).not.toHaveProperty('user_id')
+    expect(body.data).not.toHaveProperty('aiProviderSettings')
+    expect(body.data).not.toHaveProperty('aiUsageDaily')
+    expect(JSON.stringify(body)).not.toMatch(/api_key|encrypted_api_key|OPENAI_API_KEY/i)
+    expect(calls.some((call) => call.table === 'ai_provider_settings')).toBe(false)
+    expect(calls.some((call) => call.table === 'ai_usage_daily')).toBe(false)
     expect(calls.every((call) => call.filters.some((filter) => filter.value === userId))).toBe(true)
   })
 

@@ -8,7 +8,7 @@ import { MAX_ASSISTANT_MESSAGE_LENGTH } from '@/lib/financial-assistant/constant
 import { parseNaturalLanguageMessage } from '@/lib/financial-assistant/natural-language'
 import { listAssistantCapabilities } from '@/lib/financial-assistant/intent-registry'
 import { FinancialAssistantProviderError } from '@/lib/financial-assistant/providers/errors'
-import { createFinancialLanguageProvider, isAssistantAiAvailable } from '@/lib/financial-assistant/providers/factory'
+import { createFinancialLanguageProvider, isUserAssistantAiAvailable } from '@/lib/financial-assistant/providers/factory'
 import { validateComposedResponseAgainstFacts } from '@/lib/financial-assistant/providers/evidence-lock'
 import { buildAiClassificationPayload, buildAiCompositionPayload } from '@/lib/financial-assistant/providers/redaction'
 import { createClient } from '@/lib/supabase/server'
@@ -25,10 +25,14 @@ const chatSchema = z
   })
   .strict()
 
-function baseAiMode(privacyMode: AssistantPrivacyMode): AssistantAiMode {
-  const aiAvailable = isAssistantAiAvailable()
+async function baseAiMode(params: {
+  privacyMode: AssistantPrivacyMode
+  supabase: Awaited<ReturnType<typeof createClient>>
+  userId: string
+}): Promise<AssistantAiMode> {
+  const aiAvailable = await isUserAssistantAiAvailable({ supabase: params.supabase, userId: params.userId })
   return {
-    privacyMode,
+    privacyMode: params.privacyMode,
     aiAvailable,
     deterministicModeAvailable: true,
     responseEnhancementAvailable: aiAvailable,
@@ -39,18 +43,20 @@ function baseAiMode(privacyMode: AssistantPrivacyMode): AssistantAiMode {
   }
 }
 
-function canUseSmartMode(input: { privacyMode: AssistantPrivacyMode; aiConsent: boolean }): boolean {
-  return input.privacyMode === 'SMART_REDACTED' && input.aiConsent && isAssistantAiAvailable()
+function canUseSmartMode(input: { privacyMode: AssistantPrivacyMode; aiConsent: boolean; aiAvailable: boolean }): boolean {
+  return input.privacyMode === 'SMART_REDACTED' && input.aiConsent && input.aiAvailable
 }
 
 async function classifyWithAi(params: {
   message: string
   requestedScope: AssistantQuery['scope']
   userEmail: string | null
+  supabase: Awaited<ReturnType<typeof createClient>>
+  userId: string
 }): Promise<AssistantQuery | null> {
   const allowedScopes = getAllowedScopes(params.userEmail)
   const capabilities = listAssistantCapabilities(allowedScopes)
-  const provider = createFinancialLanguageProvider()
+  const provider = await createFinancialLanguageProvider({ supabase: params.supabase, userId: params.userId })
   const classification = await provider.classifyIntent(buildAiClassificationPayload({
     message: params.message,
     requestedScope: params.requestedScope ?? 'PERSONAL',
@@ -77,11 +83,14 @@ async function maybeComposeWithAi(params: {
   message: string
   result: Awaited<ReturnType<typeof runFinancialAssistantQuery>>
   mode: AssistantAiMode
+  supabase: Awaited<ReturnType<typeof createClient>>
+  userId: string
 }): Promise<Awaited<ReturnType<typeof runFinancialAssistantQuery>>> {
   if (!params.mode.aiAvailable || params.mode.privacyMode !== 'SMART_REDACTED' || params.result.status !== 'OK') return params.result
   try {
     const payload = buildAiCompositionPayload(params.message, params.result)
-    const composed = await createFinancialLanguageProvider().composeResponse(payload)
+    const provider = await createFinancialLanguageProvider({ supabase: params.supabase, userId: params.userId })
+    const composed = await provider.composeResponse(payload)
     const validated = validateComposedResponseAgainstFacts(composed, payload.allowedFacts)
     params.mode.aiCompositionUsed = true
     return {
@@ -114,16 +123,22 @@ export async function POST(request: Request) {
   }
 
   const parsedMessage = parseNaturalLanguageMessage(parsedBody.data.message, parsedBody.data.scope)
-  const aiMode = baseAiMode(parsedBody.data.privacyMode)
+  const aiMode = await baseAiMode({
+    privacyMode: parsedBody.data.privacyMode,
+    supabase,
+    userId: user.id,
+  })
   let query = parsedMessage.query
 
   const deterministicWriteRejection = parsedMessage.reason?.includes('solo lettura') ?? false
-  if (!deterministicWriteRejection && parsedMessage.confidence !== 'HIGH' && canUseSmartMode(parsedBody.data)) {
+  if (!deterministicWriteRejection && parsedMessage.confidence !== 'HIGH' && canUseSmartMode({ ...parsedBody.data, aiAvailable: aiMode.aiAvailable })) {
     try {
       const aiQuery = await classifyWithAi({
         message: parsedMessage.normalizedMessage,
         requestedScope: parsedBody.data.scope,
         userEmail: user.email ?? null,
+        supabase,
+        userId: user.id,
       })
       if (aiQuery) {
         query = aiQuery
@@ -166,8 +181,8 @@ export async function POST(request: Request) {
     runtime: { user, email: user.email ?? null, now: new Date() },
     body: query,
   })
-  const result = canUseSmartMode(parsedBody.data)
-    ? await maybeComposeWithAi({ message: parsedBody.data.message, result: deterministicResult, mode: aiMode })
+  const result = canUseSmartMode({ ...parsedBody.data, aiAvailable: aiMode.aiAvailable })
+    ? await maybeComposeWithAi({ message: parsedBody.data.message, result: deterministicResult, mode: aiMode, supabase, userId: user.id })
     : deterministicResult
 
   return NextResponse.json({ parsed: parsedMessage, result, mode: aiMode }, { status: statusToHttpStatus(result.status) })

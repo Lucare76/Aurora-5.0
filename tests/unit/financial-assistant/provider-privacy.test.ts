@@ -14,8 +14,21 @@ describe('controlled AI provider privacy and config', () => {
   it('non considera disponibile il provider senza chiave o modello', () => {
     expect(getFinancialAssistantAiStatus({
       FINANCIAL_ASSISTANT_AI_ENABLED: 'true',
+      FINANCIAL_ASSISTANT_ALLOW_ADMIN_KEY: 'true',
       FINANCIAL_ASSISTANT_AI_PROVIDER: 'openai',
     } as unknown as NodeJS.ProcessEnv).available).toBe(false)
+  })
+
+  it('non usa la chiave amministratore se non esplicitamente abilitata', () => {
+    const status = getFinancialAssistantAiStatus({
+      FINANCIAL_ASSISTANT_AI_ENABLED: 'true',
+      FINANCIAL_ASSISTANT_AI_PROVIDER: 'openai',
+      FINANCIAL_ASSISTANT_AI_MODEL: 'gpt-test',
+      OPENAI_API_KEY: 'sk-proj_admin-key-1234567890',
+    } as unknown as NodeJS.ProcessEnv)
+
+    expect(status.available).toBe(false)
+    expect(status.reason).toContain('amministratore')
   })
 
   it('redige identificativi e email prima del payload AI', () => {

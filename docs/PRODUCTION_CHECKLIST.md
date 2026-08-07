@@ -282,6 +282,17 @@ Configurati in `next.config.ts` nella sezione `headers()`.
 # Aurora 6.0 - Financial assistant AI provider
 
 - Keep `FINANCIAL_ASSISTANT_AI_ENABLED=false` unless the controlled provider is intentionally enabled.
-- Configure provider settings only on the server: `FINANCIAL_ASSISTANT_AI_PROVIDER`, `FINANCIAL_ASSISTANT_AI_MODEL`, `OPENAI_API_KEY`.
+- Set `AI_PROVIDER_SETTINGS_SECRET` or `FINANCIAL_ASSISTANT_AI_KEY_ENCRYPTION_SECRET` with at least 32 characters before enabling per-user AI settings.
+- Apply migration `00031_personal_ai_provider_settings.sql` only after review; verify RLS policies with `auth.uid() = user_id`.
+- Confirm user API keys are stored only in `encrypted_api_key` and only `api_key_last4` is returned to the browser.
+- Keep admin fallback disabled unless explicitly approved: `FINANCIAL_ASSISTANT_ALLOW_ADMIN_KEY` must be absent or `false` by default.
+- If admin fallback is intentionally enabled, configure provider settings only on the server: `FINANCIAL_ASSISTANT_AI_PROVIDER`, `FINANCIAL_ASSISTANT_AI_MODEL`, `OPENAI_API_KEY`.
 - Confirm the assistant still works in essential deterministic mode when AI config is missing.
 - Do not expose provider model, key or request payloads to the browser.
+- Confirm backup export does not include `ai_provider_settings`, API keys or encrypted API keys.
+- Confirm restore does not overwrite provider AI settings; users must re-enter their key manually.
+- Apply migration `00032_ai_usage_tracking.sql` only after review; verify `ai_usage_daily` contains only aggregated counters.
+- Verify `increment_ai_usage_daily` is executable only by authenticated users and rejects `p_user_id` different from `auth.uid()`.
+- Confirm `ai_usage_daily` is excluded from backup/restore because it is technical telemetry, not primary financial data.
+- Review OpenAI pricing registry at each release; estimated costs are informational and must not be presented as provider billing.
+- Confirm Claude/Gemini usage displays `Costo non disponibile` unless normalized token usage and pricing are explicitly supported.
