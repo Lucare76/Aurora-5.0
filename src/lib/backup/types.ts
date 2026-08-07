@@ -1,6 +1,7 @@
 import type {
   AccountType,
   CategoryType,
+  LeaveEntryType,
   LoanType,
   RecurringFrequency,
   TransactionType,
@@ -409,6 +410,31 @@ export type AuroraBackupFinanceTransferMetadataV1 = {
   updated_at?: string
 }
 
+export type AuroraBackupLeaveSettingsV1 = {
+  id: string
+  user_id?: string
+  vacation_days_per_year: number
+  permit_104_hours_per_month: number
+  timezone: string
+  created_at?: string
+  updated_at?: string
+}
+
+export type AuroraBackupLeaveEntryV1 = {
+  id: string
+  user_id?: string
+  type: LeaveEntryType
+  start_date: string
+  end_date: string
+  days?: number | null
+  hours?: number | null
+  start_time?: string | null
+  end_time?: string | null
+  note?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
 export type AuroraBackupDataV1 = {
   profile: AuroraBackupProfileV1
   accounts: AuroraBackupAccountV1[]
@@ -443,6 +469,9 @@ export type AuroraBackupDataV1 = {
   accountPurposeLinks?: AuroraBackupAccountPurposeLinkV1[]
   financeTransferMetadata?: AuroraBackupFinanceTransferMetadataV1[]
   adiEntries?: AuroraBackupAdiEntryV1[]
+  // Optional: included from Sprint 33 onwards; private HR module, separate from finance
+  leaveSettings?: AuroraBackupLeaveSettingsV1[]
+  leaveEntries?: AuroraBackupLeaveEntryV1[]
 }
 
 export type AuroraBackupV1 = {

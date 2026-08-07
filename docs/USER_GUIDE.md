@@ -550,3 +550,21 @@ Ogni scenario viene ricalcolato lato server dal motore di confronto usando i dat
 ### Limiti
 
 Il punteggio è un indice relativo utile a ordinare le opzioni tra loro, non una raccomandazione finanziaria assoluta. Il modulo di inserimento rapido copre i campi essenziali di ciascun dominio: per simulazioni con voci di costo dettagliate (assicurazioni, manutenzione, spese condominiali, ecc.) usare i calcolatori dedicati (Auto, Casa, Vacanza) descritti nelle sezioni precedenti.
+
+---
+
+## 34. Ferie e permessi
+
+La sezione **Ferie e permessi** è un modulo privato separato dalla contabilità e visibile solo all'account autorizzato lato server. Non crea movimenti, non modifica conti, non influenza budget, report, Financial Health o assistente AI.
+
+Puoi configurare:
+
+- giorni ferie disponibili per anno, predefiniti a 30;
+- ore di permesso 104 disponibili per mese, predefinite a 24;
+- fuso orario.
+
+Le ferie si registrano con data inizio, data fine, giorni consumati e nota opzionale. I giorni possono essere corretti manualmente: Aurora non calcola festività o ponti.
+
+I permessi 104 si registrano con data, ore, orario opzionale e nota. Le ore supportano quarti d'ora.
+
+Ogni anno ferie e ogni mese permessi sono indipendenti: non esiste riporto automatico. Il modulo include storico, calendario interno, statistiche e PDF per ferie annuali, permessi mensili e riepilogo.

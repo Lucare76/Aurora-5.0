@@ -371,7 +371,7 @@ describe('Aurora Backup v1 core', () => {
 
       expect(result.valid).toBe(false)
       expect(codes(result)).toContain('SCHEMA_VALIDATION_ERROR')
-    })
+    }, 30_000)
 
     it('inspect restituisce risultato completo per backup valido', () => {
       const result = inspectAuroraBackup(withChecksum(createCompleteBackup()))

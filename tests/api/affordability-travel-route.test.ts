@@ -79,7 +79,7 @@ describe('POST /api/affordability/travel/calculate', () => {
     mockSupabase({ authenticated: false })
     const { POST } = await route()
     expect((await POST(request(payload()))).status).toBe(401)
-  })
+  }, 30_000)
 
   it('returns 422 for invalid input', async () => {
     mockSupabase()

@@ -274,6 +274,21 @@ Configurati in `next.config.ts` nella sezione `headers()`.
 
 ---
 
+## 25. Ferie e permessi 104
+
+- [ ] Configurare `PRIVATE_HR_ACCOUNT_EMAIL` oppure verificare esplicitamente il fallback controllato su `PRIVATE_FINANCE_ACCOUNT_EMAIL`
+- [ ] Applicare e verificare localmente la migration `00033_leave_and_104_permissions.sql` prima di qualunque ambiente remoto
+- [ ] Confermare RLS su `leave_settings` e `leave_entries` con `auth.uid() = user_id`
+- [ ] Verificare che utenti non autorizzati non vedano voce menu, command menu o pagina `/leave`
+- [ ] Verificare che le API `/api/leave/*` restituiscano 403 a utenti non autorizzati
+- [ ] Verificare ferie: 30 giorni/anno default, anno indipendente, giorni modificabili manualmente
+- [ ] Verificare permessi 104: 24 ore/mese default, mese indipendente, quarti d'ora accettati
+- [ ] Verificare PDF ferie, PDF permessi e PDF riepilogo senza salvataggio nel database
+- [ ] Verificare che il modulo non crei movimenti, non modifichi conti e non influisca su dashboard finanziaria, report, budget, ADI, Aurora o Assistant
+- [ ] Verificare backup con `leaveSettings` e `leaveEntries` presenti solo per account autorizzato
+
+---
+
 ## Note
 
 - Il deploy non deve applicare migration remote senza verifica manuale.

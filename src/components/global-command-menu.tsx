@@ -8,6 +8,7 @@ import {
   BadgeEuro,
   BarChart3,
   Bell,
+  BriefcaseBusiness,
   Cake,
   CalendarDays,
   Command,
@@ -134,9 +135,19 @@ const privateFinanceQuickCommands: Array<QuickCommand & { icon: LucideIcon }> = 
   { id: 'adi-debit', group: 'Azioni rapide', title: 'Registra spesa ADI', subtitle: 'Registra una spesa pagata con ADI', href: '/adi?action=debit', keywords: ['spesa adi', 'pagato con adi', 'supermercato adi', 'benzina adi'], icon: BadgeEuro },
 ]
 
-export function getQuickCommands(canAccessPrivateFinance: boolean, financialAssistantEnabled = false): Array<QuickCommand & { icon: LucideIcon }> {
+const privateHrQuickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
+  { id: 'leave-open', group: 'Navigazione', title: 'Apri Ferie e permessi', subtitle: 'Modulo privato separato dalla contabilità', href: '/leave', keywords: ['ferie', 'permessi', '104', 'permessi 104'], icon: BriefcaseBusiness },
+  { id: 'leave-new-vacation', group: 'Azioni rapide', title: 'Nuove ferie', subtitle: 'Registra un giorno o un periodo di ferie', href: '/leave?action=vacation', keywords: ['nuove ferie', 'ferie', 'vacanza lavoro'], icon: BriefcaseBusiness },
+  { id: 'leave-new-permit', group: 'Azioni rapide', title: 'Nuovo permesso 104', subtitle: 'Registra ore di permesso 104', href: '/leave?action=permit', keywords: ['nuovo permesso', 'permesso 104', 'legge 104'], icon: BriefcaseBusiness },
+]
+
+export function getQuickCommands(canAccessPrivateFinance: boolean, financialAssistantEnabled = false, canAccessPrivateHr = false): Array<QuickCommand & { icon: LucideIcon }> {
   const commands = [...getAssistantQuickCommands(financialAssistantEnabled), ...quickCommands]
-  return canAccessPrivateFinance ? [...commands, ...privateFinanceQuickCommands] : commands
+  return [
+    ...commands,
+    ...(canAccessPrivateFinance ? privateFinanceQuickCommands : []),
+    ...(canAccessPrivateHr ? privateHrQuickCommands : []),
+  ]
 }
 
 function commandScore(query: string, command: QuickCommand): number {
@@ -159,11 +170,13 @@ export function GlobalCommandMenu({
   open,
   onOpenChange,
   canAccessPrivateFinance = false,
+  canAccessPrivateHr = false,
   financialAssistantEnabled = false,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   canAccessPrivateFinance?: boolean
+  canAccessPrivateHr?: boolean
   financialAssistantEnabled?: boolean
 }) {
   const [query, setQuery] = useState('')
@@ -174,8 +187,8 @@ export function GlobalCommandMenu({
   const { data, loading, error, minQueryLength } = useGlobalSearch(open, query)
   const trimmed = query.trim()
   const visibleQuickCommands = useMemo(
-    () => getQuickCommands(canAccessPrivateFinance, financialAssistantEnabled),
-    [canAccessPrivateFinance, financialAssistantEnabled],
+    () => getQuickCommands(canAccessPrivateFinance, financialAssistantEnabled, canAccessPrivateHr),
+    [canAccessPrivateFinance, financialAssistantEnabled, canAccessPrivateHr],
   )
 
   useEffect(() => {

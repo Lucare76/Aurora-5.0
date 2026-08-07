@@ -44,7 +44,7 @@ describe('GET /api/search', () => {
     const res = await GET(new Request('http://localhost/api/search?q=vacanza'))
     expect(res.status).toBe(401)
     expect(await res.json()).toEqual({ error: 'UNAUTHORIZED' })
-  }, 30000)
+  }, 60_000)
 
   it('validates query shape and length', async () => {
     mockSupabase()

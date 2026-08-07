@@ -13,6 +13,7 @@ export type AdiEntryType = 'credit' | 'debit'
 export type AdiCategory = 'SUPERMERCATO' | 'BENZINA' | 'ABBIGLIAMENTO_AURORA'
 export type AiProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI'
 export type AiProviderConnectionStatus = 'not_configured' | 'configured' | 'verified' | 'error'
+export type LeaveEntryType = 'VACATION' | 'PERMIT_104'
 
 export interface Profile {
   id: string
@@ -52,6 +53,31 @@ export interface AiUsageDaily {
   total_tokens: number
   estimated_cost_usd: number | null
   last_request_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface LeaveSettings {
+  id: string
+  user_id: string
+  vacation_days_per_year: number
+  permit_104_hours_per_month: number
+  timezone: string
+  created_at: string
+  updated_at: string
+}
+
+export interface LeaveEntry {
+  id: string
+  user_id: string
+  type: LeaveEntryType
+  start_date: string
+  end_date: string
+  days: number | null
+  hours: number | null
+  start_time: string | null
+  end_time: string | null
+  note: string | null
   created_at: string
   updated_at: string
 }
@@ -1191,6 +1217,39 @@ export type Database = {
           updated_at?: string
         }
         Update: Partial<AdiEntry>
+        Relationships: []
+      }
+      leave_settings: {
+        Row: LeaveSettings
+        Insert: {
+          id?: string
+          user_id: string
+          vacation_days_per_year?: number
+          permit_104_hours_per_month?: number
+          timezone?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<LeaveSettings>
+        Relationships: []
+      }
+      leave_entries: {
+        Row: LeaveEntry
+        Insert: {
+          id?: string
+          user_id: string
+          type: LeaveEntryType
+          start_date: string
+          end_date: string
+          days?: number | null
+          hours?: number | null
+          start_time?: string | null
+          end_time?: string | null
+          note?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<LeaveEntry>
         Relationships: []
       }
     }

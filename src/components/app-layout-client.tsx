@@ -9,6 +9,7 @@ import {
   BarChart3,
   Bell,
   BadgeEuro,
+  BriefcaseBusiness,
   CalendarDays,
   Cake,
   FlaskConical,
@@ -44,6 +45,7 @@ interface NavItem {
 }
 
 const PRIVATE_FINANCE_PATHS = new Set(['/aurora', '/adi'])
+const PRIVATE_HR_PATHS = new Set(['/leave'])
 
 function assistantNavItems(financialAssistantEnabled: boolean): NavItem[] {
   return financialAssistantEnabled ? [{ path: '/assistant', label: 'Chiedi ad Aurora', icon: MessageCircle }] : []
@@ -69,6 +71,7 @@ function buildAllNavItems(financialAssistantEnabled: boolean): NavItem[] {
   { path: '/affordability', label: 'Permettermelo?', icon: ShoppingCart },
   { path: '/aurora', label: 'Risparmi Aurora', icon: PiggyBank },
   { path: '/adi', label: 'Gestione ADI', icon: BadgeEuro },
+  { path: '/leave', label: 'Ferie e permessi', icon: BriefcaseBusiness },
   { path: '/notifications', label: 'Avvisi', icon: Bell },
   { path: '/birthdays', label: 'Compleanni', icon: Cake },
   { path: '/settings', label: 'Impostazioni', icon: Settings },
@@ -98,6 +101,7 @@ function buildAllMoreItems(financialAssistantEnabled: boolean): NavItem[] {
   { path: '/affordability', label: 'Permettermelo?', icon: ShoppingCart },
   { path: '/aurora', label: 'Risparmi Aurora', icon: PiggyBank },
   { path: '/adi', label: 'Gestione ADI', icon: BadgeEuro },
+  { path: '/leave', label: 'Ferie e permessi', icon: BriefcaseBusiness },
   { path: '/notifications', label: 'Avvisi', icon: Bell },
   { path: '/birthdays', label: 'Compleanni', icon: Cake },
   { path: '/settings', label: 'Impostazioni', icon: Settings },
@@ -109,12 +113,21 @@ export function filterPrivateFinanceNavItems(items: NavItem[], canAccessPrivateF
   return items.filter((item) => !PRIVATE_FINANCE_PATHS.has(item.path))
 }
 
-export function getNavItems(canAccessPrivateFinance: boolean, financialAssistantEnabled = false): NavItem[] {
-  return filterPrivateFinanceNavItems(buildAllNavItems(financialAssistantEnabled), canAccessPrivateFinance)
+export function filterPrivateHrNavItems(items: NavItem[], canAccessPrivateHr: boolean): NavItem[] {
+  if (canAccessPrivateHr) return items
+  return items.filter((item) => !PRIVATE_HR_PATHS.has(item.path))
 }
 
-export function getMoreItems(canAccessPrivateFinance: boolean, financialAssistantEnabled = false): NavItem[] {
-  return filterPrivateFinanceNavItems(buildAllMoreItems(financialAssistantEnabled), canAccessPrivateFinance)
+function filterPrivateNavItems(items: NavItem[], canAccessPrivateFinance: boolean, canAccessPrivateHr: boolean): NavItem[] {
+  return filterPrivateHrNavItems(filterPrivateFinanceNavItems(items, canAccessPrivateFinance), canAccessPrivateHr)
+}
+
+export function getNavItems(canAccessPrivateFinance: boolean, financialAssistantEnabled = false, canAccessPrivateHr = false): NavItem[] {
+  return filterPrivateNavItems(buildAllNavItems(financialAssistantEnabled), canAccessPrivateFinance, canAccessPrivateHr)
+}
+
+export function getMoreItems(canAccessPrivateFinance: boolean, financialAssistantEnabled = false, canAccessPrivateHr = false): NavItem[] {
+  return filterPrivateNavItems(buildAllMoreItems(financialAssistantEnabled), canAccessPrivateFinance, canAccessPrivateHr)
 }
 
 function Logo({ compact = false }: { compact?: boolean }) {
@@ -278,10 +291,12 @@ function MoreSheet({ open, items, onClose }: { open: boolean; items: NavItem[]; 
 export function AppLayoutClient({
   children,
   canAccessPrivateFinance,
+  canAccessPrivateHr,
   financialAssistantEnabled,
 }: {
   children: React.ReactNode
   canAccessPrivateFinance: boolean
+  canAccessPrivateHr: boolean
   financialAssistantEnabled: boolean
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -292,8 +307,8 @@ export function AppLayoutClient({
   const pathname = usePathname()
 
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Utente Aurora'
-  const navItems = getNavItems(canAccessPrivateFinance, financialAssistantEnabled)
-  const moreItems = getMoreItems(canAccessPrivateFinance, financialAssistantEnabled)
+  const navItems = getNavItems(canAccessPrivateFinance, financialAssistantEnabled, canAccessPrivateHr)
+  const moreItems = getMoreItems(canAccessPrivateFinance, financialAssistantEnabled, canAccessPrivateHr)
   const isMoreActive = moreItems.some((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
 
   const handleSignOut = async () => {
@@ -424,6 +439,7 @@ export function AppLayoutClient({
         open={commandOpen}
         onOpenChange={setCommandOpen}
         canAccessPrivateFinance={canAccessPrivateFinance}
+        canAccessPrivateHr={canAccessPrivateHr}
         financialAssistantEnabled={financialAssistantEnabled}
       />
     </div>

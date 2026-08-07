@@ -1,7 +1,7 @@
-import type { AuroraBackupRecordCounts, AuroraBackupV1 } from '../types'
+import type { AuroraBackupV1 } from '../types'
 import type { CurrentUserDataSnapshot, DefaultCategoryReconciliation, IdCollision, LogicalDuplicate } from './types'
 
-const COLLECTIONS: Array<keyof AuroraBackupRecordCounts> = [
+const COLLECTIONS = [
   'accounts',
   'categories',
   'transactions',
@@ -12,7 +12,7 @@ const COLLECTIONS: Array<keyof AuroraBackupRecordCounts> = [
   'birthdays',
   'birthdayReminderLog',
   'auditLogs',
-]
+] as const
 
 export function detectRestoreCollisions(
   backup: AuroraBackupV1,

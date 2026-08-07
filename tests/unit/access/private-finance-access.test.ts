@@ -1,15 +1,20 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   canAccessPrivateFinance,
+  canAccessPrivateHr,
   isPrivateFinanceConfigured,
+  requirePrivateHrAccess,
   requirePrivateFinanceAccess,
 } from '@/lib/access/private-finance-access'
 
 const originalAllowedEmail = process.env.PRIVATE_FINANCE_ACCOUNT_EMAIL
+const originalHrEmail = process.env.PRIVATE_HR_ACCOUNT_EMAIL
 
 afterEach(() => {
   if (originalAllowedEmail === undefined) delete process.env.PRIVATE_FINANCE_ACCOUNT_EMAIL
   else process.env.PRIVATE_FINANCE_ACCOUNT_EMAIL = originalAllowedEmail
+  if (originalHrEmail === undefined) delete process.env.PRIVATE_HR_ACCOUNT_EMAIL
+  else process.env.PRIVATE_HR_ACCOUNT_EMAIL = originalHrEmail
 })
 
 describe('private finance access control', () => {
@@ -48,5 +53,17 @@ describe('private finance access control', () => {
 
     expect(canAccessPrivateFinance('luca_renna@hotmail.com')).toBe(true)
     expect(canAccessPrivateFinance('altro@example.com')).toBe(false)
+  })
+
+  it('autorizza il modulo HR con variabile dedicata e fallback controllato', () => {
+    process.env.PRIVATE_FINANCE_ACCOUNT_EMAIL = 'finance@example.test'
+    process.env.PRIVATE_HR_ACCOUNT_EMAIL = 'hr@example.test'
+
+    expect(canAccessPrivateHr('hr@example.test')).toBe(true)
+    expect(canAccessPrivateHr('finance@example.test')).toBe(false)
+    expect(requirePrivateHrAccess({ email: 'HR@EXAMPLE.TEST' })).toBe(true)
+
+    delete process.env.PRIVATE_HR_ACCOUNT_EMAIL
+    expect(canAccessPrivateHr('finance@example.test')).toBe(true)
   })
 })

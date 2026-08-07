@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
+import { canAccessPrivateFinance, canAccessPrivateHr } from '@/lib/access/private-finance-access'
 import { backupContainsPrivateFinance } from '@/lib/access/private-finance-backup'
 
 import {
@@ -56,6 +56,9 @@ export async function POST(request: Request) {
     const snapshot = await readRestoreSnapshot(supabase, user)
     const validated = await validateBackupForRealRestore(content, snapshot)
     if (!canAccessPrivateFinance(user.email) && backupContainsPrivateFinance(validated.backup)) {
+      return json({ error: { code: 'FORBIDDEN', message: 'Accesso non autorizzato.' } }, 403)
+    }
+    if (!canAccessPrivateHr(user.email) && backupContainsPrivateHr(validated.backup)) {
       return json({ error: { code: 'FORBIDDEN', message: 'Accesso non autorizzato.' } }, 403)
     }
 
@@ -114,6 +117,7 @@ export async function POST(request: Request) {
     await restoreNotificationPreferences(supabase as unknown as SupabaseClient, user.id, validated.backup)
     await restoreDashboardPreferences(supabase as unknown as SupabaseClient, user.id, validated.backup)
     await restoreDataIntegrityStates(supabase as unknown as SupabaseClient, user.id, validated.backup)
+    await restoreLeaveData(supabase as unknown as SupabaseClient, user.id, validated.backup)
 
     return json({
       status: 'completed',
@@ -125,6 +129,59 @@ export async function POST(request: Request) {
     if (err instanceof RestorePreparationError) return json(error(err.code), err.code === 'INVALID_BACKUP' ? 400 : 409)
     if (err instanceof Error) console.error('[aurora-restore]', { name: err.name, duration: Date.now() - startedAt })
     return json(error('INTERNAL_ERROR'), 500)
+  }
+}
+
+function backupContainsPrivateHr(backup: NonNullable<Awaited<ReturnType<typeof validateBackupForRealRestore>>['backup']>): boolean {
+  return Boolean(backup.data.leaveSettings?.length || backup.data.leaveEntries?.length)
+}
+
+async function restoreLeaveData(
+  db: SupabaseClient,
+  userId: string,
+  backup: NonNullable<Awaited<ReturnType<typeof validateBackupForRealRestore>>['backup']>,
+) {
+  const leaveSettings = backup.data.leaveSettings ?? []
+  const leaveEntries = backup.data.leaveEntries ?? []
+  if (leaveSettings.length === 0 && leaveEntries.length === 0) return
+
+  try {
+    await db.from('leave_entries').delete().eq('user_id', userId)
+    await db.from('leave_settings').delete().eq('user_id', userId)
+
+    if (leaveSettings.length > 0) {
+      await db.from('leave_settings').insert(leaveSettings.map((item) => ({
+        id: item.id,
+        user_id: userId,
+        vacation_days_per_year: item.vacation_days_per_year,
+        permit_104_hours_per_month: item.permit_104_hours_per_month,
+        timezone: item.timezone,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      })))
+    }
+
+    if (leaveEntries.length > 0) {
+      await db.from('leave_entries').insert(leaveEntries.map((item) => ({
+        id: item.id,
+        user_id: userId,
+        type: item.type,
+        start_date: item.start_date,
+        end_date: item.end_date,
+        days: item.days ?? null,
+        hours: item.hours ?? null,
+        start_time: item.start_time ?? null,
+        end_time: item.end_time ?? null,
+        note: item.note ?? null,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      })))
+    }
+  } catch (leaveErr) {
+    console.warn('[aurora-restore] leave-restore-skipped', {
+      uid: userId.slice(0, 8),
+      error: leaveErr instanceof Error ? leaveErr.message : String(leaveErr),
+    })
   }
 }
 

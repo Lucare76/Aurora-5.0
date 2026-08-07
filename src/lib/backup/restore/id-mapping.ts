@@ -1,7 +1,7 @@
-import type { AuroraBackupRecordCounts, AuroraBackupV1 } from '../types'
+import type { AuroraBackupV1 } from '../types'
 import type { CurrentUserDataSnapshot, IdMapping } from './types'
 
-const COLLECTIONS: Array<keyof AuroraBackupRecordCounts> = [
+const COLLECTIONS = [
   'accounts',
   'categories',
   'transactions',
@@ -12,7 +12,7 @@ const COLLECTIONS: Array<keyof AuroraBackupRecordCounts> = [
   'birthdays',
   'birthdayReminderLog',
   'auditLogs',
-]
+] as const
 
 export function buildIdMapping(backup: AuroraBackupV1, snapshot: CurrentUserDataSnapshot): IdMapping[] {
   // Default categories will be deleted by the RPC before backup categories are

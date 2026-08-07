@@ -15,6 +15,8 @@ import type {
   Budget,
   Category,
   FinancialHealthSnapshot,
+  LeaveEntry,
+  LeaveSettings,
   Loan,
   LoanPayment,
   Profile,
@@ -41,6 +43,8 @@ import type {
   AuroraBackupFinanceTransferMetadataV1,
   AuroraBackupFinancialHealthSnapshotV1,
   AuroraBackupFinancialScenarioV1,
+  AuroraBackupLeaveEntryV1,
+  AuroraBackupLeaveSettingsV1,
   AuroraBackupLoanPaymentV1,
   AuroraBackupLoanV1,
   AuroraBackupNotificationPreferenceV1,
@@ -102,6 +106,12 @@ export function mapUserBackupDataToV1Data(input: UserBackupData): AuroraBackupDa
       : {}),
     ...(input.adiEntries && input.adiEntries.length > 0
       ? { adiEntries: input.adiEntries.map(mapAdiEntry) }
+      : {}),
+    ...(input.leaveSettings && input.leaveSettings.length > 0
+      ? { leaveSettings: input.leaveSettings.map(mapLeaveSettings) }
+      : {}),
+    ...(input.leaveEntries && input.leaveEntries.length > 0
+      ? { leaveEntries: input.leaveEntries.map(mapLeaveEntry) }
       : {}),
   }
 }
@@ -496,6 +506,33 @@ export function mapFinanceTransferMetadata(row: NonNullable<UserBackupData['fina
     reason: row.reason,
     note: row.note,
     idempotency_key: row.idempotency_key,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+export function mapLeaveSettings(row: LeaveSettings): AuroraBackupLeaveSettingsV1 {
+  return {
+    id: row.id,
+    vacation_days_per_year: row.vacation_days_per_year,
+    permit_104_hours_per_month: row.permit_104_hours_per_month,
+    timezone: row.timezone,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+export function mapLeaveEntry(row: LeaveEntry): AuroraBackupLeaveEntryV1 {
+  return {
+    id: row.id,
+    type: row.type,
+    start_date: row.start_date,
+    end_date: row.end_date,
+    days: row.days,
+    hours: row.hours,
+    start_time: row.start_time,
+    end_time: row.end_time,
+    note: row.note,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }

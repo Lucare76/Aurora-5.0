@@ -31,6 +31,7 @@ const assetPurpose = z.enum(['PERSONAL', 'DEPENDENT_AURORA', 'ADI', 'DEPENDENT']
 const financeScope = z.enum(['PERSONAL', 'DEPENDENT_AURORA', 'ADI'])
 const adiEntryType = z.enum(['credit', 'debit'])
 const adiCategory = z.enum(['SUPERMERCATO', 'BENZINA', 'ABBIGLIAMENTO_AURORA'])
+const leaveEntryType = z.enum(['VACATION', 'PERMIT_104'])
 
 export const profileSchema = z.object({
   id: uuid.optional(),
@@ -379,6 +380,41 @@ export const financeTransferMetadataSchema = z.object({
   updated_at: z.string().optional(),
 }).passthrough()
 
+export const leaveSettingsBackupSchema = z.object({
+  id: uuid,
+  user_id: uuid.optional(),
+  vacation_days_per_year: money.min(0).max(365),
+  permit_104_hours_per_month: money.min(0).max(744),
+  timezone: shortString.min(1),
+  created_at: maybeTimestamp,
+  updated_at: maybeTimestamp,
+}).passthrough()
+
+export const leaveEntryBackupSchema = z.object({
+  id: uuid,
+  user_id: uuid.optional(),
+  type: leaveEntryType,
+  start_date: dateOnly,
+  end_date: dateOnly,
+  days: money.min(0).max(366).nullable().optional(),
+  hours: money.min(0).max(24).nullable().optional(),
+  start_time: shortString.nullable().optional(),
+  end_time: shortString.nullable().optional(),
+  note: notesString.nullable().optional(),
+  created_at: maybeTimestamp,
+  updated_at: maybeTimestamp,
+}).passthrough().superRefine((value, ctx) => {
+  if (value.end_date < value.start_date) {
+    ctx.addIssue({ code: 'custom', path: ['end_date'], message: 'Invalid leave date range' })
+  }
+  if (value.type === 'VACATION' && value.days == null) {
+    ctx.addIssue({ code: 'custom', path: ['days'], message: 'Vacation entries require days' })
+  }
+  if (value.type === 'PERMIT_104' && value.hours == null) {
+    ctx.addIssue({ code: 'custom', path: ['hours'], message: 'Permit entries require hours' })
+  }
+})
+
 const collection = <T extends z.ZodType>(schema: T) =>
   z.array(schema).max(BACKUP_LIMITS.maxRecordsPerCollection)
 
@@ -425,6 +461,8 @@ export const auroraBackupV1Schema = z.object({
     accountPurposeLinks: collection(accountPurposeLinkSchema).optional(),
     financeTransferMetadata: collection(financeTransferMetadataSchema).optional(),
     adiEntries: collection(adiEntrySchema).optional(),
+    leaveSettings: collection(leaveSettingsBackupSchema).optional(),
+    leaveEntries: collection(leaveEntryBackupSchema).optional(),
   }).passthrough(),
   integrity: z.object({
     recordCounts: z.record(z.string(), z.number().int().min(0)),

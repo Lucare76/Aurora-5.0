@@ -8,6 +8,8 @@ import {
   mapAuditLog,
   mapBirthday,
   mapCategory,
+  mapLeaveEntry,
+  mapLeaveSettings,
   mapProfile,
   mapTransaction,
   type UserBackupData,
@@ -17,6 +19,8 @@ import type {
   AuditLog,
   Birthday,
   Category,
+  LeaveEntry,
+  LeaveSettings,
   Profile,
   Transaction,
 } from '@/types/database'
@@ -151,6 +155,26 @@ describe('Aurora Backup v1 export', () => {
     expect(generated.inspection.valid).toBe(true)
     expect(generated.backup.integrity.recordCounts.accounts).toBe(0)
   })
+
+  it('include ferie e permessi nel backup senza esportare user_id', () => {
+    const leaveSettings = leaveSettingsRow()
+    const leaveEntry = leaveEntryRow()
+    const generated = generateAuroraBackup(userBackupData({
+      leaveSettings: [leaveSettings],
+      leaveEntries: [leaveEntry],
+    }), {
+      createdAt: new Date('2026-07-17T12:00:00.000Z'),
+      appVersion: '5.0.0-test',
+    })
+
+    expect(generated.inspection.valid).toBe(true)
+    expect(generated.backup.data.leaveSettings?.[0]).toMatchObject({ vacation_days_per_year: 30, permit_104_hours_per_month: 24 })
+    expect(generated.backup.data.leaveEntries?.[0]).toMatchObject({ type: 'PERMIT_104', hours: 2.25 })
+    expect(generated.backup.integrity.recordCounts.leaveSettings).toBe(1)
+    expect(generated.backup.integrity.recordCounts.leaveEntries).toBe(1)
+    expect('user_id' in mapLeaveSettings(leaveSettings)).toBe(false)
+    expect('user_id' in mapLeaveEntry(leaveEntry)).toBe(false)
+  })
 })
 
 function userBackupData(overrides: Partial<UserBackupData> = {}): UserBackupData {
@@ -267,6 +291,37 @@ function auditLogRow(overrides: Partial<AuditLog> = {}): AuditLog {
     new_data: { id: txId },
     ip_address: '127.0.0.1',
     created_at: '2026-07-17T12:00:00.000Z',
+    ...overrides,
+  }
+}
+
+function leaveSettingsRow(overrides: Partial<LeaveSettings> = {}): LeaveSettings {
+  return {
+    id: '77777777-7777-4777-8777-777777777777',
+    user_id: userId,
+    vacation_days_per_year: 30,
+    permit_104_hours_per_month: 24,
+    timezone: 'Europe/Rome',
+    created_at: '2026-01-01T00:00:00.000Z',
+    updated_at: '2026-01-02T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+function leaveEntryRow(overrides: Partial<LeaveEntry> = {}): LeaveEntry {
+  return {
+    id: '88888888-8888-4888-8888-888888888888',
+    user_id: userId,
+    type: 'PERMIT_104',
+    start_date: '2026-08-07',
+    end_date: '2026-08-07',
+    days: null,
+    hours: 2.25,
+    start_time: '09:00',
+    end_time: '11:15',
+    note: 'Permesso test',
+    created_at: '2026-08-07T08:00:00.000Z',
+    updated_at: '2026-08-07T08:00:00.000Z',
     ...overrides,
   }
 }

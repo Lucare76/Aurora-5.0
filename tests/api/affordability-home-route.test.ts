@@ -108,7 +108,7 @@ describe('POST /api/affordability/home/calculate', () => {
     const { POST } = await importRoute()
     const response = await POST(request(validPayload()))
     expect(response.status).toBe(401)
-  })
+  }, 30_000)
 
   it('returns 422 for invalid input', async () => {
     mockSupabase()

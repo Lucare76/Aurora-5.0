@@ -24,6 +24,8 @@ export function normalizeAuroraBackup(backup: AuroraBackupV1): AuroraBackupV1 {
       accountPurposeLinks: sortById(backup.data.accountPurposeLinks ?? []),
       financeTransferMetadata: sortById(backup.data.financeTransferMetadata ?? []),
       adiEntries: sortById(backup.data.adiEntries ?? []),
+      leaveSettings: sortById(backup.data.leaveSettings ?? []),
+      leaveEntries: sortById(backup.data.leaveEntries ?? []),
     },
   }) as AuroraBackupV1
 }

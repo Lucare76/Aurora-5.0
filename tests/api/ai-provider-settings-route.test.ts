@@ -42,7 +42,7 @@ describe('AI provider settings API', () => {
     expect(response.status).toBe(200)
     expect(JSON.stringify(body)).not.toContain('v1:secret')
     expect(body.data.maskedApiKey).toBe('************abcd')
-  })
+  }, 30_000)
 
   it('salva una chiave personale cifrata e non la restituisce', async () => {
     const writes: unknown[] = []

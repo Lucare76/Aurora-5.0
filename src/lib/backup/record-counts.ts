@@ -17,6 +17,8 @@ export function calculateRecordCounts(backup: Pick<AuroraBackupV1, 'data'>): Aur
     automationRules: backup.data.automationRules.length,
     automationApplicationBatches: backup.data.automationApplicationBatches.length,
     automationRuleApplications: backup.data.automationRuleApplications.length,
+    leaveSettings: backup.data.leaveSettings?.length ?? 0,
+    leaveEntries: backup.data.leaveEntries?.length ?? 0,
   }
 }
 

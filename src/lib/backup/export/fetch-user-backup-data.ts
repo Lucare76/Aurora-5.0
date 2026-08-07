@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
+import { canAccessPrivateFinance, canAccessPrivateHr } from '@/lib/access/private-finance-access'
 
 import type {
   Account,
@@ -18,6 +18,8 @@ import type {
   AdiEntry,
   FinanceTransferMetadata,
   FinancialHealthSnapshot,
+  LeaveEntry,
+  LeaveSettings,
   Loan,
   LoanPayment,
   Profile,
@@ -75,6 +77,10 @@ export const BACKUP_FINANCE_TRANSFER_METADATA_SELECT =
   'id,user_id,source_transaction_id,destination_transaction_id,source_scope,destination_scope,reason,note,idempotency_key,created_at,updated_at'
 export const BACKUP_ADI_ENTRY_SELECT =
   'id,user_id,transaction_id,entry_type,adi_category,amount,date,reference_period,description,note,funding_source,created_at,updated_at'
+export const BACKUP_LEAVE_SETTINGS_SELECT =
+  'id,user_id,vacation_days_per_year,permit_104_hours_per_month,timezone,created_at,updated_at'
+export const BACKUP_LEAVE_ENTRY_SELECT =
+  'id,user_id,type,start_date,end_date,days,hours,start_time,end_time,note,created_at,updated_at'
 
 export type BackupAuthenticatedUser = {
   id: string
@@ -120,6 +126,8 @@ export type UserBackupData = {
   accountPurposeLinks?: AccountPurposeLink[]
   financeTransferMetadata?: FinanceTransferMetadata[]
   adiEntries?: AdiEntry[]
+  leaveSettings?: LeaveSettings[]
+  leaveEntries?: LeaveEntry[]
 }
 
 type BackupSupabaseClient = SupabaseClient<Database>
@@ -182,6 +190,8 @@ export async function fetchUserBackupData(
     accountPurposeLinks,
     financeTransferMetadata,
     adiEntries,
+    leaveSettings,
+    leaveEntries,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -325,6 +335,17 @@ export async function fetchUserBackupData(
       .eq('user_id', user.id)
       .order('date', { ascending: true })
       .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<AdiEntry>>,
+    (supabase as unknown as SupabaseClient)
+      .from('leave_settings')
+      .select(BACKUP_LEAVE_SETTINGS_SELECT)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<LeaveSettings>>,
+    (supabase as unknown as SupabaseClient)
+      .from('leave_entries')
+      .select(BACKUP_LEAVE_ENTRY_SELECT)
+      .eq('user_id', user.id)
+      .order('start_date', { ascending: true })
+      .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<LeaveEntry>>,
   ])
 
   assertNoQueryError('profiles', profile.error)
@@ -374,6 +395,8 @@ export async function fetchUserBackupData(
     accountPurposeLinks: accountPurposeLinks.error ? [] : (accountPurposeLinks.data ?? []),
     financeTransferMetadata: financeTransferMetadata.error ? [] : (financeTransferMetadata.data ?? []),
     adiEntries: adiEntries.error ? [] : (adiEntries.data ?? []),
+    leaveSettings: canAccessPrivateHr(user.email) && !leaveSettings.error ? (leaveSettings.data ?? []) : [],
+    leaveEntries: canAccessPrivateHr(user.email) && !leaveEntries.error ? (leaveEntries.data ?? []) : [],
   }
 
   if (canAccessPrivateFinance(user.email)) return rawData
