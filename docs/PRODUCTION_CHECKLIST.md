@@ -300,8 +300,8 @@ Configurati in `next.config.ts` nella sezione `headers()`.
 - Set `AI_PROVIDER_SETTINGS_SECRET` or `FINANCIAL_ASSISTANT_AI_KEY_ENCRYPTION_SECRET` with at least 32 characters before enabling per-user AI settings.
 - Apply migration `00031_personal_ai_provider_settings.sql` only after review; verify RLS policies with `auth.uid() = user_id`.
 - Confirm user API keys are stored only in `encrypted_api_key` and only `api_key_last4` is returned to the browser.
-- Keep admin fallback disabled unless explicitly approved: `FINANCIAL_ASSISTANT_ALLOW_ADMIN_KEY` must be absent or `false` by default.
-- If admin fallback is intentionally enabled, configure provider settings only on the server: `FINANCIAL_ASSISTANT_AI_PROVIDER`, `FINANCIAL_ASSISTANT_AI_MODEL`, `OPENAI_API_KEY`.
+- Keep admin fallback disabled for production users: `FINANCIAL_ASSISTANT_ALLOW_ADMIN_KEY` must be absent or `false`.
+- Use only per-user provider settings in production: each user configures their own API key in Impostazioni.
 - Confirm the assistant still works in essential deterministic mode when AI config is missing.
 - Do not expose provider model, key or request payloads to the browser.
 - Confirm backup export does not include `ai_provider_settings`, API keys or encrypted API keys.

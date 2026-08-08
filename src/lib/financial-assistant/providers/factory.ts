@@ -1,4 +1,4 @@
-import { getFinancialAssistantAiStatus, getOpenAiProviderConfig, getProviderDefaults, type ExternalProviderName } from './config'
+import { getFinancialAssistantAiStatus, getProviderDefaults, type ExternalProviderName } from './config'
 import { createDeterministicProvider } from './deterministic-provider'
 import { OpenAiFinancialLanguageProvider } from './external-provider'
 import { resolvePersonalAiProvider } from './personal-settings'
@@ -21,7 +21,7 @@ export async function getUserAssistantProviderStatus(params?: {
       // Missing migration or temporary settings failure must not break deterministic mode.
     }
   }
-  return getAssistantProviderStatus()
+  return { available: false, provider: 'none', reason: 'Nessuna API key personale configurata.' }
 }
 
 export async function createFinancialLanguageProvider(params?: {
@@ -40,17 +40,10 @@ export async function createFinancialLanguageProvider(params?: {
         })
       }
     } catch {
-      // Fall through to explicit admin provider or deterministic mode.
+      // Fall through to deterministic mode: user-facing chat never uses a global admin key.
     }
   }
-  const config = getOpenAiProviderConfig()
-  if (!config) return createDeterministicProvider(getFinancialAssistantAiStatus().reason ?? 'Provider AI non disponibile.')
-  return new OpenAiFinancialLanguageProvider(params?.supabase && params.userId
-    ? {
-        ...config,
-        onUsage: (usage) => recordAiUsage({ supabase: params.supabase!, userId: params.userId!, usage }).catch(() => {}),
-      }
-    : config)
+  return createDeterministicProvider('Nessuna API key personale configurata.')
 }
 
 export function isAssistantAiAvailable(): boolean {
