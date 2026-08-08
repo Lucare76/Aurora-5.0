@@ -31,6 +31,19 @@ describe('controlled AI provider privacy and config', () => {
     expect(status.reason).toContain('amministratore')
   })
 
+  it('accetta alias FINANCIAL_ASSISTANT_AI_API_KEY quando la chiave admin e abilitata', () => {
+    const config = getOpenAiProviderConfig({
+      FINANCIAL_ASSISTANT_AI_ENABLED: 'true',
+      FINANCIAL_ASSISTANT_ALLOW_ADMIN_KEY: 'true',
+      FINANCIAL_ASSISTANT_AI_PROVIDER: 'openai',
+      FINANCIAL_ASSISTANT_AI_MODEL: 'gpt-4.1-mini',
+      FINANCIAL_ASSISTANT_AI_API_KEY: 'sk-proj_admin-key-1234567890',
+    } as unknown as NodeJS.ProcessEnv)
+
+    expect(config?.apiKey).toBe('sk-proj_admin-key-1234567890')
+    expect(config?.model).toBe('gpt-4.1-mini')
+  })
+
   it('redige identificativi e email prima del payload AI', () => {
     const payload = buildAiClassificationPayload({
       message: 'Saldo di luca@example.com 123e4567-e89b-12d3-a456-426614174000',

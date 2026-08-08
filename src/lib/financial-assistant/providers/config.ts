@@ -13,6 +13,10 @@ export type ExternalProviderConfig = {
   onUsage?: (usage: AIUsageRecord) => Promise<void> | void
 }
 
+function openAiApiKey(env: NodeJS.ProcessEnv): string | undefined {
+  return env.OPENAI_API_KEY || env.FINANCIAL_ASSISTANT_AI_API_KEY
+}
+
 function positiveInt(value: string | undefined, fallback: number, min: number, max: number): number {
   const parsed = Number.parseInt(value ?? '', 10)
   if (!Number.isFinite(parsed)) return fallback
@@ -29,8 +33,8 @@ export function getFinancialAssistantAiStatus(env: NodeJS.ProcessEnv = process.e
   if ((env.FINANCIAL_ASSISTANT_AI_PROVIDER ?? '').toLowerCase() !== 'openai') {
     return { available: false, provider: 'none', reason: 'Provider AI non supportato o mancante.' }
   }
-  if (!env.OPENAI_API_KEY) {
-    return { available: false, provider: 'openai', reason: 'OPENAI_API_KEY mancante.' }
+  if (!openAiApiKey(env)) {
+    return { available: false, provider: 'openai', reason: 'OPENAI_API_KEY o FINANCIAL_ASSISTANT_AI_API_KEY mancante.' }
   }
   if (!env.FINANCIAL_ASSISTANT_AI_MODEL) {
     return { available: false, provider: 'openai', reason: 'Modello AI mancante.' }
@@ -43,7 +47,7 @@ export function getOpenAiProviderConfig(env: NodeJS.ProcessEnv = process.env): E
   if (!status.available || status.provider !== 'openai') return null
   return {
     provider: 'openai',
-    apiKey: env.OPENAI_API_KEY ?? '',
+    apiKey: openAiApiKey(env) ?? '',
     model: env.FINANCIAL_ASSISTANT_AI_MODEL ?? '',
     timeoutMs: positiveInt(env.FINANCIAL_ASSISTANT_AI_TIMEOUT_MS, 12_000, 1_000, 30_000),
     maxInputChars: positiveInt(env.FINANCIAL_ASSISTANT_AI_MAX_INPUT_CHARS, 4_000, 500, 8_000),
