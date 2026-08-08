@@ -38,6 +38,7 @@ import {
   calculateNetTotal,
 } from '@/domain/accounting/aggregations'
 import { adaptTransactionRow, type AppTransaction } from '@/domain/accounting/transaction-adapter'
+import { getPersonalExcludedAccountIds } from '@/lib/dependent-finance/calculations'
 import { useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
 import type { CategoryTreeNode } from '@/hooks/use-categories'
@@ -381,6 +382,14 @@ export default function TransactionsPage() {
       toast.error('Sessione scaduta. Accedi di nuovo.')
       return
     }
+    const [scopeAccountsRes, purposeLinksRes] = await Promise.all([
+      db.from('accounts').select('id,name').eq('user_id', user.id),
+      db.from('account_purpose_links').select('account_id,purpose').eq('user_id', user.id),
+    ])
+    const scopeAccounts = (scopeAccountsRes.data ?? []) as { id: string; name: string }[]
+    const purposeLinks = (purposeLinksRes.data ?? []) as { account_id: string; purpose: string | null }[]
+    const excludedAccountIds = [...getPersonalExcludedAccountIds(purposeLinks, scopeAccounts)]
+
     const range = useDateRange
       ? { start: dateRangeFrom, end: dateRangeTo }
       : getMonthRange(selectedMonth)
@@ -393,6 +402,9 @@ export default function TransactionsPage() {
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
 
+    if (excludedAccountIds.length > 0) {
+      query = query.not('account_id', 'in', `(${excludedAccountIds.join(',')})`)
+    }
     if (typeFilter !== 'all') query = query.eq('type', typeFilter)
     if (accountFilter !== 'all') query = query.eq('account_id', accountFilter)
 

@@ -69,6 +69,20 @@ export function getSharedAuroraAccountIds(accounts: AccountIdentity[], links: Ac
   return new Set(accounts.filter((account) => auroraIds.has(account.id) && isSharedAuroraAccumulationAccount(account)).map((account) => account.id))
 }
 
+/**
+ * Aurora accounts split into two kinds: "real" accounts have their own financial
+ * life (income, expenses, transfers) and feed Aurora's statistics/charts/history.
+ * "Mirror" accounts (e.g. the shared "Aurora piano di accumulo" bridge account,
+ * see isSharedAuroraAccumulationAccount) are not real Aurora accounts — they are
+ * a logical view of a personal account's balance and must contribute to the
+ * Aurora patrimony total only, never to transaction-derived analytics.
+ */
+export function getRealAuroraAccountIds(accounts: AccountIdentity[], links: AccountScopeLink[]): Set<string> {
+  const auroraIds = getAccountIdsByScope(links, 'DEPENDENT_AURORA')
+  const mirrorIds = getSharedAuroraAccountIds(accounts, links)
+  return new Set([...auroraIds].filter((id) => !mirrorIds.has(id)))
+}
+
 export function getPersonalExcludedAccountIds(links: AccountScopeLink[], accounts: AccountIdentity[] = []): Set<string> {
   const sharedAuroraIds = getSharedAuroraAccountIds(accounts, links)
   return new Set(
@@ -157,9 +171,15 @@ export function buildAuroraScopeSummary(params: {
   from?: string
   to?: string
 }) {
-  const auroraIds = new Set(params.accounts.map((account) => account.id))
+  // Mirror accounts (e.g. "Aurora piano di accumulo") contribute to the balance
+  // computed below from params.accounts, but never to the transaction-derived
+  // statistics: their own movements are hard-excluded, and transfers landing in
+  // a mirror account do not count as Aurora inflows/outflows either.
+  const mirrorIds = getSharedAuroraAccountIds(params.accounts, params.links)
+  const realIds = getRealAuroraAccountIds(params.accounts, params.links)
   const txs = params.transactions
-    .filter((tx) => (tx.account_id && auroraIds.has(tx.account_id)) || (tx.transfer_peer_id && auroraIds.has(tx.transfer_peer_id)))
+    .filter((tx) => !(tx.account_id && mirrorIds.has(tx.account_id)))
+    .filter((tx) => (tx.account_id && realIds.has(tx.account_id)) || (tx.transfer_peer_id && realIds.has(tx.transfer_peer_id)))
     .filter((tx) => !params.from || tx.date >= params.from)
     .filter((tx) => !params.to || tx.date <= params.to)
     .sort((a, b) => b.date.localeCompare(a.date))

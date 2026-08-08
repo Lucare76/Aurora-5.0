@@ -9,6 +9,7 @@ import {
   filterPersonalTransactions,
   filterTransactionsByScope,
   getDependentAccountIds,
+  getRealAuroraAccountIds,
   normalizeFinanceScope,
 } from '@/lib/dependent-finance/calculations'
 import type { AccountPurposeLink, AdiEntry } from '@/lib/dependent-finance/types'
@@ -72,16 +73,16 @@ describe('dependent finance calculations', () => {
   it('calcola statistiche Aurora multi-conto ed esclude giroconti interni da entrate e uscite', () => {
     const summary = buildAuroraScopeSummary({
       accounts: [
-        { id: 'aurora-1', name: 'Aurora piano di accumulo', balance: 4364, currency: 'EUR', type: 'investment' },
+        { id: 'aurora-1', name: 'Investimento Aurora', balance: 4364, currency: 'EUR', type: 'investment' },
         { id: 'aurora-2', name: 'Libretto Aurora', balance: 300, currency: 'EUR', type: 'savings' },
       ],
       links,
       transactions: [
         { id: 'in-1', account_id: 'aurora-1', type: 'income', amount: 100, date: '2026-08-01', description: 'Regalo' },
         { id: 'out-1', account_id: 'aurora-1', type: 'expense', amount: 20, date: '2026-08-02', description: 'Salute' },
-        { id: 'p-to-a', account_id: 'personal-1', destination_account_id: 'aurora-1', transfer_peer_id: 'aurora-1', type: 'transfer', amount: 50, date: '2026-08-03', description: 'Versamento' },
-        { id: 'a-to-p', account_id: 'aurora-1', destination_account_id: 'personal-1', transfer_peer_id: 'personal-1', type: 'expense', amount: 10, date: '2026-08-04', description: 'Utilizzo' },
-        { id: 'a-to-a', account_id: 'aurora-1', destination_account_id: 'aurora-2', transfer_peer_id: 'aurora-2', type: 'transfer', amount: 40, date: '2026-08-05', description: 'Giroconto interno' },
+        { id: 'p-to-a', account_id: 'personal-1', transfer_peer_id: 'aurora-1', type: 'transfer', amount: 50, date: '2026-08-03', description: 'Versamento' },
+        { id: 'a-to-p', account_id: 'aurora-1', transfer_peer_id: 'personal-1', type: 'expense', amount: 10, date: '2026-08-04', description: 'Utilizzo' },
+        { id: 'a-to-a', account_id: 'aurora-1', transfer_peer_id: 'aurora-2', type: 'transfer', amount: 40, date: '2026-08-05', description: 'Giroconto interno' },
       ],
     })
 
@@ -95,6 +96,71 @@ describe('dependent finance calculations', () => {
     expect(summary.internalTransfers).toBe(40)
     expect(summary.periodChange).toBe(120)
     expect(summary.byAccount).toHaveLength(2)
+  })
+
+  it('getRealAuroraAccountIds esclude il conto specchio "Aurora piano di accumulo" dal perimetro reale', () => {
+    const accounts = [
+      { id: 'aurora-real', name: 'Investimento Aurora' },
+      { id: 'aurora-mirror', name: 'Aurora piano di accumulo' },
+    ]
+    const mirrorLinks = [
+      { account_id: 'aurora-real', purpose: 'DEPENDENT_AURORA' },
+      { account_id: 'aurora-mirror', purpose: 'DEPENDENT_AURORA' },
+    ]
+    expect([...getRealAuroraAccountIds(accounts, mirrorLinks)]).toEqual(['aurora-real'])
+  })
+
+  it('il conto specchio Aurora contribuisce solo al patrimonio, mai a statistiche, grafici o cronologia', () => {
+    const accounts = [
+      { id: 'aurora-real', name: 'Investimento Aurora', balance: 2000, currency: 'EUR', type: 'investment' },
+      { id: 'aurora-mirror', name: 'Aurora piano di accumulo', balance: 5000, currency: 'EUR', type: 'savings' },
+    ]
+    const mirrorLinks = [
+      { account_id: 'personal-1', purpose: 'PERSONAL' },
+      { account_id: 'aurora-real', purpose: 'DEPENDENT_AURORA' },
+      { account_id: 'aurora-mirror', purpose: 'DEPENDENT_AURORA' },
+    ]
+    const summary = buildAuroraScopeSummary({
+      accounts,
+      links: mirrorLinks,
+      transactions: [
+        { id: 'real-income', account_id: 'aurora-real', type: 'income', amount: 200, date: '2026-08-01', description: 'Cedola' },
+        { id: 'real-expense', account_id: 'aurora-real', type: 'expense', amount: 30, date: '2026-08-02', description: 'Commissione' },
+        // movimenti propri del conto specchio: devono sparire dalla cronologia/statistiche
+        { id: 'mirror-income', account_id: 'aurora-mirror', type: 'income', amount: 9999, date: '2026-08-03', description: 'Non deve comparire' },
+        { id: 'mirror-expense', account_id: 'aurora-mirror', type: 'expense', amount: 9999, date: '2026-08-04', description: 'Non deve comparire' },
+        // giroconto personale -> specchio: la riga "+100" segnalata dal bug
+        { id: 'p-to-mirror', account_id: 'personal-1', transfer_peer_id: 'aurora-mirror', type: 'transfer', amount: 100, date: '2026-08-05', description: 'Versamento verso specchio' },
+        // giroconto specchio -> personale: la riga "-100" segnalata dal bug
+        { id: 'mirror-to-p', account_id: 'aurora-mirror', transfer_peer_id: 'personal-1', type: 'expense', amount: 100, date: '2026-08-06', description: 'Prelievo da specchio' },
+        // giroconto personale -> conto Aurora reale: deve invece contare come entrata Aurora
+        { id: 'p-to-real', account_id: 'personal-1', transfer_peer_id: 'aurora-real', type: 'transfer', amount: 75, date: '2026-08-07', description: 'Versamento verso reale' },
+      ],
+    })
+
+    // patrimonio: continua a comprendere anche il saldo del conto specchio
+    expect(summary.balance).toBe(7000)
+    expect(summary.byAccount).toHaveLength(2)
+    expect(summary.byAccount.some((account) => account.accountId === 'aurora-mirror')).toBe(true)
+
+    // statistiche: solo il conto reale contribuisce
+    expect(summary.income).toBe(200)
+    expect(summary.expenses).toBe(30)
+    expect(summary.transfersIn).toBe(75)
+    expect(summary.transfersOut).toBe(0)
+
+    // grafici mensili: nessuna traccia dei movimenti dello specchio
+    expect(summary.monthlyTrend).toHaveLength(1)
+    expect(summary.monthlyTrend[0]).toMatchObject({ income: 200, expenses: 30, transfersIn: 75, transfersOut: 0 })
+
+    // cronologia: nessun movimento (proprio o di giroconto) dello specchio, incluse le date piu' recenti (08-05/06)
+    const recentIds = summary.recentTransactions.map((tx) => tx.id)
+    expect(recentIds).toEqual(['p-to-real', 'real-expense', 'real-income'])
+    expect(recentIds).not.toContain('mirror-income')
+    expect(recentIds).not.toContain('mirror-expense')
+    expect(recentIds).not.toContain('p-to-mirror')
+    expect(recentIds).not.toContain('mirror-to-p')
+    expect(summary.lastMovementDate).toBe('2026-08-07')
   })
 
   it('calcola saldo ADI, utilizzo e sole categorie ammesse', () => {

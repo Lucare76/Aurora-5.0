@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Transaction } from '@/types/database'
 import { adaptTransactionRows } from '@/domain/accounting/transaction-adapter'
 import { calculateExpenseTotal, calculateIncomeTotal } from '@/domain/accounting/aggregations'
+import { getPersonalExcludedAccountIds } from '@/lib/dependent-finance/calculations'
 
 interface UseTransactionsOptions {
   limit?: number
@@ -33,11 +34,23 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
       return
     }
 
+    const [scopeAccountsRes, purposeLinksRes] = await Promise.all([
+      supabase.from('accounts').select('id,name').eq('user_id', user.id),
+      supabase.from('account_purpose_links').select('account_id,purpose').eq('user_id', user.id),
+    ])
+    const scopeAccounts = (scopeAccountsRes.data ?? []) as { id: string; name: string }[]
+    const purposeLinks = (purposeLinksRes.data ?? []) as { account_id: string; purpose: string | null }[]
+    const excludedAccountIds = [...getPersonalExcludedAccountIds(purposeLinks, scopeAccounts)]
+
     let query = supabase
       .from('transactions')
       .select(TRANSACTION_SELECT)
       .eq('user_id', user.id)
       .order('date', { ascending: false })
+
+    if (excludedAccountIds.length > 0) {
+      query = query.not('account_id', 'in', `(${excludedAccountIds.join(',')})`)
+    }
 
     if (options.accountId) {
       query = query.eq('account_id', options.accountId)
