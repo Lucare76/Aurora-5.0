@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   appendMissingInputToMessage,
   assistantModeLabel,
+  assistantProviderBadgeLabel,
   buildAssistantChatPayload,
   canUseSmartAssistant,
   visibleAssistantScopes,
@@ -50,5 +51,11 @@ describe('assistant chat UI logic', () => {
     expect(canUseSmartAssistant(capabilities)).toBe(true)
     expect(assistantModeLabel(capabilities, 'SMART_REDACTED', true)).toBe('Modalita intelligente')
     expect(assistantModeLabel(capabilities, 'SMART_REDACTED', false)).toBe('Modalita essenziale')
+  })
+
+  it('mostra il provider personale solo quando la capability AI e disponibile', () => {
+    expect(assistantProviderBadgeLabel({ ...baseCapabilities, aiAvailable: false, aiProvider: 'none' })).toBe('Nessun modello esterno')
+    expect(assistantProviderBadgeLabel({ ...baseCapabilities, aiAvailable: true, aiProvider: 'openai' })).toBe('OpenAI personale')
+    expect(assistantProviderBadgeLabel({ ...baseCapabilities, aiAvailable: true, aiProvider: 'gemini' })).toBe('Gemini personale')
   })
 })

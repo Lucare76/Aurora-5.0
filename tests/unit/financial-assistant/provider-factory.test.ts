@@ -9,9 +9,13 @@ afterEach(() => {
 })
 
 function supabaseWithNoPersonalKey() {
+  return supabaseWithPersonalSettings(null)
+}
+
+function supabaseWithPersonalSettings(row: Record<string, unknown> | null) {
   const builder: Record<string, unknown> = {}
   for (const method of ['select', 'eq'] as const) builder[method] = vi.fn(() => builder)
-  builder.maybeSingle = vi.fn(() => Promise.resolve({ data: null, error: null }))
+  builder.maybeSingle = vi.fn(() => Promise.resolve({ data: row, error: null }))
   return { from: vi.fn(() => builder) }
 }
 
@@ -31,5 +35,40 @@ describe('financial assistant provider factory', () => {
     expect(status.reason).toContain('personale')
     expect(provider.status.available).toBe(false)
     expect(provider.status.reason).toContain('personale')
+  })
+
+  it('spiega quando il provider personale e salvato ma non abilitato', async () => {
+    const status = await getUserAssistantProviderStatus({
+      supabase: supabaseWithPersonalSettings({
+        provider: 'OPENAI',
+        enabled: false,
+        encrypted_api_key: 'v1:not-readable',
+        api_key_last4: '7890',
+        connection_status: 'configured',
+      }),
+      userId: 'user-1',
+    })
+
+    expect(status.available).toBe(false)
+    expect(status.reason).toContain('non abilitato')
+  })
+
+  it('spiega quando manca il secret server per decifrare la chiave personale', async () => {
+    delete process.env.AI_PROVIDER_SETTINGS_SECRET
+    delete process.env.FINANCIAL_ASSISTANT_AI_KEY_ENCRYPTION_SECRET
+
+    const status = await getUserAssistantProviderStatus({
+      supabase: supabaseWithPersonalSettings({
+        provider: 'OPENAI',
+        enabled: true,
+        encrypted_api_key: 'v1:not-readable',
+        api_key_last4: '7890',
+        connection_status: 'configured',
+      }),
+      userId: 'user-1',
+    })
+
+    expect(status.available).toBe(false)
+    expect(status.reason).toContain('Cifratura')
   })
 })

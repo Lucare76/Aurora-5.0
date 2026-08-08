@@ -1,7 +1,7 @@
 import { getFinancialAssistantAiStatus, getProviderDefaults, type ExternalProviderName } from './config'
 import { createDeterministicProvider } from './deterministic-provider'
 import { OpenAiFinancialLanguageProvider } from './external-provider'
-import { resolvePersonalAiProvider } from './personal-settings'
+import { getEncryptionSecret, getSafeAiProviderSettings, resolvePersonalAiProvider } from './personal-settings'
 import { recordAiUsage } from '../usage/service'
 import type { AssistantProviderStatus, FinancialLanguageProvider } from './types'
 
@@ -15,8 +15,19 @@ export async function getUserAssistantProviderStatus(params?: {
 }): Promise<AssistantProviderStatus> {
   if (params?.supabase && params.userId) {
     try {
+      const settings = await getSafeAiProviderSettings(params.supabase, params.userId)
+      if (!settings.configured) {
+        return { available: false, provider: 'none', reason: 'Nessuna API key personale configurata.' }
+      }
+      if (!settings.enabled) {
+        return { available: false, provider: 'none', reason: 'Provider AI personale salvato ma non abilitato.' }
+      }
+      if (!getEncryptionSecret()) {
+        return { available: false, provider: 'none', reason: 'Cifratura API key non configurata sul server.' }
+      }
       const personal = await resolvePersonalAiProvider(params.supabase, params.userId)
       if (personal) return { available: true, provider: providerNameToKind(personal.provider), reason: null }
+      return { available: false, provider: 'none', reason: 'API key personale non leggibile. Salvala di nuovo dalle Impostazioni.' }
     } catch {
       // Missing migration or temporary settings failure must not break deterministic mode.
     }

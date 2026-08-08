@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { FINANCIAL_ASSISTANT_ENGINE_VERSION } from '@/lib/financial-assistant/constants'
 import { listAssistantCapabilities } from '@/lib/financial-assistant/intent-registry'
-import { isUserAssistantAiAvailable } from '@/lib/financial-assistant/providers/factory'
+import { getUserAssistantProviderStatus } from '@/lib/financial-assistant/providers/factory'
 import { getAllowedScopes, isFinancialAssistantEnabled } from '@/lib/financial-assistant/scope-policy'
 
 export async function GET() {
@@ -17,7 +17,9 @@ export async function GET() {
 
   const enabled = isFinancialAssistantEnabled()
   const allowedScopes = getAllowedScopes(user.email)
-  const aiAvailable = enabled ? await isUserAssistantAiAvailable({ supabase, userId: user.id }) : false
+  const providerStatus = enabled
+    ? await getUserAssistantProviderStatus({ supabase, userId: user.id })
+    : { available: false, provider: 'none' as const, reason: 'Assistente finanziario non abilitato.' }
 
   return NextResponse.json({
     enabled,
@@ -25,8 +27,10 @@ export async function GET() {
     version: FINANCIAL_ASSISTANT_ENGINE_VERSION,
     scopes: enabled ? allowedScopes : [],
     capabilities: enabled ? listAssistantCapabilities(allowedScopes) : [],
-    aiAvailable,
+    aiAvailable: providerStatus.available,
+    aiProvider: providerStatus.provider,
+    aiUnavailableReason: providerStatus.reason,
     deterministicModeAvailable: true,
-    responseEnhancementAvailable: aiAvailable,
+    responseEnhancementAvailable: providerStatus.available,
   })
 }

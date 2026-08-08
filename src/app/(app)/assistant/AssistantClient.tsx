@@ -186,7 +186,7 @@ export function AssistantClient() {
 
   return (
     <div className="space-y-6">
-      <AssistantHeader />
+      <AssistantHeader capabilities={capabilities} />
       <div className="flex flex-col gap-3 rounded-3xl border border-[#e5e7f0] bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between">
         <AssistantScopeSelector scopes={scopes} value={scope} onChange={changeScope} />
         <div className="text-xs leading-5 text-slate-500 md:text-right">
@@ -222,6 +222,13 @@ export function AssistantClient() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {!smartAvailable && capabilities.aiUnavailableReason && (
+        <div className="rounded-3xl border border-amber-100 bg-amber-50/80 p-4 text-sm text-amber-900">
+          <p className="font-semibold">Modalita intelligente non attiva</p>
+          <p className="mt-1 text-xs leading-5">{capabilities.aiUnavailableReason}</p>
         </div>
       )}
 

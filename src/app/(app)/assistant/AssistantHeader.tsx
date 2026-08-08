@@ -1,7 +1,8 @@
 import { BadgeCheck, ShieldCheck } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/status-badge'
+import { assistantProviderBadgeLabel, type AssistantCapabilitiesResponse } from './chat-ui'
 
-export function AssistantHeader() {
+export function AssistantHeader({ capabilities = null }: { capabilities?: AssistantCapabilitiesResponse | null }) {
   return (
     <header className="rounded-3xl border border-[#e5e7f0] bg-white p-5 shadow-sm md:p-7">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -19,7 +20,7 @@ export function AssistantHeader() {
           </span>
           <span className="inline-flex items-center gap-2 rounded-2xl border border-[#e5e7f0] bg-[#f8f9fc] px-3 py-2">
             <BadgeCheck className="h-4 w-4 text-indigo-600" />
-            Nessun modello esterno
+            {assistantProviderBadgeLabel(capabilities)}
           </span>
         </div>
       </div>

@@ -16,6 +16,8 @@ export type AssistantCapabilitiesResponse = {
   scopes: FinancialAssistantScope[]
   capabilities: AssistantCapability[]
   aiAvailable?: boolean
+  aiProvider?: 'none' | 'openai' | 'anthropic' | 'gemini'
+  aiUnavailableReason?: string | null
   deterministicModeAvailable?: boolean
   responseEnhancementAvailable?: boolean
 }
@@ -60,4 +62,11 @@ export function assistantModeLabel(capabilities: AssistantCapabilitiesResponse |
 
 export function canUseSmartAssistant(capabilities: AssistantCapabilitiesResponse | null): boolean {
   return Boolean(capabilities?.enabled && capabilities.aiAvailable)
+}
+
+export function assistantProviderBadgeLabel(capabilities: AssistantCapabilitiesResponse | null): string {
+  if (!capabilities?.aiAvailable) return 'Nessun modello esterno'
+  if (capabilities.aiProvider === 'anthropic') return 'Claude personale'
+  if (capabilities.aiProvider === 'gemini') return 'Gemini personale'
+  return 'OpenAI personale'
 }
