@@ -6,18 +6,22 @@ const USER = { id: 'user-1', email: 'luca_renna@hotmail.com' } as never
 const originalFlag = process.env.FINANCIAL_ASSISTANT_ENABLED
 const originalPrivateEmail = process.env.PRIVATE_FINANCE_ACCOUNT_EMAIL
 
-function queryBuilder(data: unknown[] | null = []) {
+function queryBuilder(data: unknown[] | null = [], onSelect?: (columns: string) => void) {
   const builder: Record<string, unknown> = {}
-  for (const method of ['select', 'eq', 'gte', 'lte', 'order', 'limit'] as const) {
+  builder.select = vi.fn((columns: string) => {
+    onSelect?.(columns)
+    return builder
+  })
+  for (const method of ['eq', 'gte', 'lte', 'order', 'limit'] as const) {
     builder[method] = vi.fn(() => builder)
   }
   ;(builder as { then: (resolve: (value: { data: unknown[] | null; error: null }) => unknown) => unknown }).then = (resolve) => resolve({ data, error: null })
   return builder
 }
 
-function supabase(fixtures: Record<string, unknown[] | null> = {}) {
+function supabase(fixtures: Record<string, unknown[] | null> = {}, onSelect?: (table: string, columns: string) => void) {
   return {
-    from: vi.fn((table: string) => queryBuilder(fixtures[table] ?? [])),
+    from: vi.fn((table: string) => queryBuilder(fixtures[table] ?? [], (columns) => onSelect?.(table, columns))),
   }
 }
 
@@ -27,11 +31,11 @@ const fixtures = {
   categories: [{ id: 'cat-1', name: 'Stipendio', type: 'income', parent_id: null, color: null, icon: null }],
   budgets: [{ id: 'budget-1', category_id: 'cat-1', amount: 500, month: 8, year: 2026 }],
   savings_goals: [{ id: 'goal-1', name: 'Fondo', target_amount: 1000, current_amount: 250, status: 'ACTIVE', target_date: null }],
-  recurring_transactions: [],
+  recurring_rules: [],
   loans: [],
   transactions: [
-    { id: 'tx-1', account_id: 'acc-1', destination_account_id: null, transfer_peer_id: null, category_id: 'cat-1', amount: 200, type: 'income', description: 'STIPENDIO', date: '2026-08-02' },
-    { id: 'tx-2', account_id: 'acc-1', destination_account_id: null, transfer_peer_id: null, category_id: null, amount: 50, type: 'expense', description: 'SPESA', date: '2026-08-03' },
+    { id: 'tx-1', account_id: 'acc-1', transfer_peer_id: null, category_id: 'cat-1', amount: 200, type: 'income', description: 'STIPENDIO', date: '2026-08-02' },
+    { id: 'tx-2', account_id: 'acc-1', transfer_peer_id: null, category_id: null, amount: 50, type: 'expense', description: 'SPESA', date: '2026-08-03' },
   ],
 }
 
@@ -99,5 +103,20 @@ describe('financial assistant orchestrator', () => {
       expect(builder.upsert).toBeUndefined()
     }
   })
-})
 
+  it('usa tabelle e colonne reali dello schema Supabase corrente', async () => {
+    const selected = new Map<string, string>()
+    const db = supabase(fixtures, (table, columns) => selected.set(table, columns))
+    await runFinancialAssistantQuery({
+      supabase: db,
+      runtime: { user: USER, email: 'luca_renna@hotmail.com', now: new Date('2026-08-06T12:00:00Z') },
+      body: { intent: 'personal.income_expense_summary' },
+    })
+
+    expect(db.from).toHaveBeenCalledWith('recurring_rules')
+    expect(db.from).not.toHaveBeenCalledWith('recurring_transactions')
+    expect(selected.get('transactions')).not.toContain('destination_account_id')
+    expect(selected.get('loans')).toContain('counterpart')
+    expect(selected.get('loans')).not.toContain('person_name')
+  })
+})

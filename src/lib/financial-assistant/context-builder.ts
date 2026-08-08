@@ -85,19 +85,19 @@ export async function buildAssistantContext(params: {
       .eq('user_id', userId)
       .order('target_date', { ascending: true }),
     params.supabase
-      .from('recurring_transactions')
-      .select('id,description,amount,type,frequency,next_date,is_active')
+      .from('recurring_rules')
+      .select('id,description,amount,type,frequency,next_due_date,is_active')
       .eq('user_id', userId)
       .limit(100),
     params.supabase
       .from('loans')
-      .select('id,person_name,amount,remaining,type,is_settled')
+      .select('id,counterpart,amount,remaining,type,is_settled')
       .eq('user_id', userId)
       .limit(100),
     applyPeriod(
       params.supabase
         .from('transactions')
-        .select('id,account_id,destination_account_id,transfer_peer_id,category_id,amount,type,description,date')
+        .select('id,account_id,transfer_peer_id,category_id,amount,type,description,date')
         .eq('user_id', userId),
       period,
     )
@@ -187,9 +187,14 @@ export async function buildAssistantContext(params: {
       target_amount: money(goal.target_amount),
       current_amount: money(goal.current_amount),
     })),
-    recurring: rows<AssistantRecurring>(recurringRes.data, recurringRes.error).map((item) => ({ ...item, amount: money(item.amount) })),
-    loans: rows<AssistantLoan>(loansRes.data, loansRes.error).map((loan) => ({
+    recurring: rows<AssistantRecurring & { next_due_date?: string | null }>(recurringRes.data, recurringRes.error).map((item) => ({
+      ...item,
+      amount: money(item.amount),
+      next_date: item.next_date ?? item.next_due_date ?? null,
+    })),
+    loans: rows<AssistantLoan & { counterpart?: string | null }>(loansRes.data, loansRes.error).map((loan) => ({
       ...loan,
+      person_name: loan.person_name ?? loan.counterpart ?? 'Persona',
       amount: money(loan.amount),
       remaining: money(loan.remaining),
     })),
