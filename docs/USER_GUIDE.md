@@ -605,3 +605,26 @@ Le ferie si registrano con data inizio, data fine, giorni consumati e nota opzio
 I permessi 104 si registrano con data, ore, orario opzionale e nota. Le ore supportano quarti d'ora.
 
 Ogni anno ferie e ogni mese permessi sono indipendenti: non esiste riporto automatico. Il modulo include storico, calendario interno, statistiche e PDF per ferie annuali, permessi mensili e riepilogo.
+
+---
+
+## 35. Timeline personale e familiare
+
+La sezione **Timeline** è un archivio cronologico privato per eventi personali e familiari importanti. È visibile solo all'account autorizzato per le aree HR/private e resta separata dalla contabilità.
+
+Puoi registrare eventi come:
+
+- salute e visite;
+- terapia;
+- scuola;
+- documenti;
+- pratiche amministrative;
+- viaggi;
+- famiglia;
+- traguardi importanti.
+
+Ogni evento contiene data, eventuale data fine, titolo, descrizione, soggetto, categoria, importanza, luogo, referente e tag. La lista è ordinata dal più recente al meno recente, raggruppata per anno e mese, con filtri per soggetto, categoria, anno e ricerca testuale.
+
+La Timeline è manuale: non importa dati esterni, non usa AI, non gestisce allegati e non crea notifiche automatiche. Gli eventi non creano movimenti, non modificano saldi e non entrano in patrimonio, budget, report o Financial Health.
+
+I backup includono la Timeline solo per l'account privato autorizzato. Durante il restore gli eventi vengono riassegnati all'utente autenticato e restano protetti da RLS.

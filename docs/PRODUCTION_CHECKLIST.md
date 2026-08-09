@@ -35,6 +35,21 @@ Questo documento elenca i controlli da effettuare prima di un deploy in produzio
 
 ---
 
+## Timeline personale e familiare
+
+- [ ] Applicare e verificare localmente la migration `00035_personal_timeline.sql` prima di qualunque ambiente remoto
+- [ ] Confermare RLS su `personal_timeline_events` con `auth.uid() = user_id`
+- [ ] Verificare che `/timeline` sia visibile solo all'account autorizzato da `PRIVATE_HR_ACCOUNT_EMAIL` o fallback `PRIVATE_FINANCE_ACCOUNT_EMAIL`
+- [ ] Verificare che API `/api/timeline` e `/api/timeline/[id]` restituiscano 401 senza sessione e 403 per account non autorizzati
+- [ ] Verificare CRUD completo: crea, modifica, dettaglio ed elimina evento
+- [ ] Verificare filtri per soggetto, categoria, anno e ricerca testuale
+- [ ] Verificare ordinamento cronologico inverso e paginazione "Carica altri"
+- [ ] Verificare che il modulo non crei movimenti, non modifichi saldi e non influisca su dashboard finanziaria, report, budget, ADI, Aurora o Assistant
+- [ ] Verificare backup/export: Timeline inclusa solo per account HR privato autorizzato
+- [ ] Verificare restore: backup con Timeline bloccato per account non autorizzati e ripristinato con `user_id` corrente per account autorizzato
+
+---
+
 ## Dashboard personale unificata
 
 - [ ] `/dashboard` si apre senza hydration error

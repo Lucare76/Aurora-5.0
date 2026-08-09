@@ -2,6 +2,9 @@ import type {
   AccountType,
   CategoryType,
   LeaveEntryType,
+  TimelineCategory,
+  TimelineImportance,
+  TimelineSubject,
   LoanType,
   RecurringFrequency,
   TransactionType,
@@ -451,6 +454,23 @@ export type AuroraBackupPersonalDeadlineV1 = {
   updated_at?: string
 }
 
+export type AuroraBackupPersonalTimelineEventV1 = {
+  id: string
+  user_id?: string
+  event_date: string
+  end_date?: string | null
+  title: string
+  description?: string | null
+  category: TimelineCategory
+  subject: TimelineSubject
+  location?: string | null
+  provider?: string | null
+  tags: string[]
+  importance: TimelineImportance
+  created_at?: string
+  updated_at?: string
+}
+
 export type AuroraBackupDataV1 = {
   profile: AuroraBackupProfileV1
   accounts: AuroraBackupAccountV1[]
@@ -490,6 +510,8 @@ export type AuroraBackupDataV1 = {
   leaveEntries?: AuroraBackupLeaveEntryV1[]
   // Optional: included from Sprint 34 onwards; private deadlines module, separate from finance
   personalDeadlines?: AuroraBackupPersonalDeadlineV1[]
+  // Optional: included from Sprint 36 onwards; private manual timeline, separate from finance
+  personalTimelineEvents?: AuroraBackupPersonalTimelineEventV1[]
 }
 
 export type AuroraBackupV1 = {

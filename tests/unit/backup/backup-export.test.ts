@@ -10,6 +10,7 @@ import {
   mapCategory,
   mapLeaveEntry,
   mapLeaveSettings,
+  mapPersonalTimelineEvent,
   mapProfile,
   mapTransaction,
   type UserBackupData,
@@ -21,6 +22,7 @@ import type {
   Category,
   LeaveEntry,
   LeaveSettings,
+  PersonalTimelineEvent,
   Profile,
   Transaction,
 } from '@/types/database'
@@ -175,6 +177,26 @@ describe('Aurora Backup v1 export', () => {
     expect('user_id' in mapLeaveSettings(leaveSettings)).toBe(false)
     expect('user_id' in mapLeaveEntry(leaveEntry)).toBe(false)
   })
+
+  it('include Timeline nel backup senza esportare user_id', () => {
+    const timelineEvent = timelineEventRow()
+    const generated = generateAuroraBackup(userBackupData({
+      personalTimelineEvents: [timelineEvent],
+    }), {
+      createdAt: new Date('2026-07-17T12:00:00.000Z'),
+      appVersion: '5.0.0-test',
+    })
+
+    expect(generated.inspection.valid).toBe(true)
+    expect(generated.backup.data.personalTimelineEvents?.[0]).toMatchObject({
+      title: 'Visita di controllo',
+      subject: 'AURORA',
+      category: 'HEALTH',
+      tags: ['controllo'],
+    })
+    expect(generated.backup.integrity.recordCounts.personalTimelineEvents).toBe(1)
+    expect('user_id' in mapPersonalTimelineEvent(timelineEvent)).toBe(false)
+  })
 })
 
 function userBackupData(overrides: Partial<UserBackupData> = {}): UserBackupData {
@@ -322,6 +344,26 @@ function leaveEntryRow(overrides: Partial<LeaveEntry> = {}): LeaveEntry {
     note: 'Permesso test',
     created_at: '2026-08-07T08:00:00.000Z',
     updated_at: '2026-08-07T08:00:00.000Z',
+    ...overrides,
+  }
+}
+
+function timelineEventRow(overrides: Partial<PersonalTimelineEvent> = {}): PersonalTimelineEvent {
+  return {
+    id: '99999999-9999-4999-8999-999999999999',
+    user_id: userId,
+    event_date: '2026-08-09',
+    end_date: null,
+    title: 'Visita di controllo',
+    description: 'Nota privata',
+    category: 'HEALTH',
+    subject: 'AURORA',
+    location: 'Roma',
+    provider: 'Policlinico',
+    tags: ['controllo'],
+    importance: 'HIGH',
+    created_at: '2026-08-09T08:00:00.000Z',
+    updated_at: '2026-08-09T08:00:00.000Z',
     ...overrides,
   }
 }

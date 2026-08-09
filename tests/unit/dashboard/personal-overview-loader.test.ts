@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildDashboardPayload } from '@/lib/dashboard/service'
 import { buildFinancialHealthPayload } from '@/lib/financial-health/service'
-import { getLatestDataIntegrityScan, listDataIntegrityIssues } from '@/lib/data-integrity/service'
+import { countOpenDataIntegrityIssuesBySeverity, getLatestDataIntegrityScan, listDataIntegrityIssues } from '@/lib/data-integrity/service'
 import { buildPersonalOverviewPayload } from '@/lib/dashboard/personal-overview'
 
 vi.mock('@/lib/dashboard/service', () => ({
@@ -13,12 +13,14 @@ vi.mock('@/lib/financial-health/service', () => ({
 }))
 
 vi.mock('@/lib/data-integrity/service', () => ({
+  countOpenDataIntegrityIssuesBySeverity: vi.fn(),
   listDataIntegrityIssues: vi.fn(),
   getLatestDataIntegrityScan: vi.fn(),
 }))
 
 const buildDashboardPayloadMock = vi.mocked(buildDashboardPayload)
 const buildFinancialHealthPayloadMock = vi.mocked(buildFinancialHealthPayload)
+const countOpenDataIntegrityIssuesBySeverityMock = vi.mocked(countOpenDataIntegrityIssuesBySeverity)
 const listDataIntegrityIssuesMock = vi.mocked(listDataIntegrityIssues)
 const getLatestDataIntegrityScanMock = vi.mocked(getLatestDataIntegrityScan)
 
@@ -29,6 +31,10 @@ describe('buildPersonalOverviewPayload loader', () => {
     process.env.PRIVATE_HR_ACCOUNT_EMAIL = 'luca@example.test'
     buildDashboardPayloadMock.mockResolvedValue(financialPayload() as any)
     buildFinancialHealthPayloadMock.mockResolvedValue(financialHealthPayload() as any)
+    countOpenDataIntegrityIssuesBySeverityMock.mockResolvedValue({
+      summary: { critical: 1, warning: 0, info: 0, total: 1, open: 1, acknowledged: 0, ignored: 0, resolved: 0, stale: 0, statusLabel: 'Attenzione urgente' },
+      persistenceAvailable: true,
+    } as any)
     listDataIntegrityIssuesMock.mockResolvedValue({
       issues: [],
       summary: { critical: 1, warning: 0, info: 0, total: 1 },
@@ -68,6 +74,44 @@ describe('buildPersonalOverviewPayload loader', () => {
 
     expect(payload.financial.status).toBe('OK')
     expect(payload.sections.deadlines).toBe('UNAVAILABLE')
+  })
+
+  it('separa conteggi Data Integrity globali dalla lista visuale limitata', async () => {
+    countOpenDataIntegrityIssuesBySeverityMock.mockResolvedValue({
+      summary: { critical: 0, warning: 8, info: 1, total: 9, open: 9, acknowledged: 0, ignored: 0, resolved: 0, stale: 0, statusLabel: 'Da controllare' },
+      persistenceAvailable: true,
+    } as any)
+    listDataIntegrityIssuesMock.mockImplementation(async (_supabase, _userId, filters) => {
+      const severity = filters?.severity
+      if (severity === 'CRITICAL') return { issues: [], summary: emptySummary(), persistenceAvailable: true } as any
+      if (severity === 'WARNING') return {
+        issues: Array.from({ length: 5 }, (_, index) => issue(`w${index}`, 'WARNING')),
+        summary: { ...emptySummary(), warning: 5, total: 5, open: 5, statusLabel: 'Da controllare' },
+        persistenceAvailable: true,
+      } as any
+      return {
+        issues: [issue('i1', 'INFO')],
+        summary: { ...emptySummary(), info: 1, total: 1, open: 1, statusLabel: 'Buono' },
+        persistenceAvailable: true,
+      } as any
+    })
+
+    const payload = await buildPersonalOverviewPayload(mockSupabase(), { id: 'user-1', email: 'luca@example.test' } as any)
+
+    expect(countOpenDataIntegrityIssuesBySeverityMock).toHaveBeenCalledTimes(1)
+    expect(listDataIntegrityIssuesMock).toHaveBeenCalledWith(expect.anything(), 'user-1', { status: 'open', severity: 'CRITICAL', limit: 5 })
+    expect(listDataIntegrityIssuesMock).toHaveBeenCalledWith(expect.anything(), 'user-1', { status: 'open', severity: 'WARNING', limit: 5 })
+    expect(listDataIntegrityIssuesMock).toHaveBeenCalledWith(expect.anything(), 'user-1', { status: 'open', severity: 'INFO', limit: 5 })
+    expect(payload.attention.items.find((item) => item.id === 'data-integrity-warning')?.description).toBe('8 segnalazioni warning aperte.')
+  })
+
+  it('mantiene la Dashboard disponibile se il conteggio Data Integrity non e disponibile', async () => {
+    countOpenDataIntegrityIssuesBySeverityMock.mockResolvedValue({ summary: emptySummary(), persistenceAvailable: false } as any)
+
+    const payload = await buildPersonalOverviewPayload(mockSupabase(), { id: 'user-1', email: 'luca@example.test' } as any)
+
+    expect(payload.financial.status).toBe('OK')
+    expect(payload.sections.dataIntegrity).toBe('OK')
   })
 
   it('fallisce solo se entrambe le fonti finanziarie fondamentali non sono disponibili', async () => {
@@ -162,5 +206,34 @@ function financialHealthPayload() {
       monthlyExpenses: 200,
       monthlyMargin: 300,
     },
+  }
+}
+
+function emptySummary() {
+  return { critical: 0, warning: 0, info: 0, total: 0, open: 0, acknowledged: 0, ignored: 0, resolved: 0, stale: 0, statusLabel: 'Nessun dato' }
+}
+
+function issue(id: string, severity: 'CRITICAL' | 'WARNING' | 'INFO') {
+  return {
+    id,
+    userId: 'user-1',
+    fingerprint: `fp-${id}`,
+    rulesetVersion: 'test',
+    ruleCode: 'TRANSACTION_EXACT_DUPLICATE',
+    category: 'transactions',
+    severity,
+    status: 'open',
+    title: `Issue ${id}`,
+    description: 'Descrizione',
+    explanation: 'Spiegazione',
+    impact: 'Impatto',
+    recommendation: 'Raccomandazione',
+    confidence: 'medium',
+    entityType: 'transaction',
+    entityIds: [id],
+    evidence: [],
+    allowedActions: [],
+    sourcePath: '/data-integrity',
+    lastDetectedAt: '2026-07-15T10:00:00.000Z',
   }
 }

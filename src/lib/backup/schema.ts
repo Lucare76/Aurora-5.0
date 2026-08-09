@@ -36,6 +36,9 @@ const deadlineCategory = z.enum(['VEHICLE', 'DOCUMENT', 'HEALTH', 'FAMILY', 'SCH
 const deadlineStatus = z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED'])
 const deadlinePriority = z.enum(['LOW', 'NORMAL', 'HIGH'])
 const deadlineRecurrence = z.enum(['NONE', 'MONTHLY', 'YEARLY'])
+const timelineSubject = z.enum(['SELF', 'AURORA', 'ILENIA', 'FAMILY'])
+const timelineCategory = z.enum(['HEALTH', 'THERAPY', 'SCHOOL', 'DOCUMENT', 'ADMINISTRATIVE', 'TRAVEL', 'FAMILY', 'MILESTONE', 'OTHER'])
+const timelineImportance = z.enum(['LOW', 'NORMAL', 'HIGH'])
 
 export const profileSchema = z.object({
   id: uuid.optional(),
@@ -435,6 +438,27 @@ export const personalDeadlineBackupSchema = z.object({
   updated_at: maybeTimestamp,
 }).passthrough()
 
+export const personalTimelineEventBackupSchema = z.object({
+  id: uuid,
+  user_id: uuid.optional(),
+  event_date: dateOnly,
+  end_date: dateOnly.nullable().optional(),
+  title: shortString.min(1).max(180),
+  description: notesString.nullable().optional(),
+  category: timelineCategory,
+  subject: timelineSubject,
+  location: shortString.nullable().optional(),
+  provider: shortString.nullable().optional(),
+  tags: z.array(shortString.max(32)).max(12),
+  importance: timelineImportance,
+  created_at: maybeTimestamp,
+  updated_at: maybeTimestamp,
+}).passthrough().superRefine((value, ctx) => {
+  if (value.end_date && value.end_date < value.event_date) {
+    ctx.addIssue({ code: 'custom', path: ['end_date'], message: 'Invalid timeline date range' })
+  }
+})
+
 const collection = <T extends z.ZodType>(schema: T) =>
   z.array(schema).max(BACKUP_LIMITS.maxRecordsPerCollection)
 
@@ -484,6 +508,7 @@ export const auroraBackupV1Schema = z.object({
     leaveSettings: collection(leaveSettingsBackupSchema).optional(),
     leaveEntries: collection(leaveEntryBackupSchema).optional(),
     personalDeadlines: collection(personalDeadlineBackupSchema).optional(),
+    personalTimelineEvents: collection(personalTimelineEventBackupSchema).optional(),
   }).passthrough(),
   integrity: z.object({
     recordCounts: z.record(z.string(), z.number().int().min(0)),

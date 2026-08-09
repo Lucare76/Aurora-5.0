@@ -17,6 +17,7 @@ import {
   Download,
   FlaskConical,
   HandCoins,
+  History,
   LayoutDashboard,
   Loader2,
   MessageCircle,
@@ -142,6 +143,8 @@ const privateHrQuickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'leave-new-permit', group: 'Azioni rapide', title: 'Nuovo permesso 104', subtitle: 'Registra ore di permesso 104', href: '/leave?action=permit', keywords: ['nuovo permesso', 'permesso 104', 'legge 104'], icon: BriefcaseBusiness },
   { id: 'deadlines-open', group: 'Navigazione', title: 'Apri Scadenze', subtitle: 'Documenti, auto, visite e rinnovi', href: '/deadlines', keywords: ['scadenze', 'documenti', 'bollo', 'assicurazione', 'rinnovi'], icon: CalendarClock },
   { id: 'deadline-new', group: 'Azioni rapide', title: 'Nuova scadenza', subtitle: 'Registra una scadenza personale o familiare', href: '/deadlines?action=create', keywords: ['nuova scadenza', 'promemoria', 'rinnovo'], icon: CalendarClock },
+  { id: 'timeline-open', group: 'Navigazione', title: 'Apri Timeline', subtitle: 'Cronologia privata personale e familiare', href: '/timeline', keywords: ['timeline', 'cronologia', 'eventi familiari', 'storia personale'], icon: History },
+  { id: 'timeline-new', group: 'Azioni rapide', title: 'Nuovo evento Timeline', subtitle: 'Registra un evento personale o familiare', href: '/timeline?action=create', keywords: ['nuovo evento timeline', 'evento familiare', 'visita', 'documento'], icon: History },
 ]
 
 export function getQuickCommands(canAccessPrivateFinance: boolean, financialAssistantEnabled = false, canAccessPrivateHr = false): Array<QuickCommand & { icon: LucideIcon }> {

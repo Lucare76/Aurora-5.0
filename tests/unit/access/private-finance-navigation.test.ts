@@ -8,19 +8,28 @@ describe('private finance navigation visibility', () => {
     expect(getMoreItems(false).some((item) => item.path === '/aurora' || item.path === '/adi')).toBe(false)
   })
 
-  it('non include Ferie e permessi per utenti HR non autorizzati', () => {
+  it('non include moduli HR privati per utenti non autorizzati', () => {
     expect(getNavItems(false, false, false).some((item) => item.path === '/leave')).toBe(false)
+    expect(getNavItems(false, false, false).some((item) => item.path === '/timeline')).toBe(false)
     expect(getMoreItems(false, false, false).some((item) => item.path === '/leave')).toBe(false)
+    expect(getMoreItems(false, false, false).some((item) => item.path === '/timeline')).toBe(false)
     expect(getQuickCommands(false, false, false).some((command) => command.href.startsWith('/leave'))).toBe(false)
+    expect(getQuickCommands(false, false, false).some((command) => command.href.startsWith('/timeline'))).toBe(false)
   })
 
-  it('include Ferie e permessi solo con accesso HR dedicato', () => {
+  it('include moduli HR privati solo con accesso HR dedicato', () => {
     expect(getNavItems(false, false, true).some((item) => item.path === '/leave')).toBe(true)
+    expect(getNavItems(false, false, true).some((item) => item.path === '/timeline')).toBe(true)
     expect(getMoreItems(false, false, true).some((item) => item.path === '/leave')).toBe(true)
+    expect(getMoreItems(false, false, true).some((item) => item.path === '/timeline')).toBe(true)
     expect(getQuickCommands(false, false, true).filter((command) => command.href.startsWith('/leave')).map((command) => command.id)).toEqual([
       'leave-open',
       'leave-new-vacation',
       'leave-new-permit',
+    ])
+    expect(getQuickCommands(false, false, true).filter((command) => command.href.startsWith('/timeline')).map((command) => command.id)).toEqual([
+      'timeline-open',
+      'timeline-new',
     ])
   })
 

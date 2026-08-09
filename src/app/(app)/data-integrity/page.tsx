@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { AlertTriangle, CheckCircle2, Database, Eye, Info, RefreshCw, ShieldCheck, ShieldAlert } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Database, Eye, Info, RefreshCw, ShieldCheck, ShieldAlert, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,6 +17,28 @@ type ApiPayload = {
   summary: DataIntegritySummary
   latestScan: DataIntegrityScanRunRow | null
   persistenceAvailable: boolean
+}
+
+type DuplicateMovement = {
+  id: string
+  date: string
+  description: string
+  amount: number
+  type: 'income' | 'expense' | 'transfer'
+  accountId: string
+  accountName: string
+  categoryId: string | null
+  categoryName: string | null
+  createdAt: string
+  updatedAt: string
+  recurringId: string | null
+  transferPeerId: string | null
+  sourceFingerprint: string | null
+}
+
+type DuplicateDetail = {
+  issue: DataIntegrityIssue
+  movements: DuplicateMovement[]
 }
 
 const severityOptions = ['all', 'CRITICAL', 'WARNING', 'INFO'] as const
@@ -251,6 +273,7 @@ function IssueDetail({ issue, onStatus }: { issue: DataIntegrityIssue | null; on
             ))}
           </dl>
         </div>
+        <DuplicateComparison issue={issue} onStatus={onStatus} />
         <div className="grid gap-2">
           {issue.sourcePath ? (
             <Link href={issue.sourcePath} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2 text-sm font-medium text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50">
@@ -268,6 +291,173 @@ function IssueDetail({ issue, onStatus }: { issue: DataIntegrityIssue | null; on
       </div>
     </aside>
   )
+}
+
+function DuplicateComparison({ issue, onStatus }: { issue: DataIntegrityIssue; onStatus: (issue: DataIntegrityIssue, status: DataIntegrityStatus) => void }) {
+  const [detail, setDetail] = useState<DuplicateDetail | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [deleteChoicesOpen, setDeleteChoicesOpen] = useState(false)
+  const isDuplicate = issue.ruleCode === 'TRANSACTION_EXACT_DUPLICATE' || issue.ruleCode === 'TRANSACTION_POSSIBLE_DUPLICATE'
+
+  useEffect(() => {
+    if (!isDuplicate || !issue.id) {
+      setDetail(null)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    setDeleteChoicesOpen(false)
+    fetch(`/api/data-integrity/issues/${issue.id}/duplicate`, { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('DUPLICATE_DETAIL_FAILED')
+        return response.json() as Promise<DuplicateDetail>
+      })
+      .then((body) => {
+        if (!cancelled) setDetail(body)
+      })
+      .catch((error) => {
+        console.error('[data-integrity:duplicate-detail]', error)
+        if (!cancelled) {
+          setDetail(null)
+          toast.error('Impossibile caricare il confronto movimenti.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isDuplicate, issue.id])
+
+  if (!isDuplicate) return null
+
+  const movements = detail?.movements ?? []
+  const [first, second] = movements
+
+  const deleteMovement = async (movement: DuplicateMovement, label: 'A' | 'B') => {
+    if (!issue.id) return
+    const confirmed = window.confirm(`Eliminare il Movimento ${label}?\n\nData: ${movement.date}\nImporto: ${formatMoney(movement.amount)}\nDescrizione: ${movement.description || 'Senza descrizione'}\nConto: ${movement.accountName}\n\nL'azione usa il flusso atomico esistente e non viene eseguita automaticamente.`)
+    if (!confirmed) return
+    setDeleting(movement.id)
+    try {
+      const response = await fetch(`/api/data-integrity/issues/${issue.id}/duplicate`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction_id: movement.id }),
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { error?: string } | null
+        throw new Error(body?.error ?? 'DELETE_FAILED')
+      }
+      toast.success('Movimento eliminato e issue marcata come risolta.')
+      window.location.reload()
+    } catch (error) {
+      console.error('[data-integrity:duplicate-delete]', error)
+      toast.error('Eliminazione non riuscita. Verifica il movimento e riprova.')
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-indigo-100 bg-white p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900">Confronto movimenti</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            {issue.ruleCode === 'TRANSACTION_POSSIBLE_DUPLICATE'
+              ? 'Questi movimenti hanno gli stessi dati principali ma categorie diverse.'
+              : 'Questi due movimenti coincidono su conto, tipo, data, importo, descrizione e categoria.'}
+          </p>
+          {first && second && first.createdAt === second.createdAt ? (
+            <p className="mt-1 text-xs font-semibold text-amber-700">Creati nello stesso istante.</p>
+          ) : null}
+        </div>
+        <StatusBadge tone="warning" label="Verifica manuale" />
+      </div>
+
+      {loading ? <Skeleton className="mt-4 h-40 rounded-2xl" /> : null}
+      {!loading && movements.length < 2 ? (
+        <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">Uno dei movimenti non risulta piu disponibile: la issue potrebbe essere stale.</p>
+      ) : null}
+      {!loading && first && second ? (
+        <>
+          <div className="mt-4 grid gap-3 xl:grid-cols-2">
+            <MovementCard label="A" movement={first} other={second} />
+            <MovementCard label="B" movement={second} other={first} />
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <Link href={`/transactions?id=${first.id}`} className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">Apri movimento A</Link>
+            <Link href={`/transactions?id=${second.id}`} className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">Apri movimento B</Link>
+            <Button variant="outline" type="button" onClick={() => onStatus(issue, 'ignored')}>Non è un duplicato</Button>
+            <Button variant="outline" type="button" onClick={() => setDeleteChoicesOpen((value) => !value)}>
+              Elimina duplicato
+            </Button>
+            {deleteChoicesOpen ? (
+              <>
+                <Button variant="outline" type="button" disabled={Boolean(deleting)} onClick={() => deleteMovement(first, 'A')} className="border-red-200 text-red-700 hover:bg-red-50">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {deleting === first.id ? 'Elimino A...' : 'Elimina Movimento A'}
+                </Button>
+                <Button variant="outline" type="button" disabled={Boolean(deleting)} onClick={() => deleteMovement(second, 'B')} className="border-red-200 text-red-700 hover:bg-red-50">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {deleting === second.id ? 'Elimino B...' : 'Elimina Movimento B'}
+                </Button>
+              </>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+    </section>
+  )
+}
+
+function MovementCard({ label, movement, other }: { label: 'A' | 'B'; movement: DuplicateMovement; other: DuplicateMovement }) {
+  const fields = [
+    ['ID', shortId(movement.id), shortId(other.id), true],
+    ['Data', movement.date, other.date],
+    ['Descrizione', movement.description || 'Senza descrizione', other.description || 'Senza descrizione'],
+    ['Importo', formatMoney(movement.amount), formatMoney(other.amount)],
+    ['Tipo', movementTypeLabel(movement.type), movementTypeLabel(other.type)],
+    ['Conto', movement.accountName, other.accountName],
+    ['Categoria', movement.categoryName ?? 'Nessuna categoria', other.categoryName ?? 'Nessuna categoria'],
+    ['Creato il', formatDateTime(movement.createdAt), formatDateTime(other.createdAt)],
+    ['Ricorrenza', movement.recurringId ? shortId(movement.recurringId) : 'No', other.recurringId ? shortId(other.recurringId) : 'No'],
+    ['Giroconto legacy', movement.transferPeerId ? shortId(movement.transferPeerId) : 'No', other.transferPeerId ? shortId(other.transferPeerId) : 'No'],
+    ['Import/source', movement.sourceFingerprint ?? 'Non presente', other.sourceFingerprint ?? 'Non presente'],
+  ] as const
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <h4 className="text-sm font-bold text-slate-950">Movimento {label}</h4>
+      <dl className="mt-3 space-y-2">
+        {fields.map(([name, value, otherValue, forceDifferent]) => {
+          const same = !forceDifferent && value === otherValue
+          return (
+            <div key={name} className={`rounded-xl border p-2 ${same ? 'border-emerald-100 bg-emerald-50/60' : 'border-amber-100 bg-amber-50/60'}`}>
+              <dt className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{name}</dt>
+              <dd className="mt-0.5 break-words text-xs font-semibold text-slate-800">{value}</dd>
+            </div>
+          )
+        })}
+      </dl>
+    </article>
+  )
+}
+
+function shortId(value: string) {
+  return value.slice(0, 8)
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(value)
+}
+
+function movementTypeLabel(value: DuplicateMovement['type']) {
+  if (value === 'income') return 'Entrata'
+  if (value === 'expense') return 'Uscita'
+  return 'Giroconto'
 }
 
 function DetailBlock({ title, text }: { title: string; text: string }) {

@@ -44,6 +44,7 @@ export async function fetchCurrentUserDataSnapshot(
     automationRules,
     automationApplicationBatches,
     automationRuleApplications,
+    personalTimelineEvents,
   ] = await Promise.all([
     supabase.from('profiles').select('id').eq('id', user.id).maybeSingle() as unknown as Promise<SingleQueryResult<{ id: string }>>,
     supabase.from('accounts').select('id,name,type').eq('user_id', user.id) as unknown as Promise<QueryResult<SnapshotRecord>>,
@@ -59,6 +60,7 @@ export async function fetchCurrentUserDataSnapshot(
     (supabase as unknown as SupabaseClient).from('automation_rules').select('id,name').eq('user_id', user.id) as unknown as Promise<QueryResult<SnapshotRecord>>,
     (supabase as unknown as SupabaseClient).from('automation_application_batches').select('id').eq('user_id', user.id) as unknown as Promise<QueryResult<SnapshotRecord>>,
     (supabase as unknown as SupabaseClient).from('automation_rule_applications').select('id').eq('user_id', user.id) as unknown as Promise<QueryResult<SnapshotRecord>>,
+    (supabase as unknown as SupabaseClient).from('personal_timeline_events').select('id,event_date,title,subject,category').eq('user_id', user.id) as unknown as Promise<QueryResult<SnapshotRecord>>,
   ])
 
   assertNoSnapshotError('profiles', profile.error)
@@ -91,6 +93,7 @@ export async function fetchCurrentUserDataSnapshot(
     automationRules: automationRules.data ?? [],
     automationApplicationBatches: automationApplicationBatches.data ?? [],
     automationRuleApplications: automationRuleApplications.data ?? [],
+    personalTimelineEvents: personalTimelineEvents.error ? [] : (personalTimelineEvents.data ?? []),
   }
 }
 

@@ -94,9 +94,15 @@ function buildContext(input: DataIntegrityInput): Context {
 function buildAccountScopeById(input: DataIntegrityInput): Map<string, string> {
   const scopes = new Map(input.accounts.map((account) => [account.id, 'PERSONAL']))
   for (const link of input.accountPurposeLinks ?? []) {
-    scopes.set(link.account_id, link.purpose === 'DEPENDENT' ? 'AURORA' : 'PERSONAL')
+    scopes.set(link.account_id, normalizeAccountPurposeScope(link.purpose))
   }
   return scopes
+}
+
+function normalizeAccountPurposeScope(purpose: string | null | undefined): 'PERSONAL' | 'DEPENDENT_AURORA' | 'ADI' {
+  if (purpose === 'DEPENDENT' || purpose === 'DEPENDENT_AURORA') return 'DEPENDENT_AURORA'
+  if (purpose === 'ADI') return 'ADI'
+  return 'PERSONAL'
 }
 
 function materializeIssue(userId: string, draft: DataIntegrityIssueDraft): DataIntegrityIssue {
@@ -199,6 +205,10 @@ function isOrdinaryTransaction(tx: DataIntegrityInput['transactions'][number]): 
   return tx.type !== 'transfer' && !tx.transfer_peer_id
 }
 
+function requiresCategory(tx: DataIntegrityInput['transactions'][number], context: Context): boolean {
+  return transactionScope(tx, context) !== 'DEPENDENT_AURORA'
+}
+
 function scanTransactions(input: DataIntegrityInput, context: Context, add: (draft: DataIntegrityIssueDraft) => void) {
   const normalTransactions = input.transactions.filter(isOrdinaryTransaction)
   const duplicateCandidates = normalTransactions.filter((tx) => !tx.recurring_id)
@@ -207,7 +217,7 @@ function scanTransactions(input: DataIntegrityInput, context: Context, add: (dra
     if (tx.category_id && !context.categoryIds.has(tx.category_id)) add(issue('TRANSACTION_ORPHAN_CATEGORY', 'transaction', [tx.id, tx.category_id], 'Il movimento usa una categoria non presente.', 'Report, budget e classificazioni potrebbero non essere affidabili.', 'Riassegna una categoria esistente.', [{ label: 'Categoria', value: tx.category_id, kind: 'entity' }], `/transactions?id=${tx.id}`))
     if (tx.recurring_id && !context.recurringIds.has(tx.recurring_id)) add(issue('TRANSACTION_ORPHAN_RECURRING', 'transaction', [tx.id, tx.recurring_id], 'Il movimento punta a una ricorrenza non presente.', 'La ricorrenza potrebbe non essere piu tracciabile.', 'Verifica il movimento o scollega la ricorrenza se non esiste piu.', [{ label: 'Ricorrenza', value: tx.recurring_id, kind: 'entity' }], `/transactions?id=${tx.id}`))
     if (!Number.isFinite(Number(tx.amount)) || Number(tx.amount) <= 0) add(issue('TRANSACTION_INVALID_AMOUNT', 'transaction', [tx.id], 'Il movimento ha un importo non valido.', 'Un importo non valido puo alterare saldi e report.', 'Correggi l importo tramite il flusso movimento.', [{ label: 'Importo', value: Number(tx.amount), kind: 'money' }], `/transactions?id=${tx.id}`))
-    if (isOrdinaryTransaction(tx) && !tx.category_id) add(issue('TRANSACTION_MISSING_CATEGORY', 'transaction', [tx.id], 'Il movimento non ha una categoria.', 'Budget e report per categoria saranno meno precisi.', 'Assegna una categoria coerente.', [{ label: 'Descrizione', value: tx.description ?? '', kind: 'text' }], `/transactions?id=${tx.id}`))
+    if (isOrdinaryTransaction(tx) && requiresCategory(tx, context) && !tx.category_id) add(issue('TRANSACTION_MISSING_CATEGORY', 'transaction', [tx.id], 'Il movimento non ha una categoria.', 'Budget e report per categoria saranno meno precisi.', 'Assegna una categoria coerente.', [{ label: 'Descrizione', value: tx.description ?? '', kind: 'text' }], `/transactions?id=${tx.id}`))
     if (isDate(tx.date) && daysBetween(context.nowDate, tx.date) > 365) add(issue('TRANSACTION_FUTURE_ANOMALY', 'transaction', [tx.id], 'Il movimento e molto lontano nel futuro.', 'Potrebbe trattarsi di un errore di data o di una previsione inserita come movimento reale.', 'Verifica la data del movimento.', [{ label: 'Data', value: tx.date, kind: 'date' }], `/transactions?id=${tx.id}`))
   }
 

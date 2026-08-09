@@ -1,4 +1,5 @@
 import type { AuroraBackupV1 } from '../types'
+import { timelineFingerprint } from '@/lib/timeline'
 import type { CurrentUserDataSnapshot, DefaultCategoryReconciliation, IdCollision, LogicalDuplicate } from './types'
 
 const COLLECTIONS = [
@@ -12,6 +13,7 @@ const COLLECTIONS = [
   'birthdays',
   'birthdayReminderLog',
   'auditLogs',
+  'personalTimelineEvents',
 ] as const
 
 export function detectRestoreCollisions(
@@ -28,10 +30,10 @@ export function detectRestoreCollisions(
   )
 
   for (const collection of COLLECTIONS) {
-    const currentIds = new Set(snapshot[collection].map((record) => record.id))
+    const currentIds = new Set((snapshot[collection] ?? []).map((record) => record.id))
     const seen = new Set<string>()
 
-    for (const record of backup.data[collection]) {
+    for (const record of backup.data[collection] ?? []) {
       if (seen.has(record.id)) {
         collisions.push({
           collection,
@@ -66,8 +68,33 @@ export function detectRestoreCollisions(
   detectLogicalLoanPaymentDuplicates(backup, snapshot, logicalDuplicates)
   detectLogicalBirthdayDuplicates(backup, snapshot, logicalDuplicates)
   detectLogicalReminderDuplicates(backup, snapshot, logicalDuplicates)
+  detectLogicalTimelineDuplicates(backup, snapshot, logicalDuplicates)
 
   return { collisions, logicalDuplicates, reconciledDefaultCategories }
+}
+
+function detectLogicalTimelineDuplicates(
+  backup: AuroraBackupV1,
+  snapshot: CurrentUserDataSnapshot,
+  out: LogicalDuplicate[],
+) {
+  const keys = new Set((snapshot.personalTimelineEvents ?? []).map((event) => timelineFingerprint({
+    event_date: event.event_date ?? '',
+    title: event.title ?? '',
+    subject: event.subject as never,
+    category: event.category as never,
+  })))
+  for (const event of backup.data.personalTimelineEvents ?? []) {
+    const key = timelineFingerprint(event)
+    if (keys.has(key)) {
+      out.push({
+        collection: 'personalTimelineEvents',
+        key,
+        blocking: true,
+        message: 'Evento Timeline equivalente gia presente.',
+      })
+    }
+  }
 }
 
 function detectLogicalAccountDuplicates(

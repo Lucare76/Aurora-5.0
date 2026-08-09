@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { scanDataIntegrity, sortIssues, summarizeIssues } from './engine'
-import type { DataIntegrityInput, DataIntegrityIssue, DataIntegrityIssueRow, DataIntegrityScanMode, DataIntegrityScanResult, DataIntegrityScanRunRow, DataIntegrityStatus } from './types'
+import type { DataIntegrityInput, DataIntegrityIssue, DataIntegrityIssueRow, DataIntegrityScanMode, DataIntegrityScanResult, DataIntegrityScanRunRow, DataIntegritySeverity, DataIntegrityStatus } from './types'
 
 type DataIntegritySupabase = SupabaseClient
 type QueryResult<T> = { data: T[] | null; error: { message: string; code?: string } | null }
@@ -93,6 +93,45 @@ export async function listDataIntegrityIssues(supabase: DataIntegritySupabase, u
   if (error) return { issues: [], summary: summarizeIssues([]), persistenceAvailable: false }
   const issues = sortIssues((data ?? []).map(issueFromRow))
   return { issues, summary: summarizeIssues(issues), persistenceAvailable: true }
+}
+
+export async function countOpenDataIntegrityIssuesBySeverity(supabase: DataIntegritySupabase, userId: string) {
+  const severities: DataIntegritySeverity[] = ['CRITICAL', 'WARNING', 'INFO']
+  const counts = await Promise.all(severities.map(async (severity) => {
+    const { count, error } = await supabase
+      .from('data_integrity_issues')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'open')
+      .eq('severity', severity) as unknown as { count: number | null; error: { message: string; code?: string } | null }
+
+    if (error) return { severity, count: 0, error }
+    return { severity, count: count ?? 0, error: null }
+  }))
+
+  if (counts.some((item) => item.error)) return { summary: summarizeIssues([]), persistenceAvailable: false }
+
+  const bySeverity = Object.fromEntries(counts.map((item) => [item.severity, item.count])) as Record<DataIntegritySeverity, number>
+  const critical = bySeverity.CRITICAL ?? 0
+  const warning = bySeverity.WARNING ?? 0
+  const info = bySeverity.INFO ?? 0
+  const open = critical + warning + info
+
+  return {
+    summary: {
+      total: open,
+      open,
+      acknowledged: 0,
+      ignored: 0,
+      resolved: 0,
+      stale: 0,
+      critical,
+      warning,
+      info,
+      statusLabel: open === 0 ? 'Nessun dato' : critical > 0 ? 'Attenzione urgente' : warning > 0 ? 'Da controllare' : 'Buono',
+    },
+    persistenceAvailable: true,
+  }
 }
 
 export async function getLatestDataIntegrityScan(supabase: DataIntegritySupabase, userId: string) {

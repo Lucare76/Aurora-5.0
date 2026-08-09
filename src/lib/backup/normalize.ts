@@ -26,6 +26,8 @@ export function normalizeAuroraBackup(backup: AuroraBackupV1): AuroraBackupV1 {
       adiEntries: sortById(backup.data.adiEntries ?? []),
       leaveSettings: sortById(backup.data.leaveSettings ?? []),
       leaveEntries: sortById(backup.data.leaveEntries ?? []),
+      personalDeadlines: sortById(backup.data.personalDeadlines ?? []),
+      personalTimelineEvents: sortById(backup.data.personalTimelineEvents ?? []),
     },
   }) as AuroraBackupV1
 }

@@ -1,5 +1,6 @@
 import { canonicalizeValue } from './canonicalize'
 import { issue } from './issue'
+import { timelineFingerprint } from '@/lib/timeline'
 import type { AuroraBackupV1, BackupValidationIssue } from './types'
 
 type CollectionName = keyof AuroraBackupV1['data']
@@ -18,13 +19,14 @@ const COLLECTIONS: CollectionName[] = [
   'automationRules',
   'automationApplicationBatches',
   'automationRuleApplications',
+  'personalTimelineEvents',
 ]
 
 export function detectBackupDuplicates(backup: AuroraBackupV1): BackupValidationIssue[] {
   const issues: BackupValidationIssue[] = []
   for (const collection of COLLECTIONS) {
     const seen = new Map<string, string>()
-    const rows = backup.data[collection] as Array<{ id: string; name?: string; type?: string; parent_id?: string | null }>
+    const rows = (backup.data[collection] ?? []) as Array<{ id: string; name?: string; type?: string; parent_id?: string | null }>
     rows.forEach((row, index) => {
       const currentHash = canonicalizeValue(row)
       const previousHash = seen.get(row.id)
@@ -46,6 +48,16 @@ export function detectBackupDuplicates(backup: AuroraBackupV1): BackupValidation
       issues.push(issue('DUPLICATE_CATEGORY_LOGICAL_KEY', 'warning', ['data', 'categories', index], 'Categoria con stessa chiave logica.', { id: category.id }))
     }
     categoryKeys.set(key, category.id)
+  })
+
+  const timelineKeys = new Map<string, string>()
+  ;(backup.data.personalTimelineEvents ?? []).forEach((event, index) => {
+    const key = timelineFingerprint(event)
+    const previous = timelineKeys.get(key)
+    if (previous && previous !== event.id) {
+      issues.push(issue('DUPLICATE_TIMELINE_LOGICAL_KEY', 'warning', ['data', 'personalTimelineEvents', index], 'Evento Timeline con stessa chiave logica.', { id: event.id }))
+    }
+    timelineKeys.set(key, event.id)
   })
 
   return issues

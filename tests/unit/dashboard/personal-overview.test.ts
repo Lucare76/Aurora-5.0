@@ -68,6 +68,15 @@ describe('personal overview dashboard view model', () => {
     expect(payload.attention.items[0].tone).toBe('critical')
   })
 
+  it('usa il summary globale Data Integrity anche quando la lista visuale e limitata', () => {
+    const payload = buildOverview({
+      dataIntegrity: { critical: 0, warning: 8, info: 1 },
+    })
+
+    expect(payload.attention.items.find((item) => item.id === 'data-integrity-warning')?.description).toBe('8 segnalazioni warning aperte.')
+    expect(payload.attention.items).toHaveLength(1)
+  })
+
   it('riassume permessi quasi esauriti e ferie residue senza duplicare formule', () => {
     process.env.PRIVATE_HR_ACCOUNT_EMAIL = privateEmail
     const payload = buildOverview({
@@ -178,7 +187,7 @@ describe('personal overview dashboard view model', () => {
 function buildOverview(overrides: {
   userEmail?: string
   deadlines?: any[]
-  dataIntegrity?: { critical: number; warning: number }
+  dataIntegrity?: { critical: number; warning: number; info?: number }
   notifications?: Array<{ id: string; title: string; severity: 'CRITICAL' | 'WARNING' | 'INFO'; created_at: string; source_url: string | null }>
   healthWarnings?: string[]
   budgetRisks?: Array<{ categoryName: string; percentage: number; status: 'safe' | 'warning' | 'critical' | 'exceeded' }>
@@ -220,7 +229,18 @@ function buildOverview(overrides: {
       } as any,
       dataIntegrity: overrides.dataIntegrity ? {
         issues: [],
-        summary: { critical: overrides.dataIntegrity.critical, warning: overrides.dataIntegrity.warning, info: 0, total: overrides.dataIntegrity.critical + overrides.dataIntegrity.warning },
+        summary: {
+          critical: overrides.dataIntegrity.critical,
+          warning: overrides.dataIntegrity.warning,
+          info: overrides.dataIntegrity.info ?? 0,
+          total: overrides.dataIntegrity.critical + overrides.dataIntegrity.warning + (overrides.dataIntegrity.info ?? 0),
+          open: overrides.dataIntegrity.critical + overrides.dataIntegrity.warning + (overrides.dataIntegrity.info ?? 0),
+          acknowledged: 0,
+          ignored: 0,
+          resolved: 0,
+          stale: 0,
+          statusLabel: overrides.dataIntegrity.critical > 0 ? 'Attenzione urgente' : overrides.dataIntegrity.warning > 0 ? 'Da controllare' : 'Buono',
+        },
         persistenceAvailable: true,
         latestScan: null,
       } as any : undefined,

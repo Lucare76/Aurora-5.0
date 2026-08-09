@@ -18,6 +18,9 @@ export type DeadlineCategory = 'VEHICLE' | 'DOCUMENT' | 'HEALTH' | 'FAMILY' | 'S
 export type DeadlineStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
 export type DeadlinePriority = 'LOW' | 'NORMAL' | 'HIGH'
 export type DeadlineRecurrence = 'NONE' | 'MONTHLY' | 'YEARLY'
+export type TimelineSubject = 'SELF' | 'AURORA' | 'ILENIA' | 'FAMILY'
+export type TimelineCategory = 'HEALTH' | 'THERAPY' | 'SCHOOL' | 'DOCUMENT' | 'ADMINISTRATIVE' | 'TRAVEL' | 'FAMILY' | 'MILESTONE' | 'OTHER'
+export type TimelineImportance = 'LOW' | 'NORMAL' | 'HIGH'
 
 export interface Profile {
   id: string
@@ -98,6 +101,23 @@ export interface PersonalDeadline {
   recurrence: DeadlineRecurrence
   reminder_days_before: number
   completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PersonalTimelineEvent {
+  id: string
+  user_id: string
+  event_date: string
+  end_date: string | null
+  title: string
+  description: string | null
+  category: TimelineCategory
+  subject: TimelineSubject
+  location: string | null
+  provider: string | null
+  tags: string[]
+  importance: TimelineImportance
   created_at: string
   updated_at: string
 }
@@ -1290,6 +1310,27 @@ export type Database = {
           updated_at?: string
         }
         Update: Partial<PersonalDeadline>
+        Relationships: []
+      }
+      personal_timeline_events: {
+        Row: PersonalTimelineEvent
+        Insert: {
+          id?: string
+          user_id: string
+          event_date: string
+          end_date?: string | null
+          title: string
+          description?: string | null
+          category: TimelineCategory
+          subject: TimelineSubject
+          location?: string | null
+          provider?: string | null
+          tags?: string[]
+          importance?: TimelineImportance
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<PersonalTimelineEvent>
         Relationships: []
       }
     }

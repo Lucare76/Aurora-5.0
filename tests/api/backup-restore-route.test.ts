@@ -261,6 +261,35 @@ describe('backup restore prepare/restore API routes', () => {
     expect(response.status).toBe(403)
     expect(await response.json()).toEqual({ error: { code: 'FORBIDDEN', message: 'Accesso non autorizzato.' } })
   })
+
+  it('restore ripristina la Timeline solo per account HR privato autorizzato', async () => {
+    process.env.PRIVATE_HR_ACCOUNT_EMAIL = 'luca@example.test'
+    const backup = validBackup()
+    backup.data.personalTimelineEvents = [personalTimelineBackup()]
+    backup.integrity.recordCounts.personalTimelineEvents = 1
+    backup.integrity.checksum = computeBackupChecksum(backup)
+    const { writes } = mockSupabase({ token: { backup_checksum: backup.integrity.checksum } })
+    const { POST } = await import('@/app/api/backup/restore/route')
+
+    const response = await POST(restoreRequest(backup))
+
+    expect(response.status).toBe(200)
+    expect(writes).toEqual(['personal_timeline_events:delete', 'personal_timeline_events:insert'])
+  })
+
+  it('restore blocca backup con Timeline per account non autorizzato', async () => {
+    const backup = validBackup()
+    backup.data.personalTimelineEvents = [personalTimelineBackup()]
+    backup.integrity.recordCounts.personalTimelineEvents = 1
+    backup.integrity.checksum = computeBackupChecksum(backup)
+    mockSupabase({ token: { backup_checksum: backup.integrity.checksum } })
+    const { POST } = await import('@/app/api/backup/restore/route')
+
+    const response = await POST(restoreRequest(backup))
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: { code: 'FORBIDDEN', message: 'Accesso non autorizzato.' } })
+  })
 })
 
 function validBackup(): AuroraBackupV1 {
@@ -281,6 +310,24 @@ function personalDeadlineBackup() {
     recurrence: 'NONE' as const,
     reminder_days_before: 7,
     completed_at: null,
+    created_at: '2026-07-17T12:00:00.000Z',
+    updated_at: '2026-07-17T12:00:00.000Z',
+  }
+}
+
+function personalTimelineBackup() {
+  return {
+    id: '99999999-9999-4999-8999-999999999999',
+    event_date: '2026-08-09',
+    end_date: null,
+    title: 'Visita di controllo',
+    description: 'Nota privata',
+    category: 'HEALTH' as const,
+    subject: 'AURORA' as const,
+    location: 'Roma',
+    provider: 'Policlinico',
+    tags: ['controllo'],
+    importance: 'HIGH' as const,
     created_at: '2026-07-17T12:00:00.000Z',
     updated_at: '2026-07-17T12:00:00.000Z',
   }

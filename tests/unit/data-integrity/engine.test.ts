@@ -202,6 +202,35 @@ describe('data-integrity engine', () => {
     expect(issues.map((issue) => issue.entityIds[0]).sort()).toEqual(['ordinary-expense', 'ordinary-income'])
   })
 
+  it('richiede categoria per Buoni Fruttiferi personali ma non per Buoni Fruttiferi Aurora', () => {
+    const result = scanDataIntegrity(input({
+      accountPurposeLinks: [
+        { id: 'link-aurora', user_id: 'user-a', account_id: 'acc-b', beneficiary_id: 'child-1', purpose: 'DEPENDENT_AURORA', label: null, created_at: now, updated_at: now },
+      ],
+      transactions: [
+        { ...input().transactions[0], id: 'buoni-personal', account_id: 'acc-a', category_id: null, description: 'Buoni Fruttiferi', amount: 3000 },
+        { ...input().transactions[0], id: 'buoni-aurora', account_id: 'acc-b', category_id: null, description: 'Buoni Fruttiferi', amount: 3000 },
+      ],
+    }))
+
+    const missingCategoryIds = result.issues
+      .filter((issue) => issue.ruleCode === 'TRANSACTION_MISSING_CATEGORY')
+      .map((issue) => issue.entityIds[0])
+
+    expect(missingCategoryIds).toEqual(['buoni-personal'])
+  })
+
+  it('mantiene invariato il comportamento ADI per movimenti ordinari senza categoria', () => {
+    const result = scanDataIntegrity(input({
+      adiEntries: [{ id: 'adi-1', transaction_id: 'buoni-adi' }],
+      transactions: [
+        { ...input().transactions[0], id: 'buoni-adi', category_id: null, description: 'Buoni Fruttiferi', amount: 3000 },
+      ],
+    }))
+
+    expect(result.issues.some((issue) => issue.ruleCode === 'TRANSACTION_MISSING_CATEGORY' && issue.entityIds[0] === 'buoni-adi')).toBe(true)
+  })
+
   it('does not flag transfers or legacy transfer peers without category as missing category', () => {
     const result = scanDataIntegrity(input({
       transactions: [

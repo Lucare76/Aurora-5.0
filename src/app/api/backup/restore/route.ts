@@ -119,6 +119,7 @@ export async function POST(request: Request) {
     await restoreDataIntegrityStates(supabase as unknown as SupabaseClient, user.id, validated.backup)
     await restoreLeaveData(supabase as unknown as SupabaseClient, user.id, validated.backup)
     await restorePersonalDeadlines(supabase as unknown as SupabaseClient, user.id, validated.backup)
+    await restorePersonalTimelineEvents(supabase as unknown as SupabaseClient, user.id, validated.backup)
 
     return json({
       status: 'completed',
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
 }
 
 function backupContainsPrivateHr(backup: NonNullable<Awaited<ReturnType<typeof validateBackupForRealRestore>>['backup']>): boolean {
-  return Boolean(backup.data.leaveSettings?.length || backup.data.leaveEntries?.length || backup.data.personalDeadlines?.length)
+  return Boolean(backup.data.leaveSettings?.length || backup.data.leaveEntries?.length || backup.data.personalDeadlines?.length || backup.data.personalTimelineEvents?.length)
 }
 
 async function restoreLeaveData(
@@ -215,6 +216,40 @@ async function restorePersonalDeadlines(
     console.warn('[aurora-restore] personal-deadlines-restore-skipped', {
       uid: userId.slice(0, 8),
       error: deadlineErr instanceof Error ? deadlineErr.message : String(deadlineErr),
+    })
+  }
+}
+
+async function restorePersonalTimelineEvents(
+  db: SupabaseClient,
+  userId: string,
+  backup: NonNullable<Awaited<ReturnType<typeof validateBackupForRealRestore>>['backup']>,
+) {
+  const events = backup.data.personalTimelineEvents ?? []
+  if (events.length === 0) return
+
+  try {
+    await db.from('personal_timeline_events').delete().eq('user_id', userId)
+    await db.from('personal_timeline_events').insert(events.map((item) => ({
+      id: item.id,
+      user_id: userId,
+      event_date: item.event_date,
+      end_date: item.end_date ?? null,
+      title: item.title,
+      description: item.description ?? null,
+      category: item.category,
+      subject: item.subject,
+      location: item.location ?? null,
+      provider: item.provider ?? null,
+      tags: item.tags,
+      importance: item.importance,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+    })))
+  } catch (timelineErr) {
+    console.warn('[aurora-restore] personal-timeline-restore-skipped', {
+      uid: userId.slice(0, 8),
+      error: timelineErr instanceof Error ? timelineErr.message : String(timelineErr),
     })
   }
 }

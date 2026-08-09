@@ -11,6 +11,7 @@ const BLOCKING_COLLECTIONS = [
   'automationRules',
   'automationApplicationBatches',
   'automationRuleApplications',
+  'personalTimelineEvents',
 ] as const
 
 export function checkAccountEmpty(snapshot: CurrentUserDataSnapshot): AccountEmptyResult {
@@ -30,6 +31,7 @@ export function checkAccountEmpty(snapshot: CurrentUserDataSnapshot): AccountEmp
     automationRules: snapshot.automationRules.length,
     automationApplicationBatches: snapshot.automationApplicationBatches.length,
     automationRuleApplications: snapshot.automationRuleApplications.length,
+    personalTimelineEvents: snapshot.personalTimelineEvents?.length ?? 0,
   }
 
   const blockingCollections = [

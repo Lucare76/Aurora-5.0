@@ -20,6 +20,7 @@ import type {
   Loan,
   LoanPayment,
   PersonalDeadline,
+  PersonalTimelineEvent,
   Profile,
   RecurringRule,
   Transaction,
@@ -54,6 +55,7 @@ import type {
   AuroraBackupNotificationV1,
   AuroraBackupProfileV1,
   AuroraBackupPersonalDeadlineV1,
+  AuroraBackupPersonalTimelineEventV1,
   AuroraBackupRecurringRuleV1,
   AuroraBackupTransactionV1,
 } from '../types'
@@ -117,6 +119,9 @@ export function mapUserBackupDataToV1Data(input: UserBackupData): AuroraBackupDa
       : {}),
     ...(input.personalDeadlines && input.personalDeadlines.length > 0
       ? { personalDeadlines: input.personalDeadlines.map(mapPersonalDeadline) }
+      : {}),
+    ...(input.personalTimelineEvents && input.personalTimelineEvents.length > 0
+      ? { personalTimelineEvents: input.personalTimelineEvents.map(mapPersonalTimelineEvent) }
       : {}),
   }
 }
@@ -555,6 +560,24 @@ export function mapPersonalDeadline(row: PersonalDeadline): AuroraBackupPersonal
     recurrence: row.recurrence,
     reminder_days_before: row.reminder_days_before,
     completed_at: row.completed_at,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+export function mapPersonalTimelineEvent(row: PersonalTimelineEvent): AuroraBackupPersonalTimelineEventV1 {
+  return {
+    id: row.id,
+    event_date: row.event_date,
+    end_date: row.end_date,
+    title: row.title,
+    description: row.description,
+    category: row.category,
+    subject: row.subject,
+    location: row.location,
+    provider: row.provider,
+    tags: [...row.tags],
+    importance: row.importance,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }

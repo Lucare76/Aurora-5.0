@@ -23,6 +23,10 @@ export type SnapshotRecord = {
   birthday_id?: string | null
   year?: number
   days_before?: number
+  event_date?: string
+  subject?: string | null
+  category?: string | null
+  title?: string | null
 }
 
 export type CurrentUserDataSnapshot = {
@@ -40,6 +44,7 @@ export type CurrentUserDataSnapshot = {
   automationRules: SnapshotRecord[]
   automationApplicationBatches: SnapshotRecord[]
   automationRuleApplications: SnapshotRecord[]
+  personalTimelineEvents?: SnapshotRecord[]
 }
 
 export type AccountEmptyResult = {

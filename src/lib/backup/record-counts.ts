@@ -20,6 +20,7 @@ export function calculateRecordCounts(backup: Pick<AuroraBackupV1, 'data'>): Aur
     leaveSettings: backup.data.leaveSettings?.length ?? 0,
     leaveEntries: backup.data.leaveEntries?.length ?? 0,
     personalDeadlines: backup.data.personalDeadlines?.length ?? 0,
+    personalTimelineEvents: backup.data.personalTimelineEvents?.length ?? 0,
   }
 }
 

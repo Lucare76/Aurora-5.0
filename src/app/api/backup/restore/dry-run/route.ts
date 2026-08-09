@@ -141,5 +141,5 @@ function byteLength(value: string): number {
 }
 
 function backupContainsPrivateHr(backup: NonNullable<ReturnType<typeof inspectAuroraBackup>['normalizedBackup']>): boolean {
-  return Boolean(backup.data.leaveSettings?.length || backup.data.leaveEntries?.length || backup.data.personalDeadlines?.length)
+  return Boolean(backup.data.leaveSettings?.length || backup.data.leaveEntries?.length || backup.data.personalDeadlines?.length || backup.data.personalTimelineEvents?.length)
 }

@@ -3,7 +3,7 @@ import { canAccessPrivateFinance, canAccessPrivateHr } from '@/lib/access/privat
 import { buildDashboardPayload } from '@/lib/dashboard/service'
 import type { BudgetStatus } from '@/lib/budgets/service'
 import { buildFinancialHealthPayload } from '@/lib/financial-health/service'
-import { listDataIntegrityIssues, getLatestDataIntegrityScan } from '@/lib/data-integrity/service'
+import { countOpenDataIntegrityIssuesBySeverity, listDataIntegrityIssues, getLatestDataIntegrityScan } from '@/lib/data-integrity/service'
 import { buildAdiSummary, buildAuroraScopeSummary, filterAccountsByScope } from '@/lib/dependent-finance/calculations'
 import { todayDateOnly, daysBetweenDateOnly } from '@/lib/deadlines/date-only'
 import { classifyDeadlineTemporalStatus, deadlineStats, shouldRemind, sortDeadlines } from '@/lib/deadlines'
@@ -308,7 +308,8 @@ export function buildPersonalOverviewViewModel(input: {
     queryPlan: [
       'financial-health service',
       'dashboard service payload',
-      'data_integrity_issues open limit 5',
+      'data_integrity_issues open counts by severity',
+      'data_integrity_issues priority list limit 5',
       'notifications unread important limit 5',
       'private HR deadlines/leave only when authorized',
       'private finance Aurora/ADI only when authorized',
@@ -364,11 +365,30 @@ export async function buildPersonalOverviewPayload(supabase: SupabaseClient, use
 }
 
 async function loadDataIntegrityOverview(supabase: SupabaseClient, userId: string) {
-  const [issuesResult, latestScan] = await Promise.all([
-    listDataIntegrityIssues(supabase, userId, { status: 'open', limit: 5 }),
+  const [countsResult, issuesResult, latestScan] = await Promise.all([
+    countOpenDataIntegrityIssuesBySeverity(supabase, userId),
+    loadPriorityDataIntegrityIssues(supabase, userId),
     getLatestDataIntegrityScan(supabase, userId),
   ])
-  return { ...issuesResult, latestScan }
+  return {
+    issues: issuesResult.issues,
+    summary: countsResult.summary,
+    persistenceAvailable: countsResult.persistenceAvailable && issuesResult.persistenceAvailable,
+    latestScan,
+  }
+}
+
+async function loadPriorityDataIntegrityIssues(supabase: SupabaseClient, userId: string) {
+  const [critical, warning, info] = await Promise.all([
+    listDataIntegrityIssues(supabase, userId, { status: 'open', severity: 'CRITICAL', limit: 5 }),
+    listDataIntegrityIssues(supabase, userId, { status: 'open', severity: 'WARNING', limit: 5 }),
+    listDataIntegrityIssues(supabase, userId, { status: 'open', severity: 'INFO', limit: 5 }),
+  ])
+  const issues = [...critical.issues, ...warning.issues, ...info.issues].slice(0, 5)
+  return {
+    issues,
+    persistenceAvailable: critical.persistenceAvailable && warning.persistenceAvailable && info.persistenceAvailable,
+  }
 }
 
 async function loadNotifications(supabase: SupabaseClient, userId: string): Promise<NotificationRow[]> {
