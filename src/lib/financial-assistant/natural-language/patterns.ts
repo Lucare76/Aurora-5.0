@@ -9,7 +9,7 @@ export const assistantIntentPatterns: IntentPattern[] = [
   {
     intent: 'personal.spending_by_category',
     confidence: 'HIGH',
-    patterns: [/spese principali/, /categorie.*pesano/, /speso.*categoria/, /uscite.*categoria/],
+    patterns: [/spese principali/, /categorie.*pesano/, /speso.*categoria/, /uscite.*categoria/, /dove ho speso.*(piu|di piu)/],
   },
   {
     intent: 'personal.financial_summary',

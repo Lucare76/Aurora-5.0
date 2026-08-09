@@ -126,7 +126,11 @@ export function AssistantClient() {
       })
       const data = await response.json().catch(() => null) as ChatResponse | { error?: string } | null
       if (!response.ok || !data || !('result' in data)) {
-        const errorMessage = data && 'error' in data && data.error ? data.error : 'Analisi non riuscita. Riprova.'
+        const errorMessage = data && 'result' in data
+          ? data.result.answer
+          : data && 'error' in data && data.error
+            ? data.error
+            : 'Analisi non riuscita. Riprova.'
         throw new Error(errorMessage)
       }
       setMessages((current) => [

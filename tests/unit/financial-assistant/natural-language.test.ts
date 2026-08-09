@@ -9,6 +9,7 @@ describe('financial assistant natural language parser', () => {
   it.each([
     ['Quanto ho speso questo mese?', 'personal.income_expense_summary'],
     ['Quali categorie pesano di più?', 'personal.spending_by_category'],
+    ['Dove ho speso di più questo mese?', 'personal.spending_by_category'],
     ['Quanti mesi resisto senza reddito?', 'personal.emergency_fund_status'],
     ['Come stanno andando i budget?', 'personal.budget_summary'],
     ['A che punto è il mio obiettivo auto?', 'personal.goal_summary'],
