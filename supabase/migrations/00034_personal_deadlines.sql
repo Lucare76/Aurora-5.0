@@ -20,7 +20,8 @@ create table if not exists public.personal_deadlines (
   constraint personal_deadlines_reminder_check check (reminder_days_before in (0, 1, 3, 7, 15, 30)),
   constraint personal_deadlines_completed_at_check check (
     (status = 'COMPLETED' and completed_at is not null)
-    or (status <> 'COMPLETED')
+    or
+    (status <> 'COMPLETED' and completed_at is null)
   )
 );
 

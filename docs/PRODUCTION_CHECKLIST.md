@@ -35,6 +35,24 @@ Questo documento elenca i controlli da effettuare prima di un deploy in produzio
 
 ---
 
+## Dashboard personale unificata
+
+- [ ] `/dashboard` si apre senza hydration error
+- [ ] `GET /api/dashboard/personal-overview` restituisce 401 senza sessione
+- [ ] La risposta dell'API usa `Cache-Control: no-store`
+- [ ] La sezione "Cosa richiede attenzione" mostra massimo 5 elementi
+- [ ] Data Integrity CRITICAL appare prima degli altri alert
+- [ ] Scadenze scadute/oggi/settimana sono classificate con date civili senza shift UTC
+- [ ] Ferie e Permessi 104 sono visibili solo all'account HR autorizzato
+- [ ] Risparmi Aurora e ADI sono visibili solo all'account private finance autorizzato
+- [ ] Patrimonio personale non include Aurora e ADI
+- [ ] Card Aurora e ADI restano separate dalla panoramica personale
+- [ ] Partial failure di scadenze/ferie/notifiche non blocca la panoramica finanziaria
+- [ ] Mobile 320/360/390/430 px senza overflow orizzontale
+- [ ] Zoom 200%: CTA e card restano utilizzabili
+
+---
+
 ## 1. Dipendenze e sicurezza
 
 - [ ] `npm audit` non riporta vulnerabilità HIGH o CRITICAL non analizzate

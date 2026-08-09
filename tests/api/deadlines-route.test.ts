@@ -69,6 +69,10 @@ describe('personal deadlines API', () => {
     response = await PATCH(request({ status: 'ACTIVE' }), { params: Promise.resolve({ id: 'deadline-1' }) })
     expect(response.status).toBe(200)
     expect(writes[1]).toMatchObject({ status: 'ACTIVE', completed_at: null })
+
+    response = await PATCH(request({ status: 'CANCELLED' }), { params: Promise.resolve({ id: 'deadline-1' }) })
+    expect(response.status).toBe(200)
+    expect(writes[2]).toMatchObject({ status: 'CANCELLED', completed_at: null })
     expect(filters).toContainEqual({ column: 'user_id', value: user.id })
   })
 

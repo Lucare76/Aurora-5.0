@@ -102,6 +102,28 @@ Le informazioni mostrate hanno finalità organizzative e informative e non costi
 
 ---
 
+## Dashboard personale
+
+La **Dashboard** è il centro operativo giornaliero di Aurora. Riunisce informazioni già calcolate dai moduli esistenti, senza creare nuovi calcoli contabili.
+
+Le sezioni principali sono:
+
+- **Cosa richiede attenzione**: massimo 5 elementi urgenti, come anomalie Data Integrity, scadenze scadute, budget superati o notifiche importanti.
+- **Oggi**: mostra solo ciò che serve controllare oggi.
+- **Questa settimana**: raccoglie scadenze, ferie e permessi dei prossimi 7 giorni.
+- **Questo mese**: sintetizza scadenze, ferie, permessi 104, budget e obiettivi.
+- **Panoramica finanziaria**: mostra patrimonio personale, entrate, uscite, saldo netto e Financial Health.
+
+Le sezioni private sono separate:
+
+- **Risparmi Aurora** è visibile solo all'account autorizzato e non viene sommato al patrimonio personale.
+- **ADI** è visibile solo all'account autorizzato e resta fuori dal patrimonio personale.
+- **Scadenze**, **Ferie** e **Permessi 104** sono visibili solo all'account HR autorizzato.
+
+Il pulsante **Aggiorna** ricarica i dati su richiesta. Non viene usato polling aggressivo.
+
+---
+
 ## 2. Primo accesso
 
 1. Apri Aurora nel browser.
