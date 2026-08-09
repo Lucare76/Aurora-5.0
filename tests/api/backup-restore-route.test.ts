@@ -17,6 +17,7 @@ describe('backup restore prepare/restore API routes', () => {
     vi.resetModules()
     vi.clearAllMocks()
     process.env.ENABLE_BACKUP_RESTORE_REAL = 'true'
+    delete process.env.PRIVATE_HR_ACCOUNT_EMAIL
   })
 
   it('prepare resta disabilitato se il feature flag server non è attivo', async () => {
@@ -61,7 +62,7 @@ describe('backup restore prepare/restore API routes', () => {
     expect(body.tokenId).toBe(tokenId)
     expect(body.token).toEqual(expect.any(String))
     expect(body.requiredConfirmation).toBe('RIPRISTINA AURORA')
-    expect(writes).toEqual(['backup_restore_tokens'])
+    expect(writes).toEqual(['backup_restore_tokens:insert'])
   })
 
   it('prepare blocca backup con warning', async () => {
@@ -231,12 +232,58 @@ describe('backup restore prepare/restore API routes', () => {
     expect(body.restore.counts.transactions).toBe(150)
     expect(body.restore.reconciledCategories).toBe(4)
   })
+
+  it('restore ripristina le scadenze personali solo per account HR privato autorizzato', async () => {
+    process.env.PRIVATE_HR_ACCOUNT_EMAIL = 'luca@example.test'
+    const backup = validBackup()
+    backup.data.personalDeadlines = [personalDeadlineBackup()]
+    backup.integrity.recordCounts.personalDeadlines = 1
+    backup.integrity.checksum = computeBackupChecksum(backup)
+    const { writes } = mockSupabase({ token: { backup_checksum: backup.integrity.checksum } })
+    const { POST } = await import('@/app/api/backup/restore/route')
+
+    const response = await POST(restoreRequest(backup))
+
+    expect(response.status).toBe(200)
+    expect(writes).toEqual(['personal_deadlines:delete', 'personal_deadlines:insert'])
+  })
+
+  it('restore blocca backup con scadenze personali per account non autorizzato', async () => {
+    const backup = validBackup()
+    backup.data.personalDeadlines = [personalDeadlineBackup()]
+    backup.integrity.recordCounts.personalDeadlines = 1
+    backup.integrity.checksum = computeBackupChecksum(backup)
+    mockSupabase({ token: { backup_checksum: backup.integrity.checksum } })
+    const { POST } = await import('@/app/api/backup/restore/route')
+
+    const response = await POST(restoreRequest(backup))
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: { code: 'FORBIDDEN', message: 'Accesso non autorizzato.' } })
+  })
 })
 
 function validBackup(): AuroraBackupV1 {
   const backup = cloneBackup(createMinimalBackup())
   backup.integrity.checksum = computeBackupChecksum(backup)
   return backup
+}
+
+function personalDeadlineBackup() {
+  return {
+    id: '55555555-5555-4555-8555-555555555555',
+    title: 'Rinnovo carta identita',
+    description: 'Documento comunale',
+    category: 'DOCUMENT' as const,
+    due_date: '2026-09-15',
+    status: 'ACTIVE' as const,
+    priority: 'NORMAL' as const,
+    recurrence: 'NONE' as const,
+    reminder_days_before: 7,
+    completed_at: null,
+    created_at: '2026-07-17T12:00:00.000Z',
+    updated_at: '2026-07-17T12:00:00.000Z',
+  }
 }
 
 function requestFor(payload: unknown) {
@@ -296,7 +343,11 @@ function mockSupabase(options: {
         select: vi.fn(() => builder),
         eq: vi.fn(() => builder),
         insert: vi.fn(() => {
-          writes.push(table)
+          writes.push(`${table}:insert`)
+          return builder
+        }),
+        delete: vi.fn(() => {
+          writes.push(`${table}:delete`)
           return builder
         }),
         single: vi.fn(() => Promise.resolve({ data: { id: tokenId, expires_at: token.expires_at }, error: null })),

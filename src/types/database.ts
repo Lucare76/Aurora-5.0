@@ -14,6 +14,10 @@ export type AdiCategory = 'SUPERMERCATO' | 'BENZINA' | 'ABBIGLIAMENTO_AURORA'
 export type AiProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI'
 export type AiProviderConnectionStatus = 'not_configured' | 'configured' | 'verified' | 'error'
 export type LeaveEntryType = 'VACATION' | 'PERMIT_104'
+export type DeadlineCategory = 'VEHICLE' | 'DOCUMENT' | 'HEALTH' | 'FAMILY' | 'SCHOOL' | 'SUBSCRIPTION' | 'ADMINISTRATIVE' | 'OTHER'
+export type DeadlineStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+export type DeadlinePriority = 'LOW' | 'NORMAL' | 'HIGH'
+export type DeadlineRecurrence = 'NONE' | 'MONTHLY' | 'YEARLY'
 
 export interface Profile {
   id: string
@@ -78,6 +82,22 @@ export interface LeaveEntry {
   start_time: string | null
   end_time: string | null
   note: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PersonalDeadline {
+  id: string
+  user_id: string
+  title: string
+  description: string | null
+  category: DeadlineCategory
+  due_date: string
+  status: DeadlineStatus
+  priority: DeadlinePriority
+  recurrence: DeadlineRecurrence
+  reminder_days_before: number
+  completed_at: string | null
   created_at: string
   updated_at: string
 }
@@ -1250,6 +1270,26 @@ export type Database = {
           updated_at?: string
         }
         Update: Partial<LeaveEntry>
+        Relationships: []
+      }
+      personal_deadlines: {
+        Row: PersonalDeadline
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          description?: string | null
+          category?: DeadlineCategory
+          due_date: string
+          status?: DeadlineStatus
+          priority?: DeadlinePriority
+          recurrence?: DeadlineRecurrence
+          reminder_days_before?: number
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<PersonalDeadline>
         Relationships: []
       }
     }

@@ -435,6 +435,22 @@ export type AuroraBackupLeaveEntryV1 = {
   updated_at?: string
 }
 
+export type AuroraBackupPersonalDeadlineV1 = {
+  id: string
+  user_id?: string
+  title: string
+  description?: string | null
+  category: 'VEHICLE' | 'DOCUMENT' | 'HEALTH' | 'FAMILY' | 'SCHOOL' | 'SUBSCRIPTION' | 'ADMINISTRATIVE' | 'OTHER'
+  due_date: string
+  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+  priority: 'LOW' | 'NORMAL' | 'HIGH'
+  recurrence: 'NONE' | 'MONTHLY' | 'YEARLY'
+  reminder_days_before: number
+  completed_at?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
 export type AuroraBackupDataV1 = {
   profile: AuroraBackupProfileV1
   accounts: AuroraBackupAccountV1[]
@@ -472,6 +488,8 @@ export type AuroraBackupDataV1 = {
   // Optional: included from Sprint 33 onwards; private HR module, separate from finance
   leaveSettings?: AuroraBackupLeaveSettingsV1[]
   leaveEntries?: AuroraBackupLeaveEntryV1[]
+  // Optional: included from Sprint 34 onwards; private deadlines module, separate from finance
+  personalDeadlines?: AuroraBackupPersonalDeadlineV1[]
 }
 
 export type AuroraBackupV1 = {

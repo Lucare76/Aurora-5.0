@@ -118,6 +118,7 @@ export async function POST(request: Request) {
     await restoreDashboardPreferences(supabase as unknown as SupabaseClient, user.id, validated.backup)
     await restoreDataIntegrityStates(supabase as unknown as SupabaseClient, user.id, validated.backup)
     await restoreLeaveData(supabase as unknown as SupabaseClient, user.id, validated.backup)
+    await restorePersonalDeadlines(supabase as unknown as SupabaseClient, user.id, validated.backup)
 
     return json({
       status: 'completed',
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
 }
 
 function backupContainsPrivateHr(backup: NonNullable<Awaited<ReturnType<typeof validateBackupForRealRestore>>['backup']>): boolean {
-  return Boolean(backup.data.leaveSettings?.length || backup.data.leaveEntries?.length)
+  return Boolean(backup.data.leaveSettings?.length || backup.data.leaveEntries?.length || backup.data.personalDeadlines?.length)
 }
 
 async function restoreLeaveData(
@@ -181,6 +182,39 @@ async function restoreLeaveData(
     console.warn('[aurora-restore] leave-restore-skipped', {
       uid: userId.slice(0, 8),
       error: leaveErr instanceof Error ? leaveErr.message : String(leaveErr),
+    })
+  }
+}
+
+async function restorePersonalDeadlines(
+  db: SupabaseClient,
+  userId: string,
+  backup: NonNullable<Awaited<ReturnType<typeof validateBackupForRealRestore>>['backup']>,
+) {
+  const deadlines = backup.data.personalDeadlines ?? []
+  if (deadlines.length === 0) return
+
+  try {
+    await db.from('personal_deadlines').delete().eq('user_id', userId)
+    await db.from('personal_deadlines').insert(deadlines.map((item) => ({
+      id: item.id,
+      user_id: userId,
+      title: item.title,
+      description: item.description ?? null,
+      category: item.category,
+      due_date: item.due_date,
+      status: item.status,
+      priority: item.priority,
+      recurrence: item.recurrence,
+      reminder_days_before: item.reminder_days_before,
+      completed_at: item.completed_at ?? null,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+    })))
+  } catch (deadlineErr) {
+    console.warn('[aurora-restore] personal-deadlines-restore-skipped', {
+      uid: userId.slice(0, 8),
+      error: deadlineErr instanceof Error ? deadlineErr.message : String(deadlineErr),
     })
   }
 }

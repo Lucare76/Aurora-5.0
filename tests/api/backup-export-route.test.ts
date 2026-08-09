@@ -24,6 +24,7 @@ type TableName =
   | 'loan_payments'
   | 'birthdays'
   | 'birthday_reminder_log'
+  | 'personal_deadlines'
   | 'audit_logs'
   | 'data_integrity_issues'
 
@@ -42,6 +43,7 @@ describe('backup export API route', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
+    delete process.env.PRIVATE_HR_ACCOUNT_EMAIL
   })
 
   it('restituisce 401 se utente non autenticato', async () => {
@@ -142,6 +144,30 @@ describe('backup export API route', () => {
 
     expect(response.status).toBe(500)
   })
+
+  it('include le scadenze personali solo per account HR privato autorizzato', async () => {
+    process.env.PRIVATE_HR_ACCOUNT_EMAIL = 'luca@example.test'
+    mockSupabase({
+      data: {
+        ...baseTableData(),
+        personal_deadlines: [personalDeadlineRow()],
+      },
+    })
+    const { GET } = await importRoute()
+
+    const response = await GET()
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data.personalDeadlines).toHaveLength(1)
+    expect(body.data.personalDeadlines[0]).toMatchObject({
+      title: 'Rinnovo carta identita',
+      category: 'DOCUMENT',
+      due_date: '2026-09-15',
+    })
+    expect(body.data.personalDeadlines[0]).not.toHaveProperty('user_id')
+    expect(body.integrity.recordCounts.personalDeadlines).toBe(1)
+  })
 })
 
 function mockSupabase(options: {
@@ -228,6 +254,7 @@ function baseTableData(): TableData {
     loan_payments: [],
     birthdays: [],
     birthday_reminder_log: [],
+    personal_deadlines: [],
     audit_logs: [],
     data_integrity_issues: [],
   }
@@ -295,6 +322,24 @@ function transactionRow() {
     recurring_id: null,
     receipt_url: null,
     receipt_data: null,
+    created_at: '2026-07-17T12:00:00.000Z',
+    updated_at: '2026-07-17T12:00:00.000Z',
+  }
+}
+
+function personalDeadlineRow() {
+  return {
+    id: '55555555-5555-4555-8555-555555555555',
+    user_id: userId,
+    title: 'Rinnovo carta identita',
+    description: 'Documento comunale',
+    category: 'DOCUMENT',
+    due_date: '2026-09-15',
+    status: 'ACTIVE',
+    priority: 'NORMAL',
+    recurrence: 'NONE',
+    reminder_days_before: 7,
+    completed_at: null,
     created_at: '2026-07-17T12:00:00.000Z',
     updated_at: '2026-07-17T12:00:00.000Z',
   }

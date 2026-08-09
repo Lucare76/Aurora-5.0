@@ -10,6 +10,7 @@ import {
   Bell,
   BadgeEuro,
   BriefcaseBusiness,
+  CalendarClock,
   CalendarDays,
   Cake,
   FlaskConical,
@@ -45,7 +46,7 @@ interface NavItem {
 }
 
 const PRIVATE_FINANCE_PATHS = new Set(['/aurora', '/adi'])
-const PRIVATE_HR_PATHS = new Set(['/leave'])
+const PRIVATE_HR_PATHS = new Set(['/leave', '/deadlines'])
 
 function assistantNavItems(financialAssistantEnabled: boolean): NavItem[] {
   return financialAssistantEnabled ? [{ path: '/assistant', label: 'Chiedi ad Aurora', icon: MessageCircle }] : []
@@ -72,6 +73,7 @@ function buildAllNavItems(financialAssistantEnabled: boolean): NavItem[] {
   { path: '/aurora', label: 'Risparmi Aurora', icon: PiggyBank },
   { path: '/adi', label: 'Gestione ADI', icon: BadgeEuro },
   { path: '/leave', label: 'Ferie e permessi', icon: BriefcaseBusiness },
+  { path: '/deadlines', label: 'Scadenze', icon: CalendarClock },
   { path: '/notifications', label: 'Avvisi', icon: Bell },
   { path: '/birthdays', label: 'Compleanni', icon: Cake },
   { path: '/settings', label: 'Impostazioni', icon: Settings },
@@ -102,6 +104,7 @@ function buildAllMoreItems(financialAssistantEnabled: boolean): NavItem[] {
   { path: '/aurora', label: 'Risparmi Aurora', icon: PiggyBank },
   { path: '/adi', label: 'Gestione ADI', icon: BadgeEuro },
   { path: '/leave', label: 'Ferie e permessi', icon: BriefcaseBusiness },
+  { path: '/deadlines', label: 'Scadenze', icon: CalendarClock },
   { path: '/notifications', label: 'Avvisi', icon: Bell },
   { path: '/birthdays', label: 'Compleanni', icon: Cake },
   { path: '/settings', label: 'Impostazioni', icon: Settings },

@@ -19,6 +19,7 @@ import type {
   LeaveSettings,
   Loan,
   LoanPayment,
+  PersonalDeadline,
   Profile,
   RecurringRule,
   Transaction,
@@ -52,6 +53,7 @@ import type {
   AuroraBackupNotificationUserSettingsV1,
   AuroraBackupNotificationV1,
   AuroraBackupProfileV1,
+  AuroraBackupPersonalDeadlineV1,
   AuroraBackupRecurringRuleV1,
   AuroraBackupTransactionV1,
 } from '../types'
@@ -112,6 +114,9 @@ export function mapUserBackupDataToV1Data(input: UserBackupData): AuroraBackupDa
       : {}),
     ...(input.leaveEntries && input.leaveEntries.length > 0
       ? { leaveEntries: input.leaveEntries.map(mapLeaveEntry) }
+      : {}),
+    ...(input.personalDeadlines && input.personalDeadlines.length > 0
+      ? { personalDeadlines: input.personalDeadlines.map(mapPersonalDeadline) }
       : {}),
   }
 }
@@ -533,6 +538,23 @@ export function mapLeaveEntry(row: LeaveEntry): AuroraBackupLeaveEntryV1 {
     start_time: row.start_time,
     end_time: row.end_time,
     note: row.note,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+export function mapPersonalDeadline(row: PersonalDeadline): AuroraBackupPersonalDeadlineV1 {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    category: row.category,
+    due_date: row.due_date,
+    status: row.status,
+    priority: row.priority,
+    recurrence: row.recurrence,
+    reminder_days_before: row.reminder_days_before,
+    completed_at: row.completed_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }

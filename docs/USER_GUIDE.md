@@ -10,6 +10,21 @@ Aurora 6.0 introduce le fondamenta server-side dell'assistente finanziario. La f
 
 Le aree private Aurora e ADI sono disponibili solo all'account autorizzato configurato lato server con `PRIVATE_FINANCE_ACCOUNT_EMAIL`.
 
+### Scadenze personali
+
+La sezione **Scadenze** è un modulo privato disponibile solo all'account autorizzato per le aree HR/private. Serve a ricordare rinnovi e impegni personali non contabili, come documenti, auto, visite, scuola, famiglia, abbonamenti e pratiche amministrative.
+
+Ogni scadenza può avere:
+
+- titolo e descrizione;
+- categoria;
+- data di scadenza;
+- priorità;
+- promemoria a 0, 1, 3, 7, 15 o 30 giorni;
+- ricorrenza informativa mensile o annuale.
+
+Le scadenze possono essere create, modificate, completate, riaperte o eliminate. Non creano movimenti, non modificano saldi e non entrano nei calcoli finanziari.
+
 ### Chiedi ad Aurora
 
 Quando il flag è abilitato, la voce **Chiedi ad Aurora** apre una chat deterministica. Puoi scrivere domande in italiano come:

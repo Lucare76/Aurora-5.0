@@ -26,6 +26,7 @@ export const BACKUP_COLLECTION_KEYS = [
   'automationRuleApplications',
   'leaveSettings',
   'leaveEntries',
+  'personalDeadlines',
 ] as const
 
 export const DANGEROUS_KEYS = ['__proto__', 'prototype', 'constructor'] as const

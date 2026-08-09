@@ -22,6 +22,19 @@ Questo documento elenca i controlli da effettuare prima di un deploy in produzio
 
 ---
 
+## Scadenze personali private
+
+- [ ] Applicare e verificare la migration locale `00034_personal_deadlines.sql` prima del rilascio
+- [ ] Verificare che `/deadlines` sia visibile solo all'account autorizzato da `PRIVATE_HR_ACCOUNT_EMAIL` o fallback `PRIVATE_FINANCE_ACCOUNT_EMAIL`
+- [ ] Verificare che API `/api/deadlines` e `/api/deadlines/[id]` restituiscano 401 senza sessione e 403 per account non autorizzati
+- [ ] Verificare CRUD completo: crea, modifica, completa, riapri, elimina
+- [ ] Verificare sorting date-only: scadute, oggi, prossimi 30 giorni e completate
+- [ ] Verificare che le scadenze non creino transazioni e non modifichino saldi
+- [ ] Verificare backup/export: scadenze incluse solo per account HR privato autorizzato
+- [ ] Verificare restore: backup con scadenze bloccato per account non autorizzati e ripristinato con `user_id` corrente per account autorizzato
+
+---
+
 ## 1. Dipendenze e sicurezza
 
 - [ ] `npm audit` non riporta vulnerabilità HIGH o CRITICAL non analizzate

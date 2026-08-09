@@ -32,6 +32,10 @@ const financeScope = z.enum(['PERSONAL', 'DEPENDENT_AURORA', 'ADI'])
 const adiEntryType = z.enum(['credit', 'debit'])
 const adiCategory = z.enum(['SUPERMERCATO', 'BENZINA', 'ABBIGLIAMENTO_AURORA'])
 const leaveEntryType = z.enum(['VACATION', 'PERMIT_104'])
+const deadlineCategory = z.enum(['VEHICLE', 'DOCUMENT', 'HEALTH', 'FAMILY', 'SCHOOL', 'SUBSCRIPTION', 'ADMINISTRATIVE', 'OTHER'])
+const deadlineStatus = z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED'])
+const deadlinePriority = z.enum(['LOW', 'NORMAL', 'HIGH'])
+const deadlineRecurrence = z.enum(['NONE', 'MONTHLY', 'YEARLY'])
 
 export const profileSchema = z.object({
   id: uuid.optional(),
@@ -415,6 +419,22 @@ export const leaveEntryBackupSchema = z.object({
   }
 })
 
+export const personalDeadlineBackupSchema = z.object({
+  id: uuid,
+  user_id: uuid.optional(),
+  title: shortString.min(1).max(160),
+  description: notesString.nullable().optional(),
+  category: deadlineCategory,
+  due_date: dateOnly,
+  status: deadlineStatus,
+  priority: deadlinePriority,
+  recurrence: deadlineRecurrence,
+  reminder_days_before: z.number().int().min(0).max(365),
+  completed_at: isoTimestamp.nullable().optional(),
+  created_at: maybeTimestamp,
+  updated_at: maybeTimestamp,
+}).passthrough()
+
 const collection = <T extends z.ZodType>(schema: T) =>
   z.array(schema).max(BACKUP_LIMITS.maxRecordsPerCollection)
 
@@ -463,6 +483,7 @@ export const auroraBackupV1Schema = z.object({
     adiEntries: collection(adiEntrySchema).optional(),
     leaveSettings: collection(leaveSettingsBackupSchema).optional(),
     leaveEntries: collection(leaveEntryBackupSchema).optional(),
+    personalDeadlines: collection(personalDeadlineBackupSchema).optional(),
   }).passthrough(),
   integrity: z.object({
     recordCounts: z.record(z.string(), z.number().int().min(0)),

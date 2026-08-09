@@ -22,6 +22,7 @@ import type {
   LeaveSettings,
   Loan,
   LoanPayment,
+  PersonalDeadline,
   Profile,
   RecurringRule,
   Transaction,
@@ -81,6 +82,8 @@ export const BACKUP_LEAVE_SETTINGS_SELECT =
   'id,user_id,vacation_days_per_year,permit_104_hours_per_month,timezone,created_at,updated_at'
 export const BACKUP_LEAVE_ENTRY_SELECT =
   'id,user_id,type,start_date,end_date,days,hours,start_time,end_time,note,created_at,updated_at'
+export const BACKUP_PERSONAL_DEADLINE_SELECT =
+  'id,user_id,title,description,category,due_date,status,priority,recurrence,reminder_days_before,completed_at,created_at,updated_at'
 
 export type BackupAuthenticatedUser = {
   id: string
@@ -128,6 +131,7 @@ export type UserBackupData = {
   adiEntries?: AdiEntry[]
   leaveSettings?: LeaveSettings[]
   leaveEntries?: LeaveEntry[]
+  personalDeadlines?: PersonalDeadline[]
 }
 
 type BackupSupabaseClient = SupabaseClient<Database>
@@ -192,6 +196,7 @@ export async function fetchUserBackupData(
     adiEntries,
     leaveSettings,
     leaveEntries,
+    personalDeadlines,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -346,6 +351,12 @@ export async function fetchUserBackupData(
       .eq('user_id', user.id)
       .order('start_date', { ascending: true })
       .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<LeaveEntry>>,
+    (supabase as unknown as SupabaseClient)
+      .from('personal_deadlines')
+      .select(BACKUP_PERSONAL_DEADLINE_SELECT)
+      .eq('user_id', user.id)
+      .order('due_date', { ascending: true })
+      .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<PersonalDeadline>>,
   ])
 
   assertNoQueryError('profiles', profile.error)
@@ -397,6 +408,7 @@ export async function fetchUserBackupData(
     adiEntries: adiEntries.error ? [] : (adiEntries.data ?? []),
     leaveSettings: canAccessPrivateHr(user.email) && !leaveSettings.error ? (leaveSettings.data ?? []) : [],
     leaveEntries: canAccessPrivateHr(user.email) && !leaveEntries.error ? (leaveEntries.data ?? []) : [],
+    personalDeadlines: canAccessPrivateHr(user.email) && !personalDeadlines.error ? (personalDeadlines.data ?? []) : [],
   }
 
   if (canAccessPrivateFinance(user.email)) return rawData

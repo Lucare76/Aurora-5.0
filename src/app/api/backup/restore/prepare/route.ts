@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
+import { canAccessPrivateFinance, canAccessPrivateHr } from '@/lib/access/private-finance-access'
 import { backupContainsPrivateFinance } from '@/lib/access/private-finance-backup'
 
 import {
@@ -50,6 +50,9 @@ export async function POST(request: Request) {
     const backupPayload = parseJsonSafely(content)
     const inspection = inspectAuroraBackup(backupPayload.ok ? backupPayload.value : null)
     if (inspection.normalizedBackup && !canAccessPrivateFinance(user.email) && backupContainsPrivateFinance(inspection.normalizedBackup)) {
+      return json({ error: { code: 'FORBIDDEN', message: 'Accesso non autorizzato.' } }, 403)
+    }
+    if (inspection.normalizedBackup && !canAccessPrivateHr(user.email) && backupContainsPrivateHr(inspection.normalizedBackup)) {
       return json({ error: { code: 'FORBIDDEN', message: 'Accesso non autorizzato.' } }, 403)
     }
 
@@ -114,4 +117,8 @@ function json(body: unknown, status: number) {
 
 function error(code: string) {
   return { error: code }
+}
+
+function backupContainsPrivateHr(backup: NonNullable<ReturnType<typeof inspectAuroraBackup>['normalizedBackup']>): boolean {
+  return Boolean(backup.data.leaveSettings?.length || backup.data.leaveEntries?.length || backup.data.personalDeadlines?.length)
 }
