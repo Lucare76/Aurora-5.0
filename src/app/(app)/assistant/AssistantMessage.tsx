@@ -1,4 +1,5 @@
 import { AssistantResult } from './AssistantResult'
+import { AssistantAvatar } from './AssistantAvatar'
 import type { AssistantResult as AssistantResultType } from '@/lib/financial-assistant/types'
 import { cn } from '@/lib/utils'
 
@@ -9,6 +10,26 @@ export type AssistantChatMessage =
 
 export function AssistantMessage({ message }: { message: AssistantChatMessage }) {
   if (message.type === 'ASSISTANT_RESULT' && message.result) return <AssistantResult result={message.result} />
+
+  const showAssistantAvatar = message.type === 'ASSISTANT_QUESTION' || message.type === 'ASSISTANT_ERROR'
+
+  if (showAssistantAvatar) {
+    return (
+      <div className="flex max-w-[92%] items-start gap-3 md:max-w-[78%]">
+        <AssistantAvatar size="message" className="mt-1" />
+        <div
+          className={cn(
+            'rounded-3xl px-4 py-3 text-sm leading-6',
+            message.type === 'ASSISTANT_ERROR'
+              ? 'border border-red-200 bg-red-50 text-red-800'
+              : 'border border-[#e5e7f0] bg-white text-slate-700',
+          )}
+        >
+          {message.content}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
