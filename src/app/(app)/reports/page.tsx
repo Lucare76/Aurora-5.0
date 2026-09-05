@@ -320,7 +320,7 @@ export default function ReportsPage() {
             </FilterSelect>
             <FilterSelect value={params.get('category') ?? 'all'} onChange={(event) => setParam('category', event.target.value)} aria-label="Filtro categoria">
               <option value="all">Tutte le categorie</option>
-              {[...(report?.expenseCategories ?? []), ...(report?.incomeCategories ?? [])].map((category) => <option key={category.categoryId} value={category.categoryId}>{category.categoryName}</option>)}
+              {(report?.categoryOptions ?? []).map((category) => <option key={category.categoryId} value={category.categoryId}>{category.parentCategory ? `${category.parentCategory} / ${category.categoryName}` : category.categoryName}</option>)}
             </FilterSelect>
             <label className="flex h-10 items-center gap-2 rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm font-medium text-slate-600">
               <input type="checkbox" checked={params.get('includeTransfers') === 'true'} onChange={(event) => setParam('includeTransfers', event.target.checked ? 'true' : '')} />
@@ -364,7 +364,7 @@ export default function ReportsPage() {
               <>
                 <Card className="aurora-print-card border-[#e5e7f0] bg-white shadow-sm">
                   <CardHeader>
-                    <CardTitle className="text-lg">Andamento mensile</CardTitle>
+                    <CardTitle className="text-lg">{report.monthlySeries[0]?.key.length === 10 ? 'Andamento giornaliero' : 'Andamento mensile'}</CardTitle>
                     <p className="text-sm text-slate-500">Entrate, uscite e cash flow cumulativo. Periodo: {report.period.label}</p>
                   </CardHeader>
                   <CardContent>
@@ -476,7 +476,7 @@ export default function ReportsPage() {
                     <div className="overflow-x-auto">
                       {tableView === 'monthly' && (
                         <table className="w-full text-sm">
-                          <thead><tr className="border-b bg-slate-50 text-left text-slate-500"><th className="px-5 py-3">Mese</th><th className="px-5 py-3 text-right">Entrate</th><th className="px-5 py-3 text-right">Uscite</th><th className="px-5 py-3 text-right">Cash flow</th><th className="px-5 py-3 text-right">Tasso</th><th className="px-5 py-3 text-right">Movimenti</th></tr></thead>
+                          <thead><tr className="border-b bg-slate-50 text-left text-slate-500"><th className="px-5 py-3">{report.monthlySeries[0]?.key.length === 10 ? 'Giorno' : 'Mese'}</th><th className="px-5 py-3 text-right">Entrate</th><th className="px-5 py-3 text-right">Uscite</th><th className="px-5 py-3 text-right">Cash flow</th><th className="px-5 py-3 text-right">Tasso</th><th className="px-5 py-3 text-right">Movimenti</th></tr></thead>
                           <tbody>{report.monthlySeries.map((row) => <tr key={row.key} className="border-b last:border-b-0"><td className="px-5 py-3 font-semibold text-slate-900"><Link className="hover:text-indigo-600" href={`/transactions?from=${row.from}&to=${row.to}`}>{row.key}</Link></td><td className="px-5 py-3 text-right tabular-nums text-emerald-600">{formatCurrency(row.income)}</td><td className="px-5 py-3 text-right tabular-nums text-red-600">{formatCurrency(row.expenses)}</td><td className="px-5 py-3 text-right tabular-nums font-semibold">{formatCurrency(row.cashFlow)}</td><td className="px-5 py-3 text-right tabular-nums">{row.savingsRate === null ? '—' : `${row.savingsRate.toFixed(1)}%`}</td><td className="px-5 py-3 text-right tabular-nums">{row.transactionCount}</td></tr>)}</tbody>
                         </table>
                       )}

@@ -4,6 +4,7 @@ import { computeAdvancedReport, buildReportPeriods } from './calculations'
 import type {
   ReportAccountInput,
   ReportCategoryInput,
+  ReportCategoryOption,
   ReportFilters,
   ReportPayload,
   ReportRange,
@@ -140,6 +141,18 @@ function assertFilterOwnership(filters: ReportFilters, accounts: ReportAccountIn
   }
 }
 
+function buildCategoryOptions(categories: ReportCategoryInput[]): ReportCategoryOption[] {
+  const byId = new Map(categories.map((category) => [category.id, category]))
+  return categories.map((category) => ({
+    categoryId: category.id,
+    categoryName: category.name,
+    parentCategory: category.parent_id ? byId.get(category.parent_id)?.name ?? null : null,
+    type: category.type,
+    color: category.color,
+    icon: category.icon,
+  }))
+}
+
 export async function buildReportPayload(
   supabase: SupabaseClient,
   searchParams: URLSearchParams,
@@ -208,6 +221,7 @@ export async function buildReportPayload(
     period,
     previousPeriod,
     ...computed,
+    categoryOptions: buildCategoryOptions(categories),
     metadata: {
       generatedAt: new Date().toISOString(),
       queryCount: 4,

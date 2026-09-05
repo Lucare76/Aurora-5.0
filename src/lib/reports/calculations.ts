@@ -57,6 +57,10 @@ function monthKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
+function dayKey(date: Date): string {
+  return dateKey(date)
+}
+
 function isInPeriod(tx: AppTransaction | ReportTransactionInput, period: Pick<ReportPeriod, 'from' | 'to'>): boolean {
   return tx.date >= period.from && tx.date <= period.to
 }
@@ -90,6 +94,19 @@ function netWorth(accounts: ReportAccountInput[], includeArchivedAccounts: boole
 
 function cashFlow(txs: AppTransaction[]): number {
   return roundMoney(sum(countableIncome(txs).map((tx) => tx.amount)) - sum(countableExpenses(txs).map((tx) => tx.amount)))
+}
+
+function accountFlow(txs: AppTransaction[], accountId: string): number {
+  let total = 0
+  for (const tx of txs) {
+    if (isCountableIncome(tx) && tx.accountId === accountId) total += tx.amount
+    else if (isCountableExpense(tx) && tx.accountId === accountId) total -= tx.amount
+    else if (tx.transferReferenceKind !== 'none') {
+      if (tx.accountId === accountId) total -= tx.amount
+      if (tx.destinationAccountId === accountId) total += tx.amount
+    }
+  }
+  return roundMoney(total)
 }
 
 function flowAfter(txs: AppTransaction[], afterDate: string): number {
@@ -151,6 +168,10 @@ export function buildMonthlySeries(
   period: ReportPeriod,
   currentNetWorth: number,
 ): ReportMonthlyPoint[] {
+  if (period.from.slice(0, 7) === period.to.slice(0, 7)) {
+    return buildDailySeries(txs, period, currentNetWorth)
+  }
+
   const start = new Date(parseDate(period.from).getFullYear(), parseDate(period.from).getMonth(), 1)
   const end = new Date(parseDate(period.to).getFullYear(), parseDate(period.to).getMonth(), 1)
   const points: ReportMonthlyPoint[] = []
@@ -184,6 +205,45 @@ export function buildMonthlySeries(
     })
 
     cursor = addMonths(cursor, 1)
+  }
+
+  return points
+}
+
+function buildDailySeries(
+  txs: AppTransaction[],
+  period: ReportPeriod,
+  currentNetWorth: number,
+): ReportMonthlyPoint[] {
+  const points: ReportMonthlyPoint[] = []
+  let cumulativeCashFlow = 0
+  let cursor = parseDate(period.from)
+  const end = parseDate(period.to)
+
+  while (cursor <= end) {
+    const key = dayKey(cursor)
+    const dayTxs = txs.filter((tx) => tx.date === key && isInPeriod(tx, period))
+    const income = sum(countableIncome(dayTxs).map((tx) => tx.amount))
+    const expenses = sum(countableExpenses(dayTxs).map((tx) => tx.amount))
+    const dayCashFlow = roundMoney(income - expenses)
+    cumulativeCashFlow = roundMoney(cumulativeCashFlow + dayCashFlow)
+    const netWorthAtDayEnd = roundMoney(currentNetWorth - flowAfter(txs, key))
+
+    points.push({
+      key,
+      month: String(cursor.getDate()).padStart(2, '0'),
+      from: key,
+      to: key,
+      income,
+      expenses,
+      cashFlow: dayCashFlow,
+      savingsRate: calculateSavingsRate(income, expenses),
+      transactionCount: dayTxs.length,
+      cumulativeCashFlow,
+      netWorth: netWorthAtDayEnd,
+    })
+
+    cursor = addDays(cursor, 1)
   }
 
   return points
@@ -290,6 +350,7 @@ function categoryRows(
 function accountRows(
   accounts: ReportAccountInput[],
   allTxs: AppTransaction[],
+  balancePeriodTxs: AppTransaction[],
   periodTxs: AppTransaction[],
   periodTo: string,
   includeArchivedAccounts: boolean,
@@ -307,6 +368,7 @@ function accountRows(
     }
 
     const endingBalance = roundMoney(toNumber(account.balance) - accountFlowAfter(allTxs, account.id, periodTo))
+    const balanceChange = accountFlow(balancePeriodTxs, account.id)
     const change = roundMoney(income - expenses)
     return {
       accountId: account.id,
@@ -316,7 +378,7 @@ function accountRows(
       color: account.color,
       isActive: account.is_active,
       isHidden: account.is_hidden,
-      startingBalance: roundMoney(endingBalance - change),
+      startingBalance: roundMoney(endingBalance - balanceChange),
       income: roundMoney(income),
       expenses: roundMoney(expenses),
       transfers: roundMoney(transfers),
@@ -495,18 +557,20 @@ export function computeAdvancedReport(params: {
     return true
   })
   const filtered = scoped.filter((tx) => {
+    if (tx.transferReferenceKind !== 'none') {
+      return params.includeTransfers && (params.typeFilter === 'both' || params.typeFilter === 'all')
+    }
     if (params.typeFilter === 'income' && !isCountableIncome(tx)) return false
     if (params.typeFilter === 'expense' && !isCountableExpense(tx)) return false
     if (params.typeFilter === 'both' && !isCountableIncome(tx) && !isCountableExpense(tx)) return false
-    if (!params.includeTransfers && tx.transferReferenceKind !== 'none') return false
     return true
   })
   const periodTxs = filtered.filter((tx) => isInPeriod(tx, params.period))
-  const scopedPeriodTxs = scoped.filter((tx) => isInPeriod(tx, params.period))
+  const globalPeriodTxs = adapted.filter((tx) => isInPeriod(tx, params.period))
   const previousTxs = filtered.filter((tx) => isInPeriod(tx, params.previousPeriod))
   const currentNetWorth = netWorth(accounts, params.includeArchivedAccounts)
   const netWorthEnd = roundMoney(currentNetWorth - flowAfter(adapted, params.period.to))
-  const netWorthStart = roundMoney(netWorthEnd - cashFlow(periodTxs))
+  const netWorthStart = roundMoney(netWorthEnd - cashFlow(globalPeriodTxs))
   const monthCount = periodMonthCount(params.period)
   const totalIncome = sum(countableIncome(periodTxs).map((tx) => tx.amount))
   const totalExpenses = sum(countableExpenses(periodTxs).map((tx) => tx.amount))
@@ -526,7 +590,7 @@ export function computeAdvancedReport(params: {
     netWorthEnd,
     netWorthChange: roundMoney(netWorthEnd - netWorthStart),
     netWorthChangePercentage: netWorthStart !== 0 ? roundMoney(((netWorthEnd - netWorthStart) / Math.abs(netWorthStart)) * 100) : null,
-    internalTransfersAmount: calculateTransferTotal(scopedPeriodTxs),
+    internalTransfersAmount: params.includeTransfers ? calculateTransferTotal(periodTxs) : 0,
   }
   const previousIncome = sum(countableIncome(previousTxs).map((tx) => tx.amount))
   const previousExpenses = sum(countableExpenses(previousTxs).map((tx) => tx.amount))
@@ -541,7 +605,7 @@ export function computeAdvancedReport(params: {
   const monthlySeries = buildMonthlySeries(periodTxs, params.period, summary.netWorthEnd)
   const expenseCategories = categoryRows(periodTxs, previousTxs, categories, 'expense')
   const incomeCategories = categoryRows(periodTxs, previousTxs, categories, 'income')
-  const accountsRows = accountRows(accounts, adapted, periodTxs, params.period.to, params.includeArchivedAccounts)
+  const accountsRows = accountRows(accounts, adapted, globalPeriodTxs, periodTxs, params.period.to, params.includeArchivedAccounts)
   const netWorthSeries = monthlySeries.map((point) => ({ key: point.key, month: point.month, netWorth: point.netWorth }))
   const netWorthValues = netWorthSeries.map((point) => point.netWorth).filter((value): value is number => value !== null)
   const netWorthReport: ReportNetWorth = {

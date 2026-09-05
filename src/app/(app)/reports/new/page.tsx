@@ -3,6 +3,7 @@ import { ArrowLeft, BarChart3, ExternalLink } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { REPORT_REGISTRY, REPORT_REGISTRY_BY_CATEGORY } from '@/lib/reports/registry'
+import type { ReportTypeCode } from '@/lib/reports/constants'
 
 const CATEGORY_LABELS: Record<string, string> = {
   periodic: 'Report periodici',
@@ -42,7 +43,11 @@ function fallbackColors(color: string) {
   return COLOR_CLASSES[color] ?? { bg: 'bg-slate-50', icon: 'text-slate-600', border: 'border-slate-200 hover:border-slate-400' }
 }
 
+const HIDDEN_DUPLICATE_TEMPLATE_CODES: ReportTypeCode[] = ['NET_WORTH', 'CATEGORIES', 'TAGS']
+
 export default function ReportsNewPage() {
+  const visibleTemplateCount = REPORT_REGISTRY.filter((def) => !HIDDEN_DUPLICATE_TEMPLATE_CODES.includes(def.code)).length
+
   return (
     <div className="min-h-screen bg-[#f8f9fc] text-slate-950">
       <div className="mx-auto max-w-7xl space-y-8">
@@ -51,7 +56,7 @@ export default function ReportsNewPage() {
             <p className="text-sm font-semibold text-indigo-600">Analisi finanziaria</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Scegli un template</h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-500">
-              {REPORT_REGISTRY.length} template disponibili. Seleziona quello più adatto alle tue esigenze.
+              {visibleTemplateCount} template disponibili. Seleziona quello più adatto alle tue esigenze.
             </p>
           </div>
           <Link href="/reports" className={buttonVariants({ variant: 'outline', className: 'h-10 gap-2' })}>
@@ -61,7 +66,7 @@ export default function ReportsNewPage() {
         </header>
 
         {(['periodic', 'thematic', 'extended'] as const).map((category) => {
-          const defs = REPORT_REGISTRY_BY_CATEGORY[category]
+          const defs = REPORT_REGISTRY_BY_CATEGORY[category].filter((def) => !HIDDEN_DUPLICATE_TEMPLATE_CODES.includes(def.code))
           return (
             <section key={category} className="space-y-4">
               <div>

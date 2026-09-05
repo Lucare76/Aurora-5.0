@@ -120,6 +120,15 @@ export type ReportCategoryRow = {
   children: ReportCategoryRow[]
 }
 
+export type ReportCategoryOption = {
+  categoryId: string
+  categoryName: string
+  parentCategory: string | null
+  type: CategoryType
+  color: string | null
+  icon: string | null
+}
+
 export type ReportAccountRow = {
   accountId: string
   accountName: string
@@ -204,6 +213,7 @@ export type ReportPayload = {
   summary: ReportSummary
   comparison: ReportComparison
   monthlySeries: ReportMonthlyPoint[]
+  categoryOptions: ReportCategoryOption[]
   expenseCategories: ReportCategoryRow[]
   incomeCategories: ReportCategoryRow[]
   fixedVariable: ReportFixedVariable

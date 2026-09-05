@@ -50,6 +50,10 @@ function makePayload(overrides: Partial<ReportPayload> = {}): ReportPayload {
     monthlySeries: [
       { key: '2026-07', month: 'lug', from: '2026-07-01', to: '2026-07-31', income: 2000, expenses: 1200, cashFlow: 800, savingsRate: 40, transactionCount: 5, cumulativeCashFlow: 800, netWorth: 3800 },
     ],
+    categoryOptions: [
+      { categoryId: 'cat-1', categoryName: 'Casa', parentCategory: null, type: 'expense', color: '#6366f1', icon: null },
+      { categoryId: 'cat-2', categoryName: 'Stipendio', parentCategory: null, type: 'income', color: '#10b981', icon: null },
+    ],
     expenseCategories: [
       { categoryId: 'cat-1', categoryName: 'Casa', parentCategory: null, color: '#6366f1', icon: null, amount: 700, percentage: 58.33, transactionCount: 1, averageTransaction: 700, previousAmount: 650, changeAmount: 50, changePercentage: 7.69, rank: 1, children: [] },
     ],

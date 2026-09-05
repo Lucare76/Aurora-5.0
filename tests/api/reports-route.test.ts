@@ -58,6 +58,9 @@ describe('GET /api/reports', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('Cache-Control')).toBe('no-store')
     expect(body.summary).toHaveProperty('totalIncome')
+    expect(body.categoryOptions).toEqual([
+      expect.objectContaining({ categoryId, categoryName: 'Stipendio' }),
+    ])
     expect(body.metadata.queryCount).toBe(4)
     expect(JSON.stringify(body)).not.toContain('user_id')
   })

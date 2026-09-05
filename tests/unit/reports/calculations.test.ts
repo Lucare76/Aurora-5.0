@@ -305,6 +305,30 @@ describe('financial reports calculations', () => {
     expect(banca?.transfers).toBeGreaterThan(0)
   })
 
+  it('include i trasferimenti con typeFilter both quando includeTransfers e attivo', () => {
+    const { period, previousPeriod } = buildReportPeriods('2026-07-01', '2026-07-31')
+    const payload = computeAdvancedReport({
+      accounts, categories, transactions,
+      activeRecurringRulesCount: 1, period, previousPeriod,
+      accountFilter: null, categoryFilter: null, typeFilter: 'both',
+      includeTransfers: true, includeArchivedAccounts: false,
+    })
+    expect(payload.summary.internalTransfersAmount).toBe(300)
+    expect(payload.summary.transactionCount).toBe(4)
+  })
+
+  it('non mostra trasferimenti interni quando includeTransfers e disattivato', () => {
+    const { period, previousPeriod } = buildReportPeriods('2026-07-01', '2026-07-31')
+    const payload = computeAdvancedReport({
+      accounts, categories, transactions,
+      activeRecurringRulesCount: 1, period, previousPeriod,
+      accountFilter: null, categoryFilter: null, typeFilter: 'all',
+      includeTransfers: false, includeArchivedAccounts: false,
+    })
+    expect(payload.summary.internalTransfersAmount).toBe(0)
+    expect(payload.summary.transactionCount).toBe(3)
+  })
+
   it('filtra solo le uscite con typeFilter expense', () => {
     // typeFilter 'expense' branch (line 499): non-expense transactions are excluded
     const { period, previousPeriod } = buildReportPeriods('2026-07-01', '2026-07-31')
@@ -317,6 +341,41 @@ describe('financial reports calculations', () => {
     // Only expenses: income transactions are excluded
     expect(payload.summary.totalIncome).toBe(0)
     expect(payload.summary.totalExpenses).toBeGreaterThan(0)
+  })
+
+  it('mantiene il patrimonio globale anche con filtro categoria', () => {
+    const { period, previousPeriod } = buildReportPeriods('2026-07-01', '2026-07-31')
+    const unfiltered = computeAdvancedReport({
+      accounts, categories, transactions,
+      activeRecurringRulesCount: 1, period, previousPeriod,
+      accountFilter: null, categoryFilter: null, typeFilter: 'both',
+      includeTransfers: false, includeArchivedAccounts: false,
+    })
+    const filtered = computeAdvancedReport({
+      accounts, categories, transactions,
+      activeRecurringRulesCount: 1, period, previousPeriod,
+      accountFilter: null, categoryFilter: categories[3].id, typeFilter: 'both',
+      includeTransfers: false, includeArchivedAccounts: false,
+    })
+
+    expect(filtered.summary.totalExpenses).toBe(180)
+    expect(filtered.summary.netWorthStart).toBe(unfiltered.summary.netWorthStart)
+    expect(filtered.summary.netWorthEnd).toBe(unfiltered.summary.netWorthEnd)
+    expect(filtered.summary.netWorthChange).toBe(unfiltered.summary.netWorthChange)
+  })
+
+  it('produce una serie giornaliera per un singolo mese', () => {
+    const { period, previousPeriod } = buildReportPeriods('2026-07-01', '2026-07-31')
+    const payload = computeAdvancedReport({
+      accounts, categories, transactions,
+      activeRecurringRulesCount: 1, period, previousPeriod,
+      accountFilter: null, categoryFilter: null, typeFilter: 'both',
+      includeTransfers: false, includeArchivedAccounts: false,
+    })
+
+    expect(payload.monthlySeries).toHaveLength(31)
+    expect(payload.monthlySeries[0]).toMatchObject({ key: '2026-07-01', month: '01' })
+    expect(payload.monthlySeries[4]).toMatchObject({ key: '2026-07-05', income: 2000 })
   })
 
   it('restituisce null per netWorthChangePercentage quando netWorthStart è zero', () => {
