@@ -16,9 +16,11 @@ export const ADI_CATEGORY_LABELS: Record<AdiCategory, string> = {
   SUPERMERCATO: 'Supermercato',
   BENZINA: 'Benzina',
   ABBIGLIAMENTO_AURORA: 'Abbigliamento Aurora',
+  MACELLERIA: 'Macelleria',
+  FARMACIA: 'Farmacia',
 }
 
-export const ADI_CATEGORIES = Object.keys(ADI_CATEGORY_LABELS) as AdiCategory[]
+export const ADI_CATEGORIES = Object.keys(ADI_CATEGORY_LABELS) as [AdiCategory, ...AdiCategory[]]
 
 export const AURORA_USAGE_REASONS = [
   'Salute',

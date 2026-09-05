@@ -8,7 +8,7 @@ import type {
   MinimalAccount,
   MinimalTransaction,
 } from './types'
-import { AURORA_ACCOUNT_SUGGESTION } from './constants'
+import { ADI_CATEGORIES, AURORA_ACCOUNT_SUGGESTION } from './constants'
 
 type AccountScopeLink = { account_id: string; purpose: string | null | undefined }
 type AccountIdentity = { id: string; name?: string | null }
@@ -275,11 +275,7 @@ export function buildAuroraScopeSummary(params: {
 export function buildAdiSummary(entries: Pick<AdiEntry, 'entry_type' | 'adi_category' | 'amount' | 'date' | 'reference_period'>[]) {
   const received = round2(entries.filter((entry) => entry.entry_type === 'credit').reduce((sum, entry) => sum + amount(entry.amount), 0))
   const spent = round2(entries.filter((entry) => entry.entry_type === 'debit').reduce((sum, entry) => sum + amount(entry.amount), 0))
-  const byCategory = {
-    SUPERMERCATO: 0,
-    BENZINA: 0,
-    ABBIGLIAMENTO_AURORA: 0,
-  } satisfies Record<AdiCategory, number>
+  const byCategory = Object.fromEntries(ADI_CATEGORIES.map((category) => [category, 0])) as Record<AdiCategory, number>
 
   for (const entry of entries) {
     if (entry.entry_type === 'debit' && entry.adi_category) {

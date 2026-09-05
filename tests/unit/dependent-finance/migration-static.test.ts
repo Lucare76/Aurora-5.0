@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync('supabase/migrations/00030_dependent_finance_and_adi.sql', 'utf8')
+const extendAdiCategoriesSql = readFileSync('supabase/migrations/00036_extend_adi_categories.sql', 'utf8')
 
 describe('dependent finance migration', () => {
   it('crea il modello minimo per beneficiari, collegamenti conto e ADI', () => {
@@ -28,6 +29,16 @@ describe('dependent finance migration', () => {
     expect(sql).toContain("adi_category in ('SUPERMERCATO', 'BENZINA', 'ABBIGLIAMENTO_AURORA')")
     expect(sql).toContain('adi_entries_amount_positive check (amount > 0)')
     expect(sql).toContain("funding_source = 'ADI'")
+  })
+
+  it('estende le categorie ADI con una migration incrementale', () => {
+    expect(extendAdiCategoriesSql).toContain('drop constraint if exists adi_entries_category_check')
+    expect(extendAdiCategoriesSql).toContain('add constraint adi_entries_category_check')
+    expect(extendAdiCategoriesSql).toContain("'SUPERMERCATO'")
+    expect(extendAdiCategoriesSql).toContain("'BENZINA'")
+    expect(extendAdiCategoriesSql).toContain("'ABBIGLIAMENTO_AURORA'")
+    expect(extendAdiCategoriesSql).toContain("'MACELLERIA'")
+    expect(extendAdiCategoriesSql).toContain("'FARMACIA'")
   })
 
   it('resta non distruttiva', () => {

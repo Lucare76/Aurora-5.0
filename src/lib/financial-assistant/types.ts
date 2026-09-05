@@ -198,7 +198,7 @@ export type AssistantLoan = {
 export type AssistantAdiEntry = {
   id: string
   entry_type: 'credit' | 'debit'
-  adi_category: 'SUPERMERCATO' | 'BENZINA' | 'ABBIGLIAMENTO_AURORA' | null
+  adi_category: 'SUPERMERCATO' | 'BENZINA' | 'ABBIGLIAMENTO_AURORA' | 'MACELLERIA' | 'FARMACIA' | null
   amount: number
   date: string
   reference_period: string | null

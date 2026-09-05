@@ -2,7 +2,7 @@ export type FinanceScope = 'PERSONAL' | 'DEPENDENT_AURORA' | 'ADI'
 export type LegacyAssetPurpose = 'DEPENDENT'
 export type AssetPurpose = FinanceScope | LegacyAssetPurpose
 export type AdiEntryType = 'credit' | 'debit'
-export type AdiCategory = 'SUPERMERCATO' | 'BENZINA' | 'ABBIGLIAMENTO_AURORA'
+export type AdiCategory = 'SUPERMERCATO' | 'BENZINA' | 'ABBIGLIAMENTO_AURORA' | 'MACELLERIA' | 'FARMACIA'
 export type AuroraTransferDirection = 'PERSONAL_TO_AURORA' | 'AURORA_TO_PERSONAL' | 'AURORA_TO_AURORA' | 'PERSONAL_TO_PERSONAL'
 
 export type DependentBeneficiary = {

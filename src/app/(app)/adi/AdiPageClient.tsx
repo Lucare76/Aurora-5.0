@@ -253,7 +253,7 @@ export function AdiPageClient() {
             <WalletCards className="h-5 w-5 text-indigo-600" />
             <h2 className="text-base font-semibold text-slate-950">Registra spesa ADI</h2>
           </div>
-          <p className="mb-4 text-sm text-slate-500">Sono disponibili solo Supermercato, Benzina e Abbigliamento Aurora. Conferma sempre “Pagato con ADI”.</p>
+          <p className="mb-4 text-sm text-slate-500">Sono disponibili solo Supermercato, Benzina, Abbigliamento Aurora, Macelleria e Farmacia. Conferma sempre “Pagato con ADI”.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm font-medium text-slate-700">Importo<input required type="number" min="0.01" step="0.01" value={debit.amount} onChange={(e) => setDebit({ ...debit, amount: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
             <label className="text-sm font-medium text-slate-700">Data<input required type="date" value={debit.date} onChange={(e) => setDebit({ ...debit, date: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>

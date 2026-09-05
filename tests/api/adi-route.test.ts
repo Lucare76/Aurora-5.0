@@ -145,6 +145,31 @@ describe('/api/adi', () => {
     expect(res.status).toBe(201)
   })
 
+  it('accetta le nuove categorie ADI', async () => {
+    ;(createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(supabaseMock({
+      entries: [{ entry_type: 'credit', amount: 100, date: '2026-08-01', adi_category: null }],
+    }))
+    const macelleria = await POST(request({
+      entryType: 'debit',
+      amount: 20,
+      date: '2026-08-02',
+      adiCategory: 'MACELLERIA',
+      description: 'Macelleria',
+      paidWithAdi: true,
+    }))
+    const farmacia = await POST(request({
+      entryType: 'debit',
+      amount: 20,
+      date: '2026-08-03',
+      adiCategory: 'FARMACIA',
+      description: 'Farmacia',
+      paidWithAdi: true,
+    }))
+
+    expect(macelleria.status).toBe(201)
+    expect(farmacia.status).toBe(201)
+  })
+
   it('rifiuta una transazione collegata non dell utente', async () => {
     ;(createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(supabaseMock({
       entries: [{ entry_type: 'credit', amount: 100, date: '2026-08-01', adi_category: null }],

@@ -169,15 +169,19 @@ describe('dependent finance calculations', () => {
       adi({ id: 'd1', entry_type: 'debit', adi_category: 'SUPERMERCATO', amount: 120, date: '2026-08-02', reference_period: '2026-08' }),
       adi({ id: 'd2', entry_type: 'debit', adi_category: 'BENZINA', amount: 50, date: '2026-08-03', reference_period: '2026-08' }),
       adi({ id: 'd3', entry_type: 'debit', adi_category: 'ABBIGLIAMENTO_AURORA', amount: 40, date: '2026-08-04', reference_period: '2026-08' }),
+      adi({ id: 'd4', entry_type: 'debit', adi_category: 'MACELLERIA', amount: 30, date: '2026-08-05', reference_period: '2026-08' }),
+      adi({ id: 'd5', entry_type: 'debit', adi_category: 'FARMACIA', amount: 20, date: '2026-08-06', reference_period: '2026-08' }),
     ])
 
     expect(summary.received).toBe(500)
-    expect(summary.spent).toBe(210)
-    expect(summary.balance).toBe(290)
-    expect(summary.utilizationRate).toBe(42)
+    expect(summary.spent).toBe(260)
+    expect(summary.balance).toBe(240)
+    expect(summary.utilizationRate).toBe(52)
     expect(summary.byCategory.SUPERMERCATO).toBe(120)
     expect(summary.byCategory.BENZINA).toBe(50)
     expect(summary.byCategory.ABBIGLIAMENTO_AURORA).toBe(40)
+    expect(summary.byCategory.MACELLERIA).toBe(30)
+    expect(summary.byCategory.FARMACIA).toBe(20)
   })
 
   it('blocca una spesa ADI superiore al saldo disponibile', () => {
