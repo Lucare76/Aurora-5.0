@@ -40,12 +40,14 @@ describe('dependent finance calculations', () => {
       { id: 'aurora-2', name: 'Libretto Aurora', balance: 300 },
       { id: 'adi-1', name: 'ADI', balance: 200 },
     ]
-    expect(filterPersonalAccounts(accounts, links).map((account) => account.id)).toEqual(['personal-1', 'aurora-1'])
+    // aurora-1 ha solo purpose DEPENDENT_AURORA (nessuna riga PERSONAL): il nome
+    // "Aurora piano di accumulo" non basta piu' a includerlo nel personale (bypass legacy rimosso).
+    expect(filterPersonalAccounts(accounts, links).map((account) => account.id)).toEqual(['personal-1'])
     expect(filterAccountsByScope(accounts, links, 'DEPENDENT_AURORA').map((account) => account.id)).toEqual(['aurora-1', 'aurora-2'])
     expect(filterAccountsByScope(accounts, links, 'ADI').map((account) => account.id)).toEqual(['adi-1'])
   })
 
-  it('mantiene nel personale solo i movimenti del conto ponte Aurora piano di accumulo', () => {
+  it('il conto ponte "Aurora piano di accumulo" compare nel personale solo quando ha esplicitamente anche lo scope PERSONAL', () => {
     const accounts = [
       { id: 'personal-1', name: 'Bancoposta' },
       { id: 'aurora-1', name: 'Aurora piano di accumulo' },
@@ -58,9 +60,39 @@ describe('dependent finance calculations', () => {
       { id: 'tx-3', account_id: 'aurora-2', amount: 300 },
       { id: 'tx-4', account_id: 'adi-1', amount: 50 },
     ]
-    expect(filterPersonalTransactions(transactions, links, accounts).map((tx) => tx.id)).toEqual(['tx-1', 'tx-2'])
+
+    // A. solo DEPENDENT_AURORA (nessuna riga PERSONAL): il ponte NON appartiene al personale.
+    expect(filterPersonalTransactions(transactions, links, accounts).map((tx) => tx.id)).toEqual(['tx-1'])
     expect(filterTransactionsByScope(transactions, links, 'DEPENDENT_AURORA').map((tx) => tx.id)).toEqual(['tx-2', 'tx-3'])
     expect(filterTransactionsByScope(transactions, links, 'ADI').map((tx) => tx.id)).toEqual(['tx-4'])
+
+    // B. con PERSONAL aggiunto esplicitamente: il ponte appartiene sia al personale sia ad Aurora.
+    const linksWithBridgePersonal = [...links, { account_id: 'aurora-1', purpose: 'PERSONAL' }]
+    expect(filterPersonalTransactions(transactions, linksWithBridgePersonal, accounts).map((tx) => tx.id)).toEqual(['tx-1', 'tx-2'])
+    expect(filterTransactionsByScope(transactions, linksWithBridgePersonal, 'DEPENDENT_AURORA').map((tx) => tx.id)).toEqual(['tx-2', 'tx-3'])
+
+    // C. rimuovendo di nuovo PERSONAL, il ponte esce dal personale ma resta in Aurora (DEPENDENT_AURORA intatto).
+    expect(filterPersonalTransactions(transactions, links, accounts).map((tx) => tx.id)).toEqual(['tx-1'])
+    expect(filterTransactionsByScope(transactions, links, 'DEPENDENT_AURORA').map((tx) => tx.id)).toEqual(['tx-2', 'tx-3'])
+  })
+
+  it('stesso comportamento con il valore legacy purpose=DEPENDENT (come nel DB di produzione per i conti Aurora collegati prima del multi-scope)', () => {
+    const accounts = [{ id: 'pac-legacy', name: 'Aurora piano di accumulo', balance: 1000 }]
+    const legacyOnly = [{ account_id: 'pac-legacy', purpose: 'DEPENDENT' }]
+
+    // solo DEPENDENT (legacy): niente PERSONAL -> escluso dal personale, ma presente in Aurora
+    // perche' normalizeFinanceScope tratta 'DEPENDENT' come 'DEPENDENT_AURORA'.
+    expect(filterPersonalAccounts(accounts, legacyOnly).map((a) => a.id)).toEqual([])
+    expect(filterAccountsByScope(accounts, legacyOnly, 'DEPENDENT_AURORA').map((a) => a.id)).toEqual(['pac-legacy'])
+
+    // rimettendo PERSONAL: ricompare nel personale, resta in Aurora tramite la riga DEPENDENT esistente.
+    const legacyWithPersonal = [...legacyOnly, { account_id: 'pac-legacy', purpose: 'PERSONAL' }]
+    expect(filterPersonalAccounts(accounts, legacyWithPersonal).map((a) => a.id)).toEqual(['pac-legacy'])
+    expect(filterAccountsByScope(accounts, legacyWithPersonal, 'DEPENDENT_AURORA').map((a) => a.id)).toEqual(['pac-legacy'])
+
+    // togliendo di nuovo PERSONAL: torna a sparire dal personale, la riga DEPENDENT non viene toccata.
+    expect(filterPersonalAccounts(accounts, legacyOnly).map((a) => a.id)).toEqual([])
+    expect(filterAccountsByScope(accounts, legacyOnly, 'DEPENDENT_AURORA').map((a) => a.id)).toEqual(['pac-legacy'])
   })
 
   it('classifica i giroconti tra perimetri', () => {

@@ -77,13 +77,19 @@ describe('scope PERSONAL — isolamento dai movimenti Aurora/DEPENDENT', () => {
     expect(result.map((row) => row.id)).toEqual(['buoni-fruttiferi-tx'])
   })
 
-  it('4. un conto DEPENDENT non compare nel filtro conti personale, ma il conto ponte Aurora si', () => {
+  it('4. un conto DEPENDENT non compare nel filtro conti personale; il conto ponte Aurora vi compare solo se ha anche lo scope PERSONAL', () => {
     const personalAccounts = filterPersonalAccounts(accounts, links)
     const ids = personalAccounts.map((account) => account.id)
     expect(ids).not.toContain('aurora-buoni-fruttiferi')
     expect(ids).not.toContain('adi-1')
     expect(ids).toContain('personal-1')
-    expect(ids).toContain('aurora-bridge')
+    // aurora-bridge ha solo DEPENDENT_AURORA nei `links`: il nome "Aurora piano di
+    // accumulo" non basta piu' a includerlo nel personale (bypass legacy rimosso).
+    expect(ids).not.toContain('aurora-bridge')
+
+    const linksWithBridgePersonal = [...links, { account_id: 'aurora-bridge', purpose: 'PERSONAL' }]
+    const idsWithPersonalScope = filterPersonalAccounts(accounts, linksWithBridgePersonal).map((account) => account.id)
+    expect(idsWithPersonalScope).toContain('aurora-bridge')
   })
 
   it('5-7. i riepiloghi entrate/uscite/saldo netto personali escludono i movimenti Aurora', () => {

@@ -124,12 +124,13 @@ export function getRealAuroraAccountIds(accounts: AccountIdentity[], links: Acco
   return new Set([...auroraIds].filter((id) => !mirrorIds.has(id)))
 }
 
+// `accounts` is kept in the signature for compatibility with existing call sites
+// (it used to feed the shared/mirror bypass below); PERSONAL is now the only
+// criterion for personal-scope membership, so it is no longer read here.
 export function getPersonalExcludedAccountIds(links: AccountScopeLink[], accounts: AccountIdentity[] = []): Set<string> {
-  const sharedAuroraIds = getSharedAuroraAccountIds(accounts, links)
   const excluded = new Set<string>()
   for (const [accountId, scopes] of getAccountScopesMap(links)) {
     if (scopes.has('PERSONAL')) continue
-    if (sharedAuroraIds.has(accountId)) continue
     excluded.add(accountId)
   }
   return excluded
