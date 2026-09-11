@@ -27,6 +27,7 @@ type Payload = {
   suggestedAccount: Account | null
   accounts: Account[]
   auroraAccounts: Account[]
+  accountScopes: Array<{ accountId: string; scopes: string[] }>
   transactions: Tx[]
   summary: Summary
   schemaReady: boolean
@@ -213,15 +214,27 @@ export function AuroraSavingsPageClient() {
         <div className="rounded-2xl border border-[#e5e7f0] bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2"><Landmark className="h-5 w-5 text-indigo-600" /><h2 className="text-base font-semibold text-slate-950">Conti Aurora</h2></div>
           <div className="mt-4 space-y-3">
-            {(data?.summary.byAccount ?? []).length === 0 ? <p className="text-sm text-slate-500">Imposta un conto fonte o crea un conto Aurora per iniziare.</p> : data!.summary.byAccount.map((account) => (
-              <div key={account.accountId} className="rounded-xl border border-[#e5e7f0] p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div><p className="font-semibold text-slate-950">{account.name}</p><p className="text-xs text-slate-500">{account.type} · {account.isActive ? 'Attivo' : 'Archiviato'}</p></div>
-                  <p className="font-bold tabular-nums text-slate-950">{formatCurrency(account.balance, account.currency)}</p>
+            {(data?.summary.byAccount ?? []).length === 0 ? <p className="text-sm text-slate-500">Imposta un conto fonte o crea un conto Aurora per iniziare.</p> : data!.summary.byAccount.map((account) => {
+              const isAlsoPersonal = (data?.accountScopes ?? []).some((entry) => entry.accountId === account.accountId && entry.scopes.includes('PERSONAL'))
+              return (
+                <div key={account.accountId} className="rounded-xl border border-[#e5e7f0] p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div><p className="font-semibold text-slate-950">{account.name}</p><p className="text-xs text-slate-500">{account.type} · {account.isActive ? 'Attivo' : 'Archiviato'}</p></div>
+                    <p className="font-bold tabular-nums text-slate-950">{formatCurrency(account.balance, account.currency)}</p>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.min(100, account.share)}%` }} /></div>
+                  <label className="mt-3 flex items-center gap-2 text-xs text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={isAlsoPersonal}
+                      disabled={saving}
+                      onChange={(event) => void submit({ action: 'setAccountScope', accountId: account.accountId, scope: 'PERSONAL', enabled: event.target.checked })}
+                    />
+                    Includi anche nel patrimonio personale
+                  </label>
                 </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.min(100, account.share)}%` }} /></div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 

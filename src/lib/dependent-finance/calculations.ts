@@ -39,10 +39,51 @@ export function isAdiScope(purpose: AssetPurpose | string | null | undefined): b
   return normalizeFinanceScope(purpose) === 'ADI'
 }
 
+// An account can carry more than one purpose row at once (e.g. the Aurora PAC account is both
+// PERSONAL and DEPENDENT_AURORA). getAccountScopesMap/accountHasScope expose that as a set; the
+// single-scope helper below (getAccountScopeMap) resolves one "primary" scope per account for
+// consumers that need exactly one (transfer direction, ledger scope columns). For any account with
+// 0 or 1 purpose rows -- true for every account until multiple links per account were allowed --
+// every function here returns exactly what it returned before.
+const SCOPE_PRECEDENCE: FinanceScope[] = ['DEPENDENT_AURORA', 'ADI', 'PERSONAL']
+
+export function getAccountScopesMap(
+  links: AccountScopeLink[],
+): Map<string, Set<FinanceScope>> {
+  const map = new Map<string, Set<FinanceScope>>()
+  for (const link of links) {
+    const scopes = map.get(link.account_id) ?? new Set<FinanceScope>()
+    scopes.add(normalizeFinanceScope(link.purpose))
+    map.set(link.account_id, scopes)
+  }
+  return map
+}
+
+export function getAccountEffectiveScopes(
+  links: AccountScopeLink[],
+  accountId: string,
+): Set<FinanceScope> {
+  const scopes = getAccountScopesMap(links).get(accountId)
+  return scopes && scopes.size > 0 ? scopes : new Set<FinanceScope>(['PERSONAL'])
+}
+
+export function accountHasScope(
+  links: AccountScopeLink[],
+  accountId: string,
+  scope: FinanceScope,
+): boolean {
+  return getAccountEffectiveScopes(links, accountId).has(scope)
+}
+
 export function getAccountScopeMap(
   links: AccountScopeLink[],
 ): Map<string, FinanceScope> {
-  return new Map(links.map((link) => [link.account_id, normalizeFinanceScope(link.purpose)]))
+  const scopesMap = getAccountScopesMap(links)
+  const primary = new Map<string, FinanceScope>()
+  for (const [accountId, scopes] of scopesMap) {
+    primary.set(accountId, SCOPE_PRECEDENCE.find((scope) => scopes.has(scope)) ?? 'PERSONAL')
+  }
+  return primary
 }
 
 export function getDependentAccountIds(links: AccountScopeLink[]): Set<string> {
@@ -85,12 +126,13 @@ export function getRealAuroraAccountIds(accounts: AccountIdentity[], links: Acco
 
 export function getPersonalExcludedAccountIds(links: AccountScopeLink[], accounts: AccountIdentity[] = []): Set<string> {
   const sharedAuroraIds = getSharedAuroraAccountIds(accounts, links)
-  return new Set(
-    links
-      .filter((link) => normalizeFinanceScope(link.purpose) !== 'PERSONAL')
-      .filter((link) => !sharedAuroraIds.has(link.account_id))
-      .map((link) => link.account_id),
-  )
+  const excluded = new Set<string>()
+  for (const [accountId, scopes] of getAccountScopesMap(links)) {
+    if (scopes.has('PERSONAL')) continue
+    if (sharedAuroraIds.has(accountId)) continue
+    excluded.add(accountId)
+  }
+  return excluded
 }
 
 export function filterAccountsByScope<T extends { id: string }>(

@@ -7,6 +7,7 @@ import {
   buildAuroraScopeSummary,
   classifyTransferDirection,
   filterAccountsByScope,
+  getAccountEffectiveScopes,
   getAccountScopeMap,
 } from '@/lib/dependent-finance/calculations'
 import type { AccountPurposeLink, FinanceScope } from '@/lib/dependent-finance/types'
@@ -22,6 +23,12 @@ const accountType = z.enum(['checking', 'savings', 'cash', 'credit', 'investment
 
 const actionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('linkAccount'), accountId: uuid }).strict(),
+  z.object({
+    action: z.literal('setAccountScope'),
+    accountId: uuid,
+    scope: z.enum(['PERSONAL', 'DEPENDENT_AURORA', 'ADI']),
+    enabled: z.boolean(),
+  }).strict(),
   z.object({
     action: z.literal('createAccount'),
     name: z.string().trim().min(1).max(120),
@@ -150,10 +157,45 @@ async function linkAuroraAccount(supabase: Supabase, userId: string, accountId: 
       beneficiary_id: beneficiary.id,
       purpose: AURORA_SCOPE,
       label: 'Risparmi di Aurora',
-    } as any, { onConflict: 'user_id,account_id' })
+    } as any, { onConflict: 'user_id,account_id,purpose' })
 
   if (error) throw new Error('LINK_FAILED')
   return { accountId, beneficiaryId: beneficiary.id }
+}
+
+async function setAccountScope(supabase: Supabase, userId: string, accountId: string, scope: FinanceScope, enabled: boolean) {
+  const { data: account, error: accountError } = await supabase
+    .from('accounts')
+    .select('id,user_id')
+    .eq('id', accountId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (accountError) throw new Error('ACCOUNT_VERIFY_FAILED')
+  if (!account) throw new Error('ACCOUNT_NOT_FOUND')
+
+  if (!enabled) {
+    const { error } = await supabase
+      .from('account_purpose_links')
+      .delete()
+      .eq('user_id', userId)
+      .eq('account_id', accountId)
+      .eq('purpose', scope)
+    if (error) throw new Error('LINK_FAILED')
+    return { accountId, scope, enabled }
+  }
+
+  const beneficiaryId = scope === 'DEPENDENT_AURORA' ? (await getAuroraBeneficiary(supabase, userId)).id : null
+  const { error } = await supabase
+    .from('account_purpose_links')
+    .upsert({
+      user_id: userId,
+      account_id: accountId,
+      beneficiary_id: beneficiaryId,
+      purpose: scope,
+      label: scope === 'DEPENDENT_AURORA' ? 'Risparmi di Aurora' : null,
+    } as any, { onConflict: 'user_id,account_id,purpose' })
+  if (error) throw new Error('LINK_FAILED')
+  return { accountId, scope, enabled }
 }
 
 async function assertAuroraAccount(supabase: Supabase, userId: string, accountId: string) {
@@ -264,6 +306,9 @@ export async function GET() {
       .limit(1000)
     : { data: [], error: null }
 
+  const adiEntriesRes = schemaReady
+    ? await supabase.from('adi_entries').select('entry_type,amount').eq('user_id', user.id)
+    : { data: [], error: null }
   if (transactionsRes.error) return json({ error: 'Movimenti Aurora non disponibili.' }, 500)
 
   const transactions = (transactionsRes.data ?? []).map((tx) => ({
@@ -273,6 +318,18 @@ export async function GET() {
 
   const auroraPatrimony = buildAuroraScopeSummary({ accounts: auroraAccounts, transactions, links: effectiveLinks })
 
+  // A dual-scope account (e.g. PERSONAL + DEPENDENT_AURORA) is counted in both `personal` and
+  // `aurora` below on purpose, but the combined `total` must count its balance only once.
+  const activeAccounts = accounts.filter((account) => account.is_active !== false)
+  const personalAccounts = filterAccountsByScope(activeAccounts, effectiveLinks, 'PERSONAL')
+  const personalPatrimony = personalAccounts.reduce((sum, account) => sum + Number(account.balance ?? 0), 0)
+  const activeAuroraAccounts = auroraAccounts.filter((account) => account.is_active !== false)
+  const combinedAccountIds = new Set([...personalAccounts.map((account) => account.id), ...activeAuroraAccounts.map((account) => account.id)])
+  const combinedBalance = activeAccounts
+    .filter((account) => combinedAccountIds.has(account.id))
+    .reduce((sum, account) => sum + Number(account.balance ?? 0), 0)
+  const adiBalance = (adiEntriesRes.data ?? []).reduce((sum, entry: any) => sum + (entry.entry_type === 'credit' ? Number(entry.amount) : -Number(entry.amount)), 0)
+
   return json({
     data: {
       beneficiary,
@@ -280,9 +337,17 @@ export async function GET() {
       suggestedAccount,
       accounts,
       auroraAccounts,
+      accountScopes: accounts.map((account) => ({ accountId: account.id, scopes: [...getAccountEffectiveScopes(effectiveLinks, account.id)] })),
       links: effectiveLinks,
       transactions,
       summary: auroraPatrimony,
+      monitoredTotal: {
+        personal: personalPatrimony,
+        aurora: auroraPatrimony.balance,
+        adi: adiBalance,
+        total: combinedBalance + adiBalance,
+        disclaimer: 'Il totale monitorato include patrimoni separati e non rappresenta denaro interamente disponibile per le spese personali. Un conto presente in più perimetri (es. il PAC di Aurora) è conteggiato una sola volta nel totale.',
+      },
       schemaReady,
       schemaMessage: schemaReady ? null : 'Lo schema Aurora/ADI non è ancora attivo su questo ambiente. Applica la migration 00030 prima di impostare conti fonte o registrare movimenti dedicati.',
     },
@@ -306,6 +371,10 @@ export async function POST(request: Request) {
     const body = parsed.data
     if (body.action === 'linkAccount') {
       return json({ data: await linkAuroraAccount(supabase, user.id, body.accountId) }, 201)
+    }
+
+    if (body.action === 'setAccountScope') {
+      return json({ data: await setAccountScope(supabase, user.id, body.accountId, body.scope, body.enabled) })
     }
 
     if (body.action === 'createAccount') {

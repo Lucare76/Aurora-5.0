@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   buildAuroraScopeSummary,
   classifyTransferDirection,
+  filterAccountsByScope,
+  filterPersonalAccounts,
+  getAccountEffectiveScopes,
   getAuroraTransactionImpact,
 } from './calculations'
 import type { MinimalAccount, MinimalTransaction } from './types'
@@ -109,5 +112,94 @@ describe('dependent finance Aurora transfer calculations', () => {
     expect(getAuroraTransactionImpact(tx, links)).toBe(0)
     expect(summary.periodChange).toBe(0)
     expect(summary.recentTransactions).toHaveLength(0)
+  })
+})
+
+describe('multi-scope accounts (an account can carry more than one purpose)', () => {
+  const dualAccount: MinimalAccount = {
+    id: 'pac-aurora-account',
+    name: 'PAC Aurora',
+    balance: 500,
+    currency: 'EUR',
+    is_active: true,
+    type: 'investment',
+  }
+
+  const auroraOnlyAccount: MinimalAccount = {
+    id: 'aurora-only-account',
+    name: 'Conto esclusivamente Aurora',
+    balance: 200,
+    currency: 'EUR',
+    is_active: true,
+    type: 'savings',
+  }
+
+  const plainPersonalAccount: MinimalAccount = {
+    id: 'plain-personal-account',
+    name: 'Conto personale',
+    balance: 100,
+    currency: 'EUR',
+    is_active: true,
+    type: 'checking',
+  }
+
+  const dualScopeLinks = [
+    { account_id: dualAccount.id, purpose: 'PERSONAL' },
+    { account_id: dualAccount.id, purpose: 'DEPENDENT_AURORA' },
+    { account_id: auroraOnlyAccount.id, purpose: 'DEPENDENT_AURORA' },
+    // plainPersonalAccount has no rows at all -> implicit PERSONAL, same as with 0-1 purpose today
+  ]
+
+  it('reports the explicit scopes for a dual-purpose account, and the implicit default for an unlinked one', () => {
+    expect(getAccountEffectiveScopes(dualScopeLinks, dualAccount.id)).toEqual(new Set(['PERSONAL', 'DEPENDENT_AURORA']))
+    expect(getAccountEffectiveScopes(dualScopeLinks, auroraOnlyAccount.id)).toEqual(new Set(['DEPENDENT_AURORA']))
+    expect(getAccountEffectiveScopes(dualScopeLinks, plainPersonalAccount.id)).toEqual(new Set(['PERSONAL']))
+  })
+
+  it('lets a dual-purpose account (PAC Aurora) appear in both the personal and the Aurora scoped views', () => {
+    const accounts = [dualAccount, auroraOnlyAccount, plainPersonalAccount]
+
+    const personal = filterPersonalAccounts(accounts, dualScopeLinks)
+    const aurora = filterAccountsByScope(accounts, dualScopeLinks, 'DEPENDENT_AURORA')
+
+    expect(personal.map((a) => a.id).sort()).toEqual([dualAccount.id, plainPersonalAccount.id].sort())
+    expect(aurora.map((a) => a.id).sort()).toEqual([auroraOnlyAccount.id, dualAccount.id].sort())
+  })
+
+  it('excludes an Aurora-only account from the personal view, exactly like a single-scope link today', () => {
+    const personal = filterPersonalAccounts([auroraOnlyAccount], dualScopeLinks)
+    expect(personal).toHaveLength(0)
+  })
+
+  it('never double-counts a dual-scope account balance in a combined personal+Aurora total', () => {
+    const accounts = [dualAccount, auroraOnlyAccount, plainPersonalAccount]
+    const personal = filterPersonalAccounts(accounts, dualScopeLinks)
+    const aurora = filterAccountsByScope(accounts, dualScopeLinks, 'DEPENDENT_AURORA')
+
+    const combinedIds = new Set([...personal.map((a) => a.id), ...aurora.map((a) => a.id)])
+    const combinedBalance = accounts
+      .filter((account) => combinedIds.has(account.id))
+      .reduce((sum, account) => sum + account.balance, 0)
+
+    // dualAccount.balance (500) must be counted exactly once, not once per scope (personal+aurora would be 1000+200=1200)
+    expect(combinedBalance).toBe(dualAccount.balance + auroraOnlyAccount.balance + plainPersonalAccount.balance)
+  })
+
+  it('removing the PERSONAL link leaves DEPENDENT_AURORA scope intact', () => {
+    const linksAfterRemovingPersonal = dualScopeLinks.filter(
+      (link) => !(link.account_id === dualAccount.id && link.purpose === 'PERSONAL'),
+    )
+
+    expect(getAccountEffectiveScopes(linksAfterRemovingPersonal, dualAccount.id)).toEqual(new Set(['DEPENDENT_AURORA']))
+    expect(filterPersonalAccounts([dualAccount], linksAfterRemovingPersonal)).toHaveLength(0)
+    expect(filterAccountsByScope([dualAccount], linksAfterRemovingPersonal, 'DEPENDENT_AURORA').map((a) => a.id)).toEqual([dualAccount.id])
+  })
+
+  it('keeps legacy single-purpose behavior unchanged for accounts with 0 or 1 purpose rows', () => {
+    // This mirrors the original single-scope `links` fixture above: every account has 0 or 1 rows.
+    expect(getAccountEffectiveScopes(links, auroraAccount.id)).toEqual(new Set(['DEPENDENT_AURORA']))
+    expect(getAccountEffectiveScopes(links, personalAccount.id)).toEqual(new Set(['PERSONAL']))
+    expect(getAccountEffectiveScopes(links, 'never-linked-account')).toEqual(new Set(['PERSONAL']))
+    expect(filterPersonalAccounts([auroraAccount, personalAccount], links).map((a) => a.id)).toEqual([personalAccount.id])
   })
 })
