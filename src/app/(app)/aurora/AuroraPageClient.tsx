@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/lib/utils'
 
 type Account = { id: string; name: string; balance: number; currency: string; is_active: boolean; type: string; color?: string | null }
-type Tx = { id: string; account_id: string; type: string; amount: number; date: string; description: string | null; notes?: string | null; transfer_peer_id: string | null }
+type Tx = { id: string; account_id: string; type: string; amount: number; date: string; description: string | null; notes?: string | null; transfer_peer_id: string | null; auroraImpact?: number }
 type Summary = {
   balance: number
   liquidity: number
@@ -287,7 +287,9 @@ export function AuroraSavingsPageClient() {
         <div className="rounded-2xl border border-[#e5e7f0] bg-white shadow-sm">
           <div className="border-b border-[#e5e7f0] p-5"><h2 className="text-base font-semibold text-slate-950">Ultimi movimenti Aurora</h2></div>
           <div className="divide-y divide-[#e5e7f0]">
-            {(data?.summary.recentTransactions ?? []).length === 0 ? <p className="p-5 text-sm text-slate-500">Nessun movimento Aurora registrato.</p> : data!.summary.recentTransactions.slice(0, 8).map((tx) => (
+            {(data?.summary.recentTransactions ?? []).length === 0 ? <p className="p-5 text-sm text-slate-500">Nessun movimento Aurora registrato.</p> : data!.summary.recentTransactions.slice(0, 8).map((tx) => {
+              const impact = tx.auroraImpact ?? (tx.type === 'expense' ? -Number(tx.amount) : Number(tx.amount))
+              return (
               <div key={tx.id} className="flex items-center justify-between gap-3 p-4">
                 {editingMovement?.transactionId === tx.id ? (
                   <form onSubmit={saveMovementEdit} className="w-full space-y-3 rounded-xl bg-slate-50 p-3">
@@ -308,7 +310,7 @@ export function AuroraSavingsPageClient() {
                   <>
                     <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-950">{tx.description ?? 'Movimento Aurora'}</p><p className="text-xs text-slate-500">{tx.date}{tx.transfer_peer_id ? ' · Giroconto' : ''}</p></div>
                     <div className="flex items-center gap-2">
-                      <p className={tx.type === 'expense' ? 'text-sm font-bold tabular-nums text-red-600' : 'text-sm font-bold tabular-nums text-emerald-600'}>{tx.type === 'expense' ? '-' : '+'}{formatCurrency(Number(tx.amount))}</p>
+                      <p className={impact < 0 ? 'text-sm font-bold tabular-nums text-red-600' : impact > 0 ? 'text-sm font-bold tabular-nums text-emerald-600' : 'text-sm font-bold tabular-nums text-slate-500'}>{impact < 0 ? '-' : impact > 0 ? '+' : ''}{formatCurrency(Math.abs(impact))}</p>
                       {!tx.transfer_peer_id && (
                         <button type="button" onClick={() => startEditMovement(tx)} className="rounded-lg border border-[#e5e7f0] bg-white p-2 text-slate-500 hover:bg-slate-50" aria-label="Modifica movimento Aurora"><Pencil className="h-4 w-4" /></button>
                       )}
@@ -317,7 +319,8 @@ export function AuroraSavingsPageClient() {
                   </>
                 )}
               </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>

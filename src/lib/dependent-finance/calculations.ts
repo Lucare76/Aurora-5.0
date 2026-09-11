@@ -149,6 +149,24 @@ export function classifyTransferDirection(
   return 'PERSONAL_TO_PERSONAL'
 }
 
+export function getAuroraTransactionImpact(
+  transaction: MinimalTransaction,
+  links: AccountScopeLink[],
+): number {
+  const value = amount(transaction.amount)
+  const direction = transaction.type === 'transfer' || transaction.transfer_peer_id
+    ? classifyTransferDirection(transaction.account_id ?? '', transaction.destination_account_id ?? transaction.transfer_peer_id, links)
+    : null
+
+  if (direction === 'PERSONAL_TO_AURORA') return value
+  if (direction === 'AURORA_TO_PERSONAL') return -value
+  if (direction === 'AURORA_TO_AURORA') return 0
+  if (direction === 'PERSONAL_TO_PERSONAL') return 0
+  if (transaction.type === 'income') return value
+  if (transaction.type === 'expense') return -value
+  return 0
+}
+
 export function buildAuroraAccountSummary(params: {
   account: MinimalAccount | null
   transactions: MinimalTransaction[]
@@ -268,7 +286,10 @@ export function buildAuroraScopeSummary(params: {
     incomeByCategory: [...incomeByCategory.entries()].map(([categoryId, total]) => ({ categoryId, total })),
     expenseByCategory: [...expenseByCategory.entries()].map(([categoryId, total]) => ({ categoryId, total })),
     monthlyTrend: [...monthly.values()].sort((a, b) => a.month.localeCompare(b.month)).slice(-12),
-    recentTransactions: txs.slice(0, 20),
+    recentTransactions: txs.slice(0, 20).map((tx) => ({
+      ...tx,
+      auroraImpact: getAuroraTransactionImpact(tx, params.links),
+    })),
   }
 }
 
