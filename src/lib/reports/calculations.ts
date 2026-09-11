@@ -1,5 +1,4 @@
 import {
-  calculateTransferTotal,
   isCountableExpense,
   isCountableIncome,
   roundMoney,
@@ -94,6 +93,31 @@ function netWorth(accounts: ReportAccountInput[], includeArchivedAccounts: boole
 
 function cashFlow(txs: AppTransaction[]): number {
   return roundMoney(sum(countableIncome(txs).map((tx) => tx.amount)) - sum(countableExpenses(txs).map((tx) => tx.amount)))
+}
+
+/**
+ * Sums valid internal transfers in `txs`, counting each real-world transfer once.
+ * Local replacement for aggregations.ts' calculateTransferTotal: that function
+ * only counts a 'peer_transaction' leg when type==='expense', which is correct
+ * when BOTH legs of a same-scope transfer are present (avoids double counting)
+ * but wrongly drops the leg entirely when it's the ONLY one present — exactly
+ * what happens for a cross-scope transfer (PERSONAL <-> Aurora/DEPENDENT/ADI),
+ * where the report only ever sees the PERSONAL-scope leg. Here we only apply the
+ * "count just the expense leg" dedup when the other leg is actually in `txs`;
+ * otherwise the lone leg is counted regardless of income/expense direction.
+ */
+function sumInternalTransfers(txs: AppTransaction[]): number {
+  const byId = new Map(txs.map((tx) => [tx.id, tx]))
+  let total = 0
+  for (const tx of txs) {
+    if (tx.transferReferenceKind === 'destination_account') {
+      total += tx.amount
+    } else if (tx.transferReferenceKind === 'peer_transaction') {
+      const peerAlsoPresent = Boolean(tx.peerTransactionId && byId.has(tx.peerTransactionId))
+      if (!peerAlsoPresent || tx.type === 'expense') total += tx.amount
+    }
+  }
+  return roundMoney(total)
 }
 
 function accountFlow(txs: AppTransaction[], accountId: string): number {
@@ -538,11 +562,26 @@ export function computeAdvancedReport(params: {
   typeFilter: 'all' | 'income' | 'expense' | 'both'
   includeTransfers: boolean
   includeArchivedAccounts: boolean
+  // Unfiltered accounts/transactions (all scopes), used ONLY to resolve the other
+  // leg of a transfer whose destination account/peer transaction was excluded from
+  // `accounts`/`transactions` by PERSONAL scope filtering (e.g. a PERSONAL <->
+  // Aurora/DEPENDENT/ADI transfer). Never iterated as report content: they only
+  // feed adaptTransactionRows' lookup maps (accountById/peerById) so
+  // classifyTransferReference can resolve 'destination_account'/'peer_transaction'
+  // instead of falling back to 'invalid'/'orphan'. Without this, a resolved
+  // cross-scope leg's amount silently drops out of summary.internalTransfersAmount
+  // (it was already correctly excluded from income/expense and already correctly
+  // reflected in balance/net-worth flow either way — accountFlow/accountFlowAfter
+  // below check `transferReferenceKind !== 'none'`, not the resolved kind).
+  // Defaults to `accounts`/`transactions` so existing single-scope callers/tests
+  // are unaffected.
+  referenceAccounts?: ReportAccountInput[]
+  referenceTransactions?: ReportTransactionInput[]
 }) {
   const accounts = params.accounts
   const categories = params.categories
   const rawTxs = params.transactions.map((tx) => ({ ...tx, user_id: 'report-user', notes: null, receipt_url: null, receipt_data: null, created_at: '', updated_at: '' })) as Transaction[]
-  const adapterAccounts = accounts.map((account) => ({
+  const adapterAccounts = (params.referenceAccounts ?? accounts).map((account) => ({
     ...account,
     user_id: 'report-user',
     icon: null,
@@ -550,7 +589,8 @@ export function computeAdvancedReport(params: {
     created_at: '',
     updated_at: '',
   })) as Account[]
-  const adapted = adaptTransactionRows(rawTxs, { accounts: adapterAccounts, peerTransactions: rawTxs })
+  const referenceTxs = (params.referenceTransactions ?? params.transactions).map((tx) => ({ ...tx, user_id: 'report-user', notes: null, receipt_url: null, receipt_data: null, created_at: '', updated_at: '' })) as Transaction[]
+  const adapted = adaptTransactionRows(rawTxs, { accounts: adapterAccounts, peerTransactions: referenceTxs })
   const scoped = adapted.filter((tx) => {
     if (params.accountFilter && tx.accountId !== params.accountFilter && tx.destinationAccountId !== params.accountFilter) return false
     if (params.categoryFilter && rootCategoryId(tx.categoryId, categories) !== params.categoryFilter && tx.categoryId !== params.categoryFilter) return false
@@ -590,7 +630,7 @@ export function computeAdvancedReport(params: {
     netWorthEnd,
     netWorthChange: roundMoney(netWorthEnd - netWorthStart),
     netWorthChangePercentage: netWorthStart !== 0 ? roundMoney(((netWorthEnd - netWorthStart) / Math.abs(netWorthStart)) * 100) : null,
-    internalTransfersAmount: params.includeTransfers ? calculateTransferTotal(periodTxs) : 0,
+    internalTransfersAmount: params.includeTransfers ? sumInternalTransfers(periodTxs) : 0,
   }
   const previousIncome = sum(countableIncome(previousTxs).map((tx) => tx.amount))
   const previousExpenses = sum(countableExpenses(previousTxs).map((tx) => tx.amount))

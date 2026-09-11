@@ -214,6 +214,8 @@ export async function buildReportPayload(
     typeFilter: filters.type,
     includeTransfers: filters.includeTransfers,
     includeArchivedAccounts: filters.includeArchivedAccounts,
+    referenceAccounts: rawAccounts,
+    referenceTransactions: (transactionsRes.data ?? []) as ReportTransactionInput[],
   })
 
   return {

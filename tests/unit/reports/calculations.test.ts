@@ -394,6 +394,126 @@ describe('financial reports calculations', () => {
     expect(payload.summary.netWorthChangePercentage).toBeNull()
   })
 
+  describe('bug isolamento scope nei giroconti cross-scope (referenceAccounts/referenceTransactions)', () => {
+    // Simula esattamente cio' che reports/service.ts fa oggi: `accounts`/`transactions`
+    // sono gia' filtrati allo scope PERSONAL (il conto Aurora/ADI e la sua gamba del
+    // giroconto non ci sono), mentre `referenceAccounts`/`referenceTransactions`
+    // rappresentano il dataset completo non filtrato disponibile in service.ts, usato
+    // SOLO per risolvere l'altra gamba del trasferimento.
+    const auroraAccount: ReportAccountInput = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa8', name: 'Buoni Fruttiferi', type: 'savings', balance: 5000, currency: 'EUR', color: '#f59e0b', is_active: true, is_hidden: false }
+    const adiAccount: ReportAccountInput = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa7', name: 'ADI', type: 'checking', balance: 800, currency: 'EUR', color: '#0ea5e9', is_active: true, is_hidden: false }
+
+    function runReport(personalTxs: ReportTransactionInput[], referenceTransactions: ReportTransactionInput[], referenceAccounts: ReportAccountInput[]) {
+      const { period, previousPeriod } = buildReportPeriods('2026-07-01', '2026-07-31')
+      return computeAdvancedReport({
+        accounts, categories, transactions: personalTxs,
+        activeRecurringRulesCount: 0, period, previousPeriod,
+        accountFilter: null, categoryFilter: null, typeFilter: 'both',
+        includeTransfers: true, includeArchivedAccounts: false,
+        referenceAccounts, referenceTransactions,
+      })
+    }
+
+    it('1. PERSONAL -> PERSONAL: il transfer resta riconosciuto correttamente (nessuna regressione senza reference)', () => {
+      const { period, previousPeriod } = buildReportPeriods('2026-07-01', '2026-07-31')
+      const txs: ReportTransactionInput[] = [
+        { id: 't1', account_id: accounts[0].id, category_id: null, type: 'transfer', amount: 250, description: 'Giroconto interno', date: '2026-07-15', transfer_peer_id: accounts[1].id, recurring_id: null },
+      ]
+      const payload = computeAdvancedReport({
+        accounts, categories, transactions: txs,
+        activeRecurringRulesCount: 0, period, previousPeriod,
+        accountFilter: null, categoryFilter: null, typeFilter: 'both',
+        includeTransfers: true, includeArchivedAccounts: false,
+      })
+      expect(payload.summary.internalTransfersAmount).toBe(250)
+      expect(payload.summary.totalIncome).toBe(0)
+      expect(payload.summary.totalExpenses).toBe(0)
+    })
+
+    it('2. PERSONAL -> DEPENDENT (Aurora): la gamba personale resta visibile, non e income/expense, conta nei trasferimenti', () => {
+      const personalLeg: ReportTransactionInput = { id: 'leg-out', account_id: accounts[0].id, category_id: null, type: 'expense', amount: 400, description: 'Verso Aurora', date: '2026-07-15', transfer_peer_id: 'leg-in-aurora', recurring_id: null }
+      const auroraLeg: ReportTransactionInput = { id: 'leg-in-aurora', account_id: auroraAccount.id, category_id: null, type: 'income', amount: 400, description: 'Da personale', date: '2026-07-15', transfer_peer_id: 'leg-out', recurring_id: null }
+
+      const withoutReference = runReport([personalLeg], [personalLeg], accounts)
+      // Prima della fix: senza il dataset di reference la gamba resta 'invalid' e sparisce anche dai trasferimenti.
+      expect(withoutReference.summary.internalTransfersAmount).toBe(0)
+
+      const withReference = runReport([personalLeg], [personalLeg, auroraLeg], [...accounts, auroraAccount])
+      expect(withReference.summary.transactionCount).toBe(1)
+      expect(withReference.summary.totalIncome).toBe(0)
+      expect(withReference.summary.totalExpenses).toBe(0)
+      expect(withReference.summary.internalTransfersAmount).toBe(400)
+    })
+
+    it('3. DEPENDENT (Aurora) -> PERSONAL: stesso comportamento corretto lato personale', () => {
+      const auroraLeg: ReportTransactionInput = { id: 'leg-out-aurora', account_id: auroraAccount.id, category_id: null, type: 'expense', amount: 150, description: 'Da Aurora', date: '2026-07-16', transfer_peer_id: 'leg-in-personal', recurring_id: null }
+      const personalLeg: ReportTransactionInput = { id: 'leg-in-personal', account_id: accounts[0].id, category_id: null, type: 'income', amount: 150, description: 'Da Aurora', date: '2026-07-16', transfer_peer_id: 'leg-out-aurora', recurring_id: null }
+
+      const withReference = runReport([personalLeg], [personalLeg, auroraLeg], [...accounts, auroraAccount])
+      expect(withReference.summary.transactionCount).toBe(1)
+      expect(withReference.summary.totalIncome).toBe(0)
+      expect(withReference.summary.totalExpenses).toBe(0)
+      expect(withReference.summary.internalTransfersAmount).toBe(150)
+    })
+
+    it('4. PERSONAL -> ADI: nessuna contaminazione del report personale, transfer riconosciuto', () => {
+      const personalLeg: ReportTransactionInput = { id: 'leg-out-adi', account_id: accounts[0].id, category_id: null, type: 'expense', amount: 60, description: 'Verso ADI', date: '2026-07-17', transfer_peer_id: 'leg-in-adi', recurring_id: null }
+      const adiLeg: ReportTransactionInput = { id: 'leg-in-adi', account_id: adiAccount.id, category_id: null, type: 'income', amount: 60, description: 'Da personale', date: '2026-07-17', transfer_peer_id: 'leg-out-adi', recurring_id: null }
+
+      const withReference = runReport([personalLeg], [personalLeg, adiLeg], [...accounts, adiAccount])
+      expect(withReference.summary.totalIncome).toBe(0)
+      expect(withReference.summary.totalExpenses).toBe(0)
+      expect(withReference.summary.internalTransfersAmount).toBe(60)
+      // Il conto ADI non deve mai comparire tra i conti del report personale.
+      expect(withReference.accounts.some((a) => a.accountId === adiAccount.id)).toBe(false)
+    })
+
+    it('5. referenceAccounts/referenceTransactions servono solo a classificare, non introducono righe fuori scope', () => {
+      const personalLeg: ReportTransactionInput = { id: 'leg-out-ref', account_id: accounts[0].id, category_id: null, type: 'expense', amount: 300, description: 'Verso Aurora', date: '2026-07-18', transfer_peer_id: 'leg-in-ref', recurring_id: null }
+      const auroraLeg: ReportTransactionInput = { id: 'leg-in-ref', account_id: auroraAccount.id, category_id: null, type: 'income', amount: 300, description: 'Da personale', date: '2026-07-18', transfer_peer_id: 'leg-out-ref', recurring_id: null }
+
+      const payload = runReport([personalLeg], [personalLeg, auroraLeg], [...accounts, auroraAccount])
+      // Un solo movimento visibile nel report (la gamba personale); la gamba Aurora
+      // (fuori scope) non deve mai comparire come riga di report.
+      expect(payload.summary.transactionCount).toBe(1)
+      expect(payload.accounts.map((a) => a.accountId)).not.toContain(auroraAccount.id)
+      expect(payload.accounts).toHaveLength(accounts.length)
+    })
+
+    it('6. transfer con riferimento realmente rotto: resta invalid, nessuna regressione', () => {
+      const brokenLeg: ReportTransactionInput = { id: 'leg-broken', account_id: accounts[0].id, category_id: categories[3].id, type: 'expense', amount: 45, description: 'Riferimento inesistente', date: '2026-07-19', transfer_peer_id: 'non-esiste-nessuna-transazione-o-conto-con-questo-id', recurring_id: null }
+      const payload = runReport([brokenLeg], [brokenLeg], [...accounts, auroraAccount])
+      // Non risolvibile in nessun modo: resta fuori da entrate/uscite E dal totale
+      // trasferimenti (comportamento gia' corretto e invariato per riferimenti rotti veri).
+      expect(payload.summary.totalExpenses).toBe(0)
+      expect(payload.summary.internalTransfersAmount).toBe(0)
+    })
+
+    it('7. nessuna doppia conta nei totali trasferimenti con piu giroconti cross-scope nello stesso periodo', () => {
+      const legOut1: ReportTransactionInput = { id: 'multi-out-1', account_id: accounts[0].id, category_id: null, type: 'expense', amount: 100, description: 'Verso Aurora 1', date: '2026-07-05', transfer_peer_id: 'multi-in-1', recurring_id: null }
+      const legIn1: ReportTransactionInput = { id: 'multi-in-1', account_id: auroraAccount.id, category_id: null, type: 'income', amount: 100, description: 'Da personale', date: '2026-07-05', transfer_peer_id: 'multi-out-1', recurring_id: null }
+      const legOut2: ReportTransactionInput = { id: 'multi-out-2', account_id: accounts[0].id, category_id: null, type: 'expense', amount: 200, description: 'Verso Aurora 2', date: '2026-07-06', transfer_peer_id: 'multi-in-2', recurring_id: null }
+      const legIn2: ReportTransactionInput = { id: 'multi-in-2', account_id: auroraAccount.id, category_id: null, type: 'income', amount: 200, description: 'Da personale', date: '2026-07-06', transfer_peer_id: 'multi-out-2', recurring_id: null }
+
+      const payload = runReport(
+        [legOut1, legOut2],
+        [legOut1, legIn1, legOut2, legIn2],
+        [...accounts, auroraAccount],
+      )
+      expect(payload.summary.internalTransfersAmount).toBe(300)
+      expect(payload.summary.transactionCount).toBe(2)
+    })
+
+    it('8. comportamento esistente PERSONAL-only invariato quando non si passano reference (default ai parametri gia esistenti)', () => {
+      const payload = report()
+      expect(payload.summary.totalIncome).toBe(2000)
+      expect(payload.summary.totalExpenses).toBe(880)
+      expect(payload.summary.netCashFlow).toBe(1120)
+      expect(payload.summary.internalTransfersAmount).toBe(300)
+      expect(payload.summary.savingsRate).toBe(56)
+    })
+  })
+
   it('calcola saldo iniziale corretto con transazioni successive al periodo', () => {
     // Transactions after periodTo are processed by accountFlowAfter (lines 334-338)
     const { period, previousPeriod } = buildReportPeriods('2026-07-01', '2026-07-31')
