@@ -8,13 +8,13 @@ vi.mock('@/lib/supabase/server', () => ({
 const createClientMock = vi.mocked(createClient)
 const userId = '11111111-1111-4111-8111-111111111111'
 
-function makeBuilder(data: unknown[] = []) {
+function makeBuilder(data: unknown[] = [], error: unknown = null) {
   const builder: Record<string, unknown> = {}
   const methods = ['select', 'eq', 'neq', 'gte', 'lte', 'not', 'in', 'order', 'limit', 'is']
   for (const m of methods) {
     builder[m] = vi.fn(() => builder)
   }
-  builder.then = (resolve: (v: unknown) => void) => resolve({ data, error: null })
+  builder.then = (resolve: (v: unknown) => void) => resolve({ data, error })
   return builder
 }
 
@@ -170,5 +170,21 @@ describe('GET /api/dashboard', () => {
     const response = await GET()
 
     expect(response.headers.get('Cache-Control')).toBe('no-store')
+  })
+
+  it('P1 fail-closed: se account_purpose_links fallisce, la dashboard fallisce invece di trattare i conti Aurora/ADI come personali', async () => {
+    createClientMock.mockResolvedValue({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: userId } }, error: null }) },
+      from: vi.fn((table: string) => {
+        if (table === 'account_purpose_links') return makeBuilder([], { code: 'XX000', message: 'scope query down' })
+        return makeBuilder([])
+      }),
+    } as never)
+    const { GET } = await import('@/app/api/dashboard/route')
+
+    const response = await GET()
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: 'INTERNAL_ERROR' })
   })
 })

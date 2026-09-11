@@ -13,6 +13,31 @@ import { ADI_CATEGORIES, AURORA_ACCOUNT_SUGGESTION } from './constants'
 type AccountScopeLink = { account_id: string; purpose: string | null | undefined }
 type AccountIdentity = { id: string; name?: string | null }
 
+/**
+ * Thrown by loadAccountPurposeLinks when the account_purpose_links query itself
+ * failed. Callers must let this propagate (fail-closed) rather than catch it and
+ * substitute []: a failed scope lookup is not the same as "no scopes exist", and
+ * treating it as [] lets Aurora/ADI accounts fall back into the PERSONAL perimeter.
+ */
+export class AccountPurposeLinksLoadError extends Error {
+  constructor(cause?: unknown) {
+    super('Lettura scope conti (account_purpose_links) non riuscita.')
+    this.name = 'AccountPurposeLinksLoadError'
+    if (cause !== undefined) (this as { cause?: unknown }).cause = cause
+  }
+}
+
+/**
+ * Fail-closed loader for an account_purpose_links Supabase query result.
+ * A successful query with zero rows is legitimately [] (no special scopes).
+ * A failed query must never become [] — that reads as "no special scopes" and
+ * lets DEPENDENT/DEPENDENT_AURORA/ADI accounts leak into the PERSONAL perimeter.
+ */
+export function loadAccountPurposeLinks(result: { data: unknown; error: unknown }): unknown[] {
+  if (result.error) throw new AccountPurposeLinksLoadError(result.error)
+  return (result.data as unknown[] | null) ?? []
+}
+
 function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100
 }

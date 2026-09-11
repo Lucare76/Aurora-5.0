@@ -133,7 +133,11 @@ async function readScopeLinks(supabase: Supabase, userId: string): Promise<Accou
     .from('account_purpose_links')
     .select('*')
     .eq('user_id', userId)
-  if (error) return []
+  // Fail-closed: a failed query is not "no scope links". Returning [] here would let
+  // DEPENDENT_AURORA/ADI accounts (and the PAC dual-scope account) silently fall back
+  // into the PERSONAL perimeter downstream (getAccountEffectiveScopes defaults an
+  // account with no matching link to PERSONAL).
+  if (error) throw new Error('SCOPE_LINKS_FAILED')
   return (data ?? []) as AccountPurposeLink[]
 }
 
@@ -242,6 +246,7 @@ function errorResponse(error: unknown) {
     TRANSACTION_VERIFY_FAILED: ['Movimento non verificabile.', 500],
     TRANSACTION_NOT_FOUND: ['Movimento non trovato o non autorizzato.', 404],
     LINK_FAILED: ['Collegamento del conto non riuscito.', 500],
+    SCOPE_LINKS_FAILED: ['Impossibile leggere lo scope dei conti (Aurora/ADI/personale).', 500],
     AURORA_SCOPE_REQUIRED: ['Seleziona un conto del perimetro Aurora.', 400],
     PERSONAL_DESTINATION_REASON_REQUIRED: ['Indica il motivo del trasferimento dal patrimonio di Aurora al personale.', 400],
     RPC_FAILED: ['Operazione contabile Aurora non riuscita.', 500],
@@ -250,15 +255,30 @@ function errorResponse(error: unknown) {
   return json({ error: safeMessage }, status)
 }
 
+async function loadAuroraOverviewData(supabase: Supabase, userId: string) {
+  const [accountsRes, beneficiariesRes, links] = await Promise.all([
+    supabase.from('accounts').select('id,name,balance,currency,is_active,type,color,icon').eq('user_id', userId).order('sort_order', { ascending: true }),
+    supabase.from('dependent_beneficiaries').select('*').eq('user_id', userId).eq('name', AURORA_BENEFICIARY_NAME).maybeSingle(),
+    readScopeLinks(supabase, userId),
+  ])
+  return { accountsRes, beneficiariesRes, links }
+}
+
 export async function GET() {
   const { supabase, user, response } = await requireAuroraAccess()
   if (response) return response
 
-  const [accountsRes, beneficiariesRes, links] = await Promise.all([
-    supabase.from('accounts').select('id,name,balance,currency,is_active,type,color,icon').eq('user_id', user.id).order('sort_order', { ascending: true }),
-    supabase.from('dependent_beneficiaries').select('*').eq('user_id', user.id).eq('name', AURORA_BENEFICIARY_NAME).maybeSingle(),
-    readScopeLinks(supabase, user.id),
-  ])
+  let overview: Awaited<ReturnType<typeof loadAuroraOverviewData>>
+  try {
+    overview = await loadAuroraOverviewData(supabase, user.id)
+  } catch (error) {
+    // readScopeLinks fails closed (throws) instead of returning []: without the real
+    // scope links we cannot safely tell Aurora/ADI/PAC accounts apart from personal
+    // ones, so the whole page must fail rather than render with a wrong perimeter.
+    console.error('[aurora] scope links query failed', { name: error instanceof Error ? error.name : 'unknown' })
+    return json({ error: 'Configurazione Aurora non disponibile.' }, 500)
+  }
+  const { accountsRes, beneficiariesRes, links } = overview
 
   if (accountsRes.error) {
     console.error('[aurora] accounts query failed', accountsRes.error)

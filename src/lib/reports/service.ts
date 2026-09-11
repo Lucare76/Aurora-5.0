@@ -186,11 +186,11 @@ export async function buildReportPayload(
       .select('account_id,purpose'),
   ])
 
-  if (accountsRes.error || categoriesRes.error || transactionsRes.error || recurringRes.error) {
+  if (accountsRes.error || categoriesRes.error || transactionsRes.error || recurringRes.error || accountPurposeRes.error) {
     throw new ReportInputError('REPORT_FAILED', 'Report non disponibile.')
   }
 
-  const accountPurposeLinks = accountPurposeRes.error ? [] : (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
+  const accountPurposeLinks = (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
   const rawAccounts = (accountsRes.data ?? []) as ReportAccountInput[]
   const accounts = filterPersonalAccounts(rawAccounts, accountPurposeLinks)
   const categories = (categoriesRes.data ?? []) as ReportCategoryInput[]

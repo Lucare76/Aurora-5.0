@@ -172,7 +172,7 @@ export async function searchAurora(
       .eq('user_id', userId),
   ])
 
-  const errors = [txRes, accountRes, categoryRes, budgetRes, goalRes, loanRes, recurringRes, automationRes]
+  const errors = [txRes, accountRes, categoryRes, budgetRes, goalRes, loanRes, recurringRes, automationRes, accountPurposeRes]
     .map((res) => res.error)
     .filter(Boolean)
   if (errors.length > 0) throw errors[0]

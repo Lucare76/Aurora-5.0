@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { affordabilityInputSchema } from '@/lib/affordability/validation'
 import { runAffordabilityEngine } from '@/lib/affordability/engine'
 import type { AffordabilityDbData, AffordabilityInput } from '@/lib/affordability/types'
-import { filterPersonalAccounts, filterPersonalTransactions, getPersonalExcludedAccountIds } from '@/lib/dependent-finance/calculations'
+import { filterPersonalAccounts, filterPersonalTransactions, getPersonalExcludedAccountIds, loadAccountPurposeLinks } from '@/lib/dependent-finance/calculations'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,20 +62,20 @@ export async function POST(request: Request) {
       supabase.from('account_purpose_links').select('account_id,purpose').eq('user_id', user.id),
     ])
 
-  const accountPurposeLinks = accountPurposeRes.error ? [] : (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
-  const rawAccounts = (accountsRes.data ?? []) as AffordabilityDbData['accounts']
-  const dedicatedAccountIds = getPersonalExcludedAccountIds(accountPurposeLinks, rawAccounts)
-  const dbData: AffordabilityDbData = {
-    accounts: filterPersonalAccounts(rawAccounts, accountPurposeLinks),
-    recurringRules: ((recurringRes.data ?? []) as AffordabilityDbData['recurringRules']).filter((rule) => !rule.account_id || !dedicatedAccountIds.has(rule.account_id)),
-    recentTransactions: filterPersonalTransactions((txRes.data ?? []) as AffordabilityDbData['recentTransactions'], accountPurposeLinks, rawAccounts),
-    loans: (loansRes.data ?? []) as AffordabilityDbData['loans'],
-    loanPayments: (loanPaymentsRes.data ?? []) as AffordabilityDbData['loanPayments'],
-    goals: (goalsRes.data ?? []) as AffordabilityDbData['goals'],
-    goalContributions: (contribRes.data ?? []) as AffordabilityDbData['goalContributions'],
-  }
-
   try {
+    const accountPurposeLinks = loadAccountPurposeLinks(accountPurposeRes) as Array<{ account_id: string; purpose: string }>
+    const rawAccounts = (accountsRes.data ?? []) as AffordabilityDbData['accounts']
+    const dedicatedAccountIds = getPersonalExcludedAccountIds(accountPurposeLinks, rawAccounts)
+    const dbData: AffordabilityDbData = {
+      accounts: filterPersonalAccounts(rawAccounts, accountPurposeLinks),
+      recurringRules: ((recurringRes.data ?? []) as AffordabilityDbData['recurringRules']).filter((rule) => !rule.account_id || !dedicatedAccountIds.has(rule.account_id)),
+      recentTransactions: filterPersonalTransactions((txRes.data ?? []) as AffordabilityDbData['recentTransactions'], accountPurposeLinks, rawAccounts),
+      loans: (loansRes.data ?? []) as AffordabilityDbData['loans'],
+      loanPayments: (loanPaymentsRes.data ?? []) as AffordabilityDbData['loanPayments'],
+      goals: (goalsRes.data ?? []) as AffordabilityDbData['goals'],
+      goalContributions: (contribRes.data ?? []) as AffordabilityDbData['goalContributions'],
+    }
+
     const result = runAffordabilityEngine(input, dbData, new Date())
     return json({ data: result }, 200)
   } catch (err) {

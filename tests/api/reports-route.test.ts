@@ -89,4 +89,27 @@ describe('GET /api/reports', () => {
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: 'REPORT_FAILED' })
   })
+
+  it('P1 fail-closed: se SOLO account_purpose_links fallisce, il report fallisce e non include conti Aurora/ADI come personali', async () => {
+    // Regression: un errore isolato su account_purpose_links veniva assorbito in [],
+    // che il codice a valle legge come "nessuno scope speciale" — un conto Aurora/ADI
+    // sarebbe rientrato per errore nel report personale. Qui TUTTE le altre query
+    // (accounts/categories/transactions/recurring_rules) hanno successo: solo
+    // account_purpose_links fallisce, e questo da solo deve bastare a far fallire
+    // il report (REPORT_FAILED), non a produrne uno con un perimetro sbagliato.
+    mockSupabase(true, vi.fn((table: string) => {
+      if (table === 'account_purpose_links') return makeBuilder([], { code: 'XX000', message: 'scope query down' })
+      if (table === 'accounts') {
+        return makeBuilder([{ id: accountId, name: 'Banca', type: 'checking', balance: 1000, currency: 'EUR', color: null, is_active: true, is_hidden: false }])
+      }
+      if (table === 'categories') {
+        return makeBuilder([{ id: categoryId, name: 'Stipendio', type: 'income', color: null, icon: '💰', parent_id: null }])
+      }
+      return makeBuilder([])
+    }))
+    const { GET } = await import('@/app/api/reports/route')
+    const response = await GET(new Request('http://localhost/api/reports'))
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: 'REPORT_FAILED' })
+  })
 })

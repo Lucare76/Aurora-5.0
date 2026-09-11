@@ -159,8 +159,9 @@ async function loadDbData(supabase: Awaited<ReturnType<typeof createClient>>, us
   assertQuerySucceeded('loan_payments', loanPaymentsRes)
   assertQuerySucceeded('savings_goals', goalsRes)
   assertQuerySucceeded('goal_contributions', contribRes)
+  assertQuerySucceeded('account_purpose_links', accountPurposeRes)
 
-  const accountPurposeLinks = accountPurposeRes.error ? [] : (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
+  const accountPurposeLinks = (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
   const rawAccounts = (accountsRes.data ?? []) as AffordabilityDbData['accounts']
   const dedicatedAccountIds = getPersonalExcludedAccountIds(accountPurposeLinks, rawAccounts)
 

@@ -178,10 +178,10 @@ export async function buildFinancialHealthPayload(
     (supabase as unknown as SupabaseClient).from('account_purpose_links').select('account_id,purpose').eq('user_id', userId),
   ])
 
-  const required = [profileRes, accountsRes, categoriesRes, transactionsRes, budgetsRes, recurringRes, goalsRes, contributionsRes, loansRes, loanPaymentsRes]
+  const required = [profileRes, accountsRes, categoriesRes, transactionsRes, budgetsRes, recurringRes, goalsRes, contributionsRes, loansRes, loanPaymentsRes, accountPurposeRes]
   if (required.some((res) => res.error)) throw new FinancialHealthInputError('FINANCIAL_HEALTH_CALCULATION_FAILED', 'Calcolo non disponibile.')
 
-  const accountPurposeLinks = accountPurposeRes.error ? [] : (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
+  const accountPurposeLinks = (accountPurposeRes.data ?? []) as Array<{ account_id: string; purpose: string }>
   const rawAccounts = (accountsRes.data ?? []) as Account[]
   const dedicatedAccountIds = getPersonalExcludedAccountIds(accountPurposeLinks, rawAccounts)
   const accounts = filterPersonalAccounts(rawAccounts, accountPurposeLinks)
