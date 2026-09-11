@@ -40,7 +40,43 @@ import {
 import { Button } from '@/components/ui/button'
 import { useGlobalSearch } from '@/hooks/use-global-search'
 import { cn } from '@/lib/utils'
+import { getReportType, REPORT_QUICK_LINK_CODES, REPORT_TEMPLATES } from '@/lib/reports/registry'
 import type { QuickCommand, SearchGroup, SearchResult, SearchResultType } from '@/lib/search/types'
+
+const REPORT_QUICK_COMMAND_KEYWORDS: Record<string, string[]> = {
+  MONTHLY: ['report mensile', 'mese corrente', 'report'],
+  ANNUAL: ['report annuale', 'anno corrente', 'annuale'],
+  EXPENSES: ['analisi uscite', 'uscite', 'spese'],
+  INCOME: ['analisi entrate', 'entrate'],
+  NET_WORTH: ['patrimonio netto', 'net worth', 'patrimonio'],
+}
+
+// Derived from REPORT_QUICK_LINK_CODES so this menu can never diverge from
+// REPORT_REGISTRY (single source of truth for report hrefs).
+function buildReportQuickCommands(): Array<QuickCommand & { icon: LucideIcon }> {
+  const commands = REPORT_QUICK_LINK_CODES
+    .map((code) => getReportType(code))
+    .filter((def): def is NonNullable<typeof def> => Boolean(def) && !def!.hidden)
+    .map((def) => ({
+      id: `report-${def.code.toLowerCase()}`,
+      group: 'Azioni rapide' as const,
+      title: def.label,
+      subtitle: def.description,
+      href: def.href,
+      keywords: REPORT_QUICK_COMMAND_KEYWORDS[def.code] ?? [def.label.toLowerCase()],
+      icon: BarChart3,
+    }))
+  commands.push({
+    id: 'report-templates',
+    group: 'Azioni rapide' as const,
+    title: 'Template report',
+    subtitle: `Scegli tra ${REPORT_TEMPLATES.length} template disponibili`,
+    href: '/reports/new',
+    keywords: ['template report', 'tutti i report', 'nuovo report'],
+    icon: BarChart3,
+  })
+  return commands
+}
 
 type CommandItem =
   | { kind: 'quick'; id: string; group: string; title: string; subtitle: string; href: string; icon: LucideIcon; keywords: string[] }
@@ -100,12 +136,7 @@ export const quickCommands: Array<QuickCommand & { icon: LucideIcon }> = [
   { id: 'data-integrity-transfers', group: 'Azioni rapide', title: 'Giroconti incompleti', subtitle: 'Filtra anomalie sui giroconti', href: '/data-integrity?category=transfers', keywords: ['giroconti incompleti', 'transfer'], icon: ArrowLeftRight },
   { id: 'new-scenario', group: 'Azioni rapide', title: 'Nuovo scenario', subtitle: 'Crea uno scenario "what if"', href: '/scenarios/new', keywords: ['scenario', 'simulazione', 'what if', 'nuovo scenario'], icon: FlaskConical },
   { id: 'scenarios-list', group: 'Azioni rapide', title: 'I miei scenari', subtitle: 'Vedi tutti gli scenari finanziari', href: '/scenarios', keywords: ['scenari', 'simulazioni', 'proiezioni'], icon: FlaskConical },
-  { id: 'report-monthly', group: 'Azioni rapide', title: 'Report mensile', subtitle: 'Genera il report del mese corrente', href: '/reports?range=current-month&type=both', keywords: ['report mensile', 'mese corrente', 'report'], icon: BarChart3 },
-  { id: 'report-annual', group: 'Azioni rapide', title: 'Report annuale', subtitle: 'Genera il report dell\'anno corrente', href: '/reports?range=current-year&type=both', keywords: ['report annuale', 'anno corrente', 'annuale'], icon: BarChart3 },
-  { id: 'report-expenses', group: 'Azioni rapide', title: 'Analisi uscite', subtitle: 'Report uscite ultimi 6 mesi', href: '/reports?range=last-6-months&type=expense', keywords: ['analisi uscite', 'uscite', 'spese'], icon: BarChart3 },
-  { id: 'report-income', group: 'Azioni rapide', title: 'Analisi entrate', subtitle: 'Report entrate ultimi 6 mesi', href: '/reports?range=last-6-months&type=income', keywords: ['analisi entrate', 'entrate'], icon: BarChart3 },
-  { id: 'report-net-worth', group: 'Azioni rapide', title: 'Patrimonio netto', subtitle: 'Evoluzione patrimonio ultimi 12 mesi', href: '/reports?range=last-12-months&type=both', keywords: ['patrimonio netto', 'net worth', 'patrimonio'], icon: BarChart3 },
-  { id: 'report-templates', group: 'Azioni rapide', title: 'Template report', subtitle: 'Scegli tra 19 template disponibili', href: '/reports/new', keywords: ['template report', 'tutti i report', 'nuovo report'], icon: BarChart3 },
+  ...buildReportQuickCommands(),
   { id: 'dashboard', group: 'Navigazione', title: 'Dashboard', subtitle: 'Panoramica principale', href: '/dashboard', keywords: ['home', 'dashboard'], icon: LayoutDashboard },
   { id: 'transactions', group: 'Navigazione', title: 'Movimenti', subtitle: 'Transazioni e giroconti', href: '/transactions', keywords: ['transazioni', 'movimenti'], icon: ArrowLeftRight },
   { id: 'accounts', group: 'Navigazione', title: 'Conti', subtitle: 'Risorse e saldi', href: '/accounts', keywords: ['conti', 'risorse'], icon: Wallet },

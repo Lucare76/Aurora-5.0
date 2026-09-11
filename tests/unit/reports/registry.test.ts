@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { REPORT_TYPE_CODES } from '@/lib/reports/constants'
 import {
-  REPORT_REGISTRY,
-  REPORT_REGISTRY_BY_CATEGORY,
   getReportType,
   isReportTypeCode,
+  REPORT_QUICK_LINK_CODES,
+  REPORT_REGISTRY,
+  REPORT_REGISTRY_BY_CATEGORY,
+  REPORT_TEMPLATES,
+  RELATED_REPORT_TOOLS,
+  resolveTemplate,
 } from '@/lib/reports/registry'
 
 describe('REPORT_REGISTRY', () => {
@@ -14,8 +18,7 @@ describe('REPORT_REGISTRY', () => {
 
   it('all codes are unique', () => {
     const codes = REPORT_REGISTRY.map((def) => def.code)
-    const unique = new Set(codes)
-    expect(unique.size).toBe(codes.length)
+    expect(new Set(codes).size).toBe(codes.length)
   })
 
   it('all codes exist in REPORT_TYPE_CODES', () => {
@@ -24,87 +27,130 @@ describe('REPORT_REGISTRY', () => {
     }
   })
 
-  it('every entry has required fields', () => {
+  it('every entry has required fields and a non-empty derived href', () => {
     for (const def of REPORT_REGISTRY) {
       expect(def.label.length).toBeGreaterThan(0)
       expect(def.description.length).toBeGreaterThan(0)
-      expect(def.sections.length).toBeGreaterThan(0)
       expect(def.color.length).toBeGreaterThan(0)
       expect(def.href.length).toBeGreaterThan(0)
-      expect(['periodic', 'thematic', 'extended']).toContain(def.category)
+      expect(['template', 'related']).toContain(def.kind)
+      expect(typeof def.hidden).toBe('boolean')
     }
   })
 
-  it('defaultRange is a valid ReportRange', () => {
-    const validRanges = ['current-month', 'previous-month', 'last-3-months', 'last-6-months', 'current-year', 'previous-year', 'last-12-months', 'custom']
+  it('template entries have a periodic/thematic category; related entries have none', () => {
     for (const def of REPORT_REGISTRY) {
-      expect(validRanges).toContain(def.defaultRange)
+      if (def.kind === 'template') expect(['periodic', 'thematic']).toContain(def.category)
+      else expect(def.category).toBeNull()
+    }
+  })
+
+  it("template hrefs are always /reports?tpl=<code>&range=...&type=...", () => {
+    for (const def of REPORT_TEMPLATES) {
+      expect(def.href.startsWith('/reports?')).toBe(true)
+      const params = new URLSearchParams(def.href.split('?')[1])
+      expect(params.get('tpl')).toBe(def.code)
+      expect(params.get('range')).toBe(def.defaultRange)
+      expect(params.get('type')).toBe(def.defaultType)
+    }
+  })
+
+  it('related tools never point at /reports', () => {
+    for (const def of RELATED_REPORT_TOOLS) {
+      expect(def.href.startsWith('/reports')).toBe(false)
     }
   })
 })
 
-describe('REPORT_REGISTRY_BY_CATEGORY', () => {
-  it('has all three categories', () => {
-    expect(Object.keys(REPORT_REGISTRY_BY_CATEGORY)).toEqual(['periodic', 'thematic', 'extended'])
+describe('REPORT_TEMPLATES / RELATED_REPORT_TOOLS separation', () => {
+  it('TAGS is not offered as an available template (hidden until the feature exists)', () => {
+    expect(REPORT_TEMPLATES.some((def) => def.code === 'TAGS')).toBe(false)
+    const tags = getReportType('TAGS')
+    expect(tags?.hidden).toBe(true)
   })
 
-  it('total across categories equals 19', () => {
-    const total =
-      REPORT_REGISTRY_BY_CATEGORY.periodic.length +
-      REPORT_REGISTRY_BY_CATEGORY.thematic.length +
-      REPORT_REGISTRY_BY_CATEGORY.extended.length
-    expect(total).toBe(19)
+  it('related tools (BUDGETS, GOALS, LOANS, RECURRING, FINANCIAL_HEALTH, DATA_INTEGRITY, SCENARIOS, TRANSACTIONS) point to their own pages, never rendered as report templates', () => {
+    const expected: Record<string, string> = {
+      BUDGETS: '/budgets',
+      GOALS: '/goals',
+      LOANS: '/loans',
+      RECURRING: '/recurring',
+      FINANCIAL_HEALTH: '/financial-health',
+      DATA_INTEGRITY: '/data-integrity',
+      SCENARIOS: '/scenarios',
+      TRANSACTIONS: '/transactions',
+    }
+    expect(RELATED_REPORT_TOOLS.map((def) => def.code).sort()).toEqual(Object.keys(expected).sort())
+    for (const def of RELATED_REPORT_TOOLS) {
+      expect(def.href).toBe(expected[def.code])
+      expect(def.kind).toBe('related')
+    }
   })
 
-  it('periodic category has 4 entries', () => {
-    expect(REPORT_REGISTRY_BY_CATEGORY.periodic).toHaveLength(4)
-  })
-
-  it('periodic codes are MONTHLY, QUARTERLY, ANNUAL, CUSTOM', () => {
-    const codes = REPORT_REGISTRY_BY_CATEGORY.periodic.map((d) => d.code)
-    expect(codes).toContain('MONTHLY')
-    expect(codes).toContain('QUARTERLY')
-    expect(codes).toContain('ANNUAL')
-    expect(codes).toContain('CUSTOM')
-  })
-
-  it('extended category has 7 entries', () => {
-    expect(REPORT_REGISTRY_BY_CATEGORY.extended).toHaveLength(7)
+  it('TRANSACTIONS is a related tool, not a "thematic" report template (was previously miscategorized)', () => {
+    const def = getReportType('TRANSACTIONS')
+    expect(def?.kind).toBe('related')
   })
 })
 
-describe('getReportType', () => {
-  it('returns correct definition for MONTHLY', () => {
-    const def = getReportType('MONTHLY')
-    expect(def).toBeDefined()
-    expect(def?.code).toBe('MONTHLY')
-    expect(def?.defaultRange).toBe('current-month')
+describe('NET_WORTH vs CASH_FLOW must not collapse to the same configuration', () => {
+  it('different hrefs (query strings)', () => {
+    expect(getReportType('NET_WORTH')?.href).not.toBe(getReportType('CASH_FLOW')?.href)
   })
 
-  it('returns correct definition for ANNUAL', () => {
-    const def = getReportType('ANNUAL')
-    expect(def?.defaultRange).toBe('current-year')
+  it('different sections: NET_WORTH has net-worth/accounts, not expense/income categories; CASH_FLOW is the opposite', () => {
+    const netWorth = getReportType('NET_WORTH')!
+    const cashFlow = getReportType('CASH_FLOW')!
+    expect(netWorth.sections).toContain('net-worth')
+    expect(netWorth.sections).toContain('accounts')
+    expect(netWorth.sections).not.toContain('expense-categories')
+    expect(cashFlow.sections).not.toContain('net-worth')
+    expect(cashFlow.sections).not.toContain('accounts')
+    expect(cashFlow.sections).toContain('kpi-cashflow')
+  })
+})
+
+describe('CATEGORIES vs QUARTERLY must not collapse to the same configuration', () => {
+  it('different hrefs (query strings)', () => {
+    expect(getReportType('CATEGORIES')?.href).not.toBe(getReportType('QUARTERLY')?.href)
   })
 
-  it('MONTHLY sections include summary and monthly-series', () => {
-    const def = getReportType('MONTHLY')
-    expect(def?.sections).toContain('summary')
-    expect(def?.sections).toContain('monthly-series')
+  it('different sections: QUARTERLY is the full overview, CATEGORIES drops the KPI row/fixed-variable/transfers/accounts', () => {
+    const categories = getReportType('CATEGORIES')!
+    const quarterly = getReportType('QUARTERLY')!
+    expect(quarterly.sections).toContain('kpi-income')
+    expect(quarterly.sections).toContain('accounts')
+    expect(quarterly.sections).toContain('fixed-variable')
+    expect(categories.sections).not.toContain('kpi-income')
+    expect(categories.sections).not.toContain('accounts')
+    expect(categories.sections).not.toContain('fixed-variable')
+    expect(categories.sections).toContain('expense-categories')
+  })
+})
+
+describe('resolveTemplate', () => {
+  it('resolves a real, visible template', () => {
+    expect(resolveTemplate('MONTHLY')?.code).toBe('MONTHLY')
+    expect(resolveTemplate('NET_WORTH')?.code).toBe('NET_WORTH')
   })
 
-  it('INCOME defaultRange is last-6-months', () => {
-    const def = getReportType('INCOME')
-    expect(def?.defaultRange).toBe('last-6-months')
+  it('TAGS resolves to undefined (hidden, not to be presented as available)', () => {
+    expect(resolveTemplate('TAGS')).toBeUndefined()
   })
 
-  it('EXPENSES defaultRange is last-6-months', () => {
-    const def = getReportType('EXPENSES')
-    expect(def?.defaultRange).toBe('last-6-months')
+  it('a related-tool code resolves to undefined (not a report template)', () => {
+    expect(resolveTemplate('BUDGETS')).toBeUndefined()
   })
 
-  it('CASH_FLOW defaultRange is last-12-months', () => {
-    const def = getReportType('CASH_FLOW')
-    expect(def?.defaultRange).toBe('last-12-months')
+  it('handles an unknown tpl safely (no throw, no crash)', () => {
+    expect(() => resolveTemplate('DOES_NOT_EXIST')).not.toThrow()
+    expect(resolveTemplate('DOES_NOT_EXIST')).toBeUndefined()
+  })
+
+  it('handles null/undefined/empty safely', () => {
+    expect(resolveTemplate(null)).toBeUndefined()
+    expect(resolveTemplate(undefined)).toBeUndefined()
+    expect(resolveTemplate('')).toBeUndefined()
   })
 })
 
@@ -121,5 +167,28 @@ describe('isReportTypeCode', () => {
     expect(isReportTypeCode(null)).toBe(false)
     expect(isReportTypeCode(undefined)).toBe(false)
     expect(isReportTypeCode(42)).toBe(false)
+  })
+})
+
+describe('REPORT_REGISTRY_BY_CATEGORY', () => {
+  it('has only periodic/thematic categories (no "extended" — those are related tools now)', () => {
+    expect(Object.keys(REPORT_REGISTRY_BY_CATEGORY).sort()).toEqual(['periodic', 'thematic'])
+  })
+
+  it('periodic codes are MONTHLY, QUARTERLY, ANNUAL, CUSTOM', () => {
+    const codes = REPORT_REGISTRY_BY_CATEGORY.periodic.map((d) => d.code)
+    expect(codes.sort()).toEqual(['ANNUAL', 'CUSTOM', 'MONTHLY', 'QUARTERLY'])
+  })
+})
+
+describe('single source of truth: widget/command-menu quick links can never diverge from the registry', () => {
+  it('every REPORT_QUICK_LINK_CODES entry resolves to a real, visible template with a /reports?tpl= href', () => {
+    for (const code of REPORT_QUICK_LINK_CODES) {
+      const def = getReportType(code)
+      expect(def).toBeDefined()
+      expect(def!.hidden).toBe(false)
+      expect(def!.kind).toBe('template')
+      expect(def!.href).toContain(`tpl=${code}`)
+    }
   })
 })
