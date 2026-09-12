@@ -76,9 +76,12 @@ const ACCOUNTS_SECTIONS: ReportSection[] = ['kpi-net-worth', 'accounts']
 // spesa/entrata (per essere davvero diverso da CASH_FLOW).
 const NET_WORTH_SECTIONS: ReportSection[] = ['kpi-net-worth', 'net-worth', 'accounts']
 
-// CATEGORIES: categorie, percentuali e andamento disponibile, senza la riga KPI e senza
-// fisso/variabile o trasferimenti (per essere davvero diverso da QUARTERLY).
-const CATEGORIES_SECTIONS: ReportSection[] = ['monthly-series', 'expense-categories', 'income-categories', 'insights']
+// CATEGORIES: categorie, percentuali e confronto col periodo precedente (gia' nella
+// tabella categorie stessa: previousAmount/changeAmount), senza riga KPI, fisso/
+// variabile o trasferimenti (per essere davvero diverso da QUARTERLY). Niente
+// 'monthly-series': quel grafico è le 3 linee entrate/uscite/cashflow di
+// CASH_FLOW/MONTHLY — includerlo qui renderebbe CATEGORIES un quasi-duplicato.
+const CATEGORIES_SECTIONS: ReportSection[] = ['expense-categories', 'income-categories', 'insights']
 
 const RAW_REGISTRY: RawEntry[] = [
   {
@@ -192,7 +195,7 @@ const RAW_REGISTRY: RawEntry[] = [
   {
     code: 'CATEGORIES',
     label: 'Analisi categorie',
-    description: 'Categorie di spesa: importi, incidenza percentuale e andamento, senza la riga KPI.',
+    description: 'Spesa ed entrate per categoria: importi, incidenza percentuale e confronto col periodo precedente.',
     kind: 'template',
     category: 'thematic',
     defaultRange: 'last-3-months',

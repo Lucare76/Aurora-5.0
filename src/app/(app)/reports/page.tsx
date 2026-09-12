@@ -47,6 +47,7 @@ import {
   hasSection,
   resolveDefaultTableView,
   resolveInitialFilters,
+  shouldShowTypeFilter,
 } from '@/lib/reports/template-view'
 import type { ReportDetailTableView, ReportPayload, ReportRange, ReportTransactionTypeFilter } from '@/lib/reports/types'
 
@@ -264,10 +265,15 @@ function ReportsPageContent() {
   const showCategoriesBlock = showExpenseCategories || showIncomeCategories
   const showFixedVariable = hasSection(sections, 'fixed-variable')
   const showNetWorthChart = hasSection(sections, 'net-worth')
-  const showTransfersSummary = hasSection(sections, 'transfers-summary')
+  // "se attivati"/"se inclusi": il blocco trasferimenti ha senso solo quando
+  // l'utente ha davvero incluso i trasferimenti nel calcolo, altrimenti mostra
+  // sempre €0 in modo fuorviante (il valore è forzato a 0 lato server quando il
+  // filtro è spento).
+  const showTransfersSummary = hasSection(sections, 'transfers-summary') && params.get('includeTransfers') === 'true'
   const showComparisonCard = hasSection(sections, 'comparison')
   const showInsights = hasSection(sections, 'insights')
   const showAccountsBlock = hasSection(sections, 'accounts')
+  const showTypeFilter = shouldShowTypeFilter(sections)
 
   // Only INCOME/EXPENSES ask for exactly one side of the KPI trio: narrow the trend
   // chart's lines to match, everyone else (incl. no template) keeps all three.
@@ -352,6 +358,10 @@ function ReportsPageContent() {
   // empty state the way a transaction-driven template (MONTHLY, INCOME, ...) should.
   const contentIsEmpty = Boolean(report) && report!.summary.transactionCount === 0 && !showAccountsBlock && !showNetWorthChart
 
+  useEffect(() => {
+    document.title = activeTemplate ? `${activeTemplate.label} · Aurora` : 'Report · Aurora'
+  }, [activeTemplate])
+
   return (
     <div className="min-h-screen bg-[#f8f9fc] text-slate-950">
       <style jsx global>{`
@@ -365,12 +375,14 @@ function ReportsPageContent() {
       <div className="mx-auto max-w-7xl space-y-7">
         <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-sm font-semibold text-indigo-600">Analisi finanziaria</p>
-            <h1 className="mt-1 flex flex-wrap items-center gap-2 text-3xl font-semibold tracking-tight text-slate-950">
-              Report
+            <p className="flex items-center gap-2 text-sm font-semibold text-indigo-600">
+              {activeTemplate ? 'Report' : 'Analisi finanziaria'}
               {activeTemplate && (
-                <span className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-600">{activeTemplate.label}</span>
+                <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-600">{activeTemplate.category === 'periodic' ? 'Periodico' : 'Tematico'}</span>
               )}
+            </p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
+              {activeTemplate ? activeTemplate.label : 'Report'}
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-500">
               {activeTemplate ? activeTemplate.description : 'Confronta entrate, uscite, cash flow e patrimonio usando solo i dati reali di Aurora.'}
@@ -407,9 +419,11 @@ function ReportsPageContent() {
                 <input type="date" value={params.get('to') ?? ''} onChange={(event) => setParam('to', event.target.value)} className="h-10 rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100" aria-label="Data finale" />
               </>
             )}
-            <FilterSelect value={params.get('type') ?? 'both'} onChange={(event) => setParam('type', event.target.value)} aria-label="Tipo movimento">
-              {TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </FilterSelect>
+            {showTypeFilter && (
+              <FilterSelect value={params.get('type') ?? 'both'} onChange={(event) => setParam('type', event.target.value)} aria-label="Tipo movimento">
+                {TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </FilterSelect>
+            )}
             <FilterSelect value={params.get('account') ?? 'all'} onChange={(event) => setParam('account', event.target.value)} aria-label="Filtro conto">
               <option value="all">Tutti i conti</option>
               {report?.accounts.map((account) => <option key={account.accountId} value={account.accountId}>{account.accountName}</option>)}

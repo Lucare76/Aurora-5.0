@@ -95,3 +95,22 @@ export function getCategoryMode(sections: Set<ReportSection> | null): 'income' |
   }
   return 'expense'
 }
+
+/**
+ * Whether the "Tipo movimento" (income/expense/both/all) filter is worth showing.
+ * It only changes anything a viewer can see for templates that display an
+ * income/expense KPI or a category breakdown; NET_WORTH/ACCOUNTS show neither
+ * (they're about balances), so surfacing a filter that looks actionable but
+ * doesn't touch the on-screen content there is worse than hiding it. No template
+ * (legacy URL) always shows it, matching pre-existing behavior.
+ */
+export function shouldShowTypeFilter(sections: Set<ReportSection> | null): boolean {
+  if (sections === null) return true
+  return (
+    sections.has('kpi-income') ||
+    sections.has('kpi-expenses') ||
+    sections.has('kpi-cashflow') ||
+    sections.has('expense-categories') ||
+    sections.has('income-categories')
+  )
+}
