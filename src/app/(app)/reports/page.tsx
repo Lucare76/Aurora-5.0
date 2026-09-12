@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   ArrowDown,
   ArrowRight,
@@ -85,11 +86,6 @@ const TABLE_VIEW_LABELS: Record<ReportDetailTableView, string> = {
   monthly: 'Mesi',
   categories: 'Categorie',
   accounts: 'Conti',
-}
-
-function initialParams() {
-  if (typeof window === 'undefined') return resolveInitialFilters(new URLSearchParams())
-  return resolveInitialFilters(new URLSearchParams(window.location.search))
 }
 
 function chartTooltip({ active, payload, label }: any) {
@@ -221,8 +217,32 @@ function ReportSkeleton() {
   )
 }
 
+// useSearchParams() opts this page into dynamic rendering and requires a Suspense
+// boundary (Next.js App Router requirement) — this is also what fixes the
+// production bug: reading the browser location's query string once in a useState
+// initializer never re-ran on client-side navigation between two /reports?...
+// URLs (Next reuses the mounted page instance since it's the same route), so
+// tpl/range/type froze at whatever they were on first mount. useSearchParams()
+// is the live, router-subscribed source of truth and re-renders this component
+// on every navigation, including template-to-template and back/forward.
 export default function ReportsPage() {
-  const [params, setParams] = useState(() => initialParams())
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#f8f9fc] text-slate-950">
+        <div className="mx-auto max-w-7xl space-y-7">
+          <ReportSkeleton />
+        </div>
+      </div>
+    }>
+      <ReportsPageContent />
+    </Suspense>
+  )
+}
+
+function ReportsPageContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const params = useMemo(() => resolveInitialFilters(new URLSearchParams(searchParams.toString())), [searchParams])
   const [report, setReport] = useState<ReportPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -278,16 +298,15 @@ export default function ReportsPage() {
   const customRange = params.get('range') === 'custom'
 
   const setParam = useCallback((key: string, value: string) => {
-    setParams((current) => {
-      const next = new URLSearchParams(current)
-      if (!value || value === 'all') next.delete(key)
-      else next.set(key, value)
-      const normalized = key === 'range' ? resolveInitialFilters(next) : next
-      const href = `/reports?${normalized.toString()}`
-      window.history.replaceState(null, '', href)
-      return normalized
-    })
-  }, [])
+    const next = new URLSearchParams(searchParams.toString())
+    if (!value || value === 'all') next.delete(key)
+    else next.set(key, value)
+    const normalized = key === 'range' ? resolveInitialFilters(next) : next
+    // router.replace (not history.replaceState) so useSearchParams() actually
+    // picks up the change — a manual history mutation would leave this page's
+    // own reactive state pointing at the old URL.
+    router.replace(`/reports?${normalized.toString()}`, { scroll: false })
+  }, [searchParams, router])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -412,7 +431,7 @@ export default function ReportsPage() {
           <Card className="border-[#e5e7f0] bg-white shadow-sm">
             <CardContent className="p-10 text-center">
               <p className="font-semibold text-slate-900">{error}</p>
-              <Button className="mt-4 gap-2" onClick={() => setParams(initialParams())}>
+              <Button className="mt-4 gap-2" onClick={() => router.replace('/reports')}>
                 <RefreshCw className="h-4 w-4" />
                 Ripristina filtri
               </Button>

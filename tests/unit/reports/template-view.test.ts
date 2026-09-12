@@ -10,6 +10,86 @@ import {
 
 const NOW = new Date('2026-07-15T12:00:00.000Z')
 
+describe('BUG PRODUZIONE: /reports?tpl=...&range=...&type=... deve riflettersi nello stato derivato', () => {
+  // Riproduce esattamente gli URL del bug report. Il difetto reale era nel
+  // componente (useState(() => initialParams()) letto una sola volta da
+  // window.location.search, mai risincronizzato dopo la navigazione — vedi
+  // reports-page-wiring.test.ts per la guardia di regressione sul componente).
+  // Qui dimostriamo che la logica pura di derivazione, una volta effettivamente
+  // alimentata dall'URL corrente (come fa ora useSearchParams()), produce lo
+  // stato corretto — la parte che prima non veniva mai raggiunta.
+
+  it('1. ?tpl=NET_WORTH&range=last-12-months&type=all -> tpl/range/type applicati esattamente', () => {
+    const params = resolveInitialFilters(new URLSearchParams('tpl=NET_WORTH&range=last-12-months&type=all'), NOW)
+    expect(params.get('tpl')).toBe('NET_WORTH')
+    expect(params.get('range')).toBe('last-12-months')
+    expect(params.get('type')).toBe('all')
+  })
+
+  it('2. NET_WORTH attiva esattamente le sections previste (patrimonio/conti, niente KPI entrate/uscite/cashflow/categorie/andamento)', () => {
+    const sections = getActiveSections('NET_WORTH')
+    expect(hasSection(sections, 'kpi-net-worth')).toBe(true)
+    expect(hasSection(sections, 'net-worth')).toBe(true)
+    expect(hasSection(sections, 'accounts')).toBe(true)
+    expect(hasSection(sections, 'kpi-income')).toBe(false)
+    expect(hasSection(sections, 'kpi-expenses')).toBe(false)
+    expect(hasSection(sections, 'kpi-cashflow')).toBe(false)
+    expect(hasSection(sections, 'monthly-series')).toBe(false)
+    expect(hasSection(sections, 'expense-categories')).toBe(false)
+    expect(hasSection(sections, 'income-categories')).toBe(false)
+  })
+
+  it('3. ?tpl=CASH_FLOW&range=last-12-months&type=both -> tpl/range/type applicati e sections CASH_FLOW (entrate/uscite/cashflow/andamento/trasferimenti, niente patrimonio/conti)', () => {
+    const params = resolveInitialFilters(new URLSearchParams('tpl=CASH_FLOW&range=last-12-months&type=both'), NOW)
+    expect(params.get('tpl')).toBe('CASH_FLOW')
+    expect(params.get('range')).toBe('last-12-months')
+    expect(params.get('type')).toBe('both')
+    const sections = getActiveSections(params.get('tpl'))
+    expect(hasSection(sections, 'kpi-income')).toBe(true)
+    expect(hasSection(sections, 'kpi-expenses')).toBe(true)
+    expect(hasSection(sections, 'kpi-cashflow')).toBe(true)
+    expect(hasSection(sections, 'monthly-series')).toBe(true)
+    expect(hasSection(sections, 'transfers-summary')).toBe(true)
+    expect(hasSection(sections, 'net-worth')).toBe(false)
+    expect(hasSection(sections, 'accounts')).toBe(false)
+  })
+
+  it('4. ?tpl=INCOME&range=last-6-months&type=income -> tpl/range/type applicati e solo categorie di entrata', () => {
+    const params = resolveInitialFilters(new URLSearchParams('tpl=INCOME&range=last-6-months&type=income'), NOW)
+    expect(params.get('tpl')).toBe('INCOME')
+    expect(params.get('range')).toBe('last-6-months')
+    expect(params.get('type')).toBe('income')
+    const sections = getActiveSections(params.get('tpl'))
+    expect(getCategoryMode(sections)).toBe('income')
+    expect(hasSection(sections, 'kpi-expenses')).toBe(false)
+  })
+
+  it('5. navigazione da un template a un altro aggiorna stato e sections (simula due render successivi con URL diversi)', () => {
+    const first = resolveInitialFilters(new URLSearchParams('tpl=NET_WORTH&range=last-12-months&type=all'), NOW)
+    const firstSections = getActiveSections(first.get('tpl'))
+    const second = resolveInitialFilters(new URLSearchParams('tpl=CASH_FLOW&range=last-12-months&type=both'), NOW)
+    const secondSections = getActiveSections(second.get('tpl'))
+
+    expect(first.get('tpl')).toBe('NET_WORTH')
+    expect(second.get('tpl')).toBe('CASH_FLOW')
+    expect(firstSections).not.toEqual(secondSections)
+    expect(hasSection(firstSections, 'net-worth')).toBe(true)
+    expect(hasSection(secondSections, 'net-worth')).toBe(false)
+  })
+
+  it('7. modifica manuale di un filtro dopo apertura template: tpl resta, il filtro cambiato si applica (come fa setParam)', () => {
+    // Simula esattamente ciò che reports/page.tsx::setParam fa: parte dai search
+    // params correnti (con tpl), cambia una sola chiave, rinormalizza solo se la
+    // chiave è 'range'.
+    const opened = resolveInitialFilters(new URLSearchParams('tpl=INCOME&range=last-6-months&type=income'), NOW)
+    const next = new URLSearchParams(opened)
+    next.set('type', 'both')
+    const afterManualEdit = resolveInitialFilters(next, NOW)
+    expect(afterManualEdit.get('tpl')).toBe('INCOME')
+    expect(afterManualEdit.get('type')).toBe('both')
+  })
+})
+
 describe('resolveInitialFilters', () => {
   it('7. vecchio URL senza tpl: range/type di default restano current-month/both (compatibilità)', () => {
     const params = resolveInitialFilters(new URLSearchParams(), NOW)
