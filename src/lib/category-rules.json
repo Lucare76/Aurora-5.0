@@ -15,7 +15,6 @@
   {"keyword": "ISCHIAGOMME", "category": "Auto", "subcategory": "Lavaggio", "confidence": 1.0, "samples": 7},
   {"keyword": "DOMICILIAZIONE", "category": "Import E/C Banca", "subcategory": null, "confidence": 0.86, "samples": 7},
   {"keyword": "SUPERCARNI", "category": "Casa Ischia", "subcategory": "Supermercato", "confidence": 1.0, "samples": 7},
-  {"keyword": "BONIFICO", "category": "Disoccupazione", "subcategory": null, "confidence": 0.83, "samples": 6},
   {"keyword": "ALILAURO", "category": "Trasporti e viaggi", "subcategory": "Aliscafo", "confidence": 1.0, "samples": 6},
   {"keyword": "PASTICCERIA", "category": "Alimentari", "subcategory": "Pasticceria - Gelateria", "confidence": 1.0, "samples": 6},
   {"keyword": "UNICOCAMPANIA", "category": "Trasporti e viaggi", "subcategory": "Metro", "confidence": 0.83, "samples": 6},

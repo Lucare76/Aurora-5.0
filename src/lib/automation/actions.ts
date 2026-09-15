@@ -1,3 +1,4 @@
+import { isCategoryCompatibleWithTransactionType } from '@/domain/accounting/category-compatibility'
 import type {
   AutomationAction,
   AutomationReferences,
@@ -45,6 +46,17 @@ export function applyRuleActions(
 
     if (isTransfer && (action.type === 'set_account' || action.type === 'set_category' || action.type === 'set_transaction_type')) {
       return { changes, conflicts, skippedReason: 'TRANSFER_PROTECTED' }
+    }
+
+    if (action.type === 'set_category' && action.category_id) {
+      const category = references.categories.find((item) => item.id === action.category_id)
+      // Existence already checked by validateActionReferences above; category is
+      // guaranteed found here. An automation must never force an income category
+      // onto an expense transaction or vice versa — skip the whole rule (no
+      // partial application) rather than write a semantically wrong category.
+      if (category && !isCategoryCompatibleWithTransactionType(transaction.type, category.type)) {
+        return { changes, conflicts, skippedReason: 'CATEGORY_TYPE_INCOMPATIBLE' }
+      }
     }
 
     if (action.type === 'set_category') addChange(changes, 'category_id', action.category_id, conflicts)

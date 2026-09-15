@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { isCategoryCompatibleWithTransactionType } from '@/domain/accounting/category-compatibility'
 import type { Category } from '@/types/database'
 
 export interface CategoryTreeNode {
@@ -12,7 +13,11 @@ export interface CategoryTreeNode {
 export function buildCategoryTree(categories: Category[], type?: 'income' | 'expense' | 'both'): CategoryTreeNode[] {
   const matchesType = (category: Category) => {
     if (!type) return true
-    return category.type === type || category.type === 'both'
+    // 'both' as the requested type is never actually used by any caller today
+    // (callers pass a real transaction type, income/expense); kept literal to
+    // avoid changing this untested edge case's behavior.
+    if (type === 'both') return category.type === 'both'
+    return isCategoryCompatibleWithTransactionType(type, category.type)
   }
 
   return categories

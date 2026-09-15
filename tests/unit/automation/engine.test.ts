@@ -9,6 +9,8 @@ const accountB = '10000000-0000-4000-8000-000000000002'
 const otherAccount = '10000000-0000-4000-8000-000000000003'
 const catBills = '20000000-0000-4000-8000-000000000001'
 const catBetting = '20000000-0000-4000-8000-000000000002'
+const catSalary = '20000000-0000-4000-8000-000000000003'
+const catRefunds = '20000000-0000-4000-8000-000000000004'
 
 const references: AutomationReferences = {
   accounts: [
@@ -19,6 +21,8 @@ const references: AutomationReferences = {
   categories: [
     { id: catBills, user_id: 'user', name: 'Bollette', type: 'expense', parent_id: null },
     { id: catBetting, user_id: 'user', name: 'Scommesse', type: 'expense', parent_id: null },
+    { id: catSalary, user_id: 'user', name: 'Stipendio', type: 'income', parent_id: null },
+    { id: catRefunds, user_id: 'user', name: 'Rimborsi', type: 'both', parent_id: null },
   ],
 }
 
@@ -136,5 +140,29 @@ describe('automation engine', () => {
 
   it('builds previous and applied values only for changed fields', () => {
     expect(diffPatch(tx(), { category_id: catBetting, account_id: accountA }).appliedValues).toEqual({ category_id: catBetting })
+  })
+
+  it('11. set_category verso una categoria income su una transazione expense non viene applicato (nessuna modifica)', () => {
+    const result = applyRuleActions(tx({ type: 'expense' }), [{ type: 'set_category', category_id: catSalary }], references)
+    expect(result.skippedReason).toBe('CATEGORY_TYPE_INCOMPATIBLE')
+    expect(result.changes).toEqual({})
+  })
+
+  it('11b. set_category verso una categoria expense su una transazione income non viene applicato', () => {
+    const result = applyRuleActions(tx({ type: 'income' }), [{ type: 'set_category', category_id: catBills }], references)
+    expect(result.skippedReason).toBe('CATEGORY_TYPE_INCOMPATIBLE')
+    expect(result.changes).toEqual({})
+  })
+
+  it('11c. una regola incompatibile non entra tra le regole applicate/i cambi suggeriti dal motore completo', () => {
+    const incompatibleRule = rule({ actions: [{ type: 'set_category', category_id: catSalary }] })
+    const result = evaluateRules(tx({ type: 'expense' }), [incompatibleRule], references)
+    expect(result.appliedRules).toHaveLength(0)
+    expect(result.suggestedChanges).toEqual({})
+  })
+
+  it('set_category verso una categoria "both" resta valido sia per income sia per expense', () => {
+    expect(applyRuleActions(tx({ type: 'expense' }), [{ type: 'set_category', category_id: catRefunds }], references).skippedReason).toBeNull()
+    expect(applyRuleActions(tx({ type: 'income' }), [{ type: 'set_category', category_id: catRefunds }], references).skippedReason).toBeNull()
   })
 })

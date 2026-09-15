@@ -21,7 +21,8 @@ import { useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
 import { createClient } from '@/lib/supabase/client'
 import { cn, formatCurrency } from '@/lib/utils'
-import { suggestCategory } from '@/lib/categorize'
+import { suggestCompatibleCategoryId } from '@/lib/categorize'
+import { isCategoryCompatibleWithTransactionType } from '@/domain/accounting/category-compatibility'
 import type { Account, Category } from '@/types/database'
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -102,14 +103,6 @@ function parseDateAmex(val: string): string | null {
 
 function daysDiff(a: string, b: string): number {
   return Math.abs(new Date(`${a}T00:00:00`).getTime() - new Date(`${b}T00:00:00`).getTime()) / 86400000
-}
-
-function findCategoryId(categoryName: string, subcategoryName: string | null, cats: Category[]): string {
-  const parent = cats.find((c) => !c.parent_id && c.name === categoryName)
-  if (!parent) return ''
-  if (!subcategoryName) return parent.id
-  const child = cats.find((c) => c.parent_id === parent.id && c.name === subcategoryName)
-  return child?.id ?? ''
 }
 
 function makeRow(
@@ -321,8 +314,8 @@ export default function ImportEstratti() {
   const amexAccount = useMemo(() => accounts.find((a) => a.name === 'Carta di Credito'), [accounts])
   const activeAccounts = useMemo(() => accounts.filter((a) => a.is_active), [accounts])
 
-  const expenseCats = useMemo(() => categories.filter((c) => c.type === 'expense' || c.type === 'both'), [categories])
-  const incomeCats = useMemo(() => categories.filter((c) => c.type === 'income' || c.type === 'both'), [categories])
+  const expenseCats = useMemo(() => categories.filter((c) => isCategoryCompatibleWithTransactionType('expense', c.type)), [categories])
+  const incomeCats = useMemo(() => categories.filter((c) => isCategoryCompatibleWithTransactionType('income', c.type)), [categories])
   const commissionCat = useMemo(
     () => categories.find((c) => c.name.toLowerCase() === 'commissioni banca')
       ?? categories.find((c) => c.name.toLowerCase().includes('commissioni banca'))
@@ -419,15 +412,18 @@ export default function ImportEstratti() {
       }
 
       // — Auto-categorization based on keyword rules —
+      // suggestCompatibleCategoryId only returns a category whose type is
+      // actually compatible with row.type — a textual rule only knows the
+      // description, never the transaction's real type, so on its own it can
+      // propose a category that contradicts it (this is exactly how a
+      // 'BONIFICO' match sent an 'expense' loan-to-a-relative into the
+      // 'income'-typed "Disoccupazione" category).
       for (const row of normalRows) {
         if (row.type === 'transfer' || row.category_id) continue
-        const suggestion = suggestCategory(row.description)
-        if (suggestion) {
-          const catId = findCategoryId(suggestion.category, suggestion.subcategory, categories)
-          if (catId) {
-            row.category_id = catId
-            row.autoSuggestedCategory = true
-          }
+        const catId = suggestCompatibleCategoryId(row.description, row.type, categories)
+        if (catId) {
+          row.category_id = catId
+          row.autoSuggestedCategory = true
         }
       }
 
