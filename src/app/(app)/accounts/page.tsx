@@ -31,7 +31,9 @@ import { useAccounts } from '@/hooks/use-accounts'
 import { createClient } from '@/lib/supabase/client'
 import { cn, formatCurrency } from '@/lib/utils'
 import { ACCOUNT_TYPES, ACCOUNT_TYPE_LABELS, type AccountType } from '@/lib/constants'
-import type { Account } from '@/types/database'
+import { listLatestReconciliationsByAccount } from '@/lib/reconciliation/service'
+import { isReconciliationBalanced } from '@/domain/accounting/reconciliation'
+import type { Account, AccountReconciliation } from '@/types/database'
 
 const BORDER = '#e5e7f0'
 
@@ -122,6 +124,18 @@ export default function AccountsPage() {
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [showHidden, setShowHidden] = useState(false)
+  const [reconciliationByAccount, setReconciliationByAccount] = useState<Map<string, AccountReconciliation>>(new Map())
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) return
+      const map = await listLatestReconciliationsByAccount(supabase, user.id)
+      if (!cancelled) setReconciliationByAccount(map)
+    })()
+    return () => { cancelled = true }
+  }, [supabase, accounts.length])
 
   const activeCount = useMemo(() => accounts.filter((a) => a.is_active).length, [accounts])
   const hiddenCount = useMemo(() => accounts.filter((a) => a.is_hidden).length, [accounts])
@@ -447,6 +461,7 @@ export default function AccountsPage() {
                       </button>
                     </th>
                     <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">Stato</th>
+                    <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">Riconciliazione</th>
                     <th className="w-20 px-3 py-2.5" />
                   </tr>
                 </thead>
@@ -502,6 +517,32 @@ export default function AccountsPage() {
                             <span className={cn('h-1.5 w-1.5 rounded-full', account.is_active ? 'bg-emerald-500' : 'bg-slate-400')} />
                             {account.is_active ? 'Attivo' : 'Inattivo'}
                           </span>
+                        </td>
+
+                        {/* Riconciliazione */}
+                        <td className="px-3 py-2.5">
+                          {(() => {
+                            const reconciliation = reconciliationByAccount.get(account.id)
+                            if (!reconciliation) {
+                              return (
+                                <Link href={`/reconciliation?account=${account.id}`} className="text-[11px] font-medium text-slate-400 hover:text-indigo-600 hover:underline">
+                                  Mai riconciliato · Riconcilia
+                                </Link>
+                              )
+                            }
+                            const balanced = isReconciliationBalanced(Number(reconciliation.difference))
+                            const dateLabel = new Date(`${reconciliation.statement_date}T00:00:00`).toLocaleDateString('it-IT')
+                            return (
+                              <div className="flex items-center gap-2 text-[11px]">
+                                <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium', balanced ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>
+                                  {balanced ? `✅ Riconciliato il ${dateLabel}` : `⚠️ Differenza ${formatCurrency(Number(reconciliation.difference), account.currency)}`}
+                                </span>
+                                <Link href={`/reconciliation?account=${account.id}`} className="font-medium text-slate-400 hover:text-indigo-600 hover:underline">
+                                  Riconcilia
+                                </Link>
+                              </div>
+                            )
+                          })()}
                         </td>
 
                         {/* Azioni */}

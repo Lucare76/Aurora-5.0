@@ -29,6 +29,7 @@ const incomeCreateSchema = z
     ...baseCreateSchema,
     type: z.literal('income'),
     category_id: uuid.nullable().optional(),
+    is_neutral: z.boolean().optional(),
   })
   .strict()
 
@@ -37,6 +38,7 @@ const expenseCreateSchema = z
     ...baseCreateSchema,
     type: z.literal('expense'),
     category_id: uuid.nullable().optional(),
+    is_neutral: z.boolean().optional(),
   })
   .strict()
 
@@ -70,6 +72,7 @@ const updateSchema = z.object({
   notes: z.string().nullable().optional(),
   destination_account_id: z.string().uuid().nullable().optional(),
   clear_category: z.boolean().optional(),
+  is_neutral: z.boolean().optional(),
 }).strict().refine(
   (data) => !data.account_id || !data.destination_account_id || data.account_id !== data.destination_account_id,
   {
@@ -233,6 +236,7 @@ export async function POST(request: Request) {
 
     const categoryId = d.type === 'transfer' ? null : d.category_id ?? null
     const destinationAccountId = d.type === 'transfer' ? d.destination_account_id : null
+    const isNeutral = d.type === 'transfer' ? false : Boolean(d.is_neutral)
 
     const { data, error } = await supabase.rpc('create_transaction_atomic', {
       p_account_id: d.account_id,
@@ -244,6 +248,7 @@ export async function POST(request: Request) {
       p_notes: d.notes ?? null,
       p_destination_account_id: destinationAccountId,
       p_recurring_id: d.recurring_id ?? null,
+      p_is_neutral: isNeutral,
     })
 
     if (error) {
@@ -324,6 +329,7 @@ export async function PATCH(request: Request) {
       p_notes: d.notes ?? null,
       p_destination_account_id: d.destination_account_id ?? null,
       p_clear_category: d.clear_category ?? false,
+      p_is_neutral: d.is_neutral ?? null,
     })
 
     if (error) {

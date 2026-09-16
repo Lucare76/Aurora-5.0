@@ -9,6 +9,7 @@ type TransactionFormValues = {
   destination_account_id?: string | null
   category_id?: string | null
   notes?: string | null
+  is_neutral?: boolean
 }
 
 type TransactionPayload = {
@@ -20,6 +21,7 @@ type TransactionPayload = {
   date: string
   category_id?: string | null
   destination_account_id?: string | null
+  is_neutral?: boolean
 }
 
 export function parseTransactionAmount(value: unknown): number {
@@ -46,5 +48,6 @@ export function buildTransactionPayload(values: TransactionFormValues): Transact
   }
 
   payload.category_id = values.category_id || null
+  payload.is_neutral = Boolean(values.is_neutral)
   return payload
 }
