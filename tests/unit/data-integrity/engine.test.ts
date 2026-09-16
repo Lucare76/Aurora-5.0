@@ -19,7 +19,7 @@ function input(overrides: Partial<DataIntegrityInput> = {}): DataIntegrityInput 
       { id: 'cat-income', user_id: 'user-a', name: 'Stipendio', type: 'income', color: null, icon: null, parent_id: null, is_default: false, sort_order: 0, created_at: '2026-01-01T00:00:00.000Z' },
     ],
     transactions: [
-      { id: 'tx-1', user_id: 'user-a', account_id: 'acc-a', category_id: 'cat-food', type: 'expense', amount: 10, description: 'DECO', notes: null, date: '2026-07-10', transfer_peer_id: null, recurring_id: null, receipt_url: null, receipt_data: null, created_at: '2026-07-10T00:00:00.000Z', updated_at: '2026-07-10T00:00:00.000Z' },
+      { id: 'tx-1', user_id: 'user-a', account_id: 'acc-a', category_id: 'cat-food', type: 'expense', amount: 10, description: 'DECO', notes: null, date: '2026-07-10', transfer_peer_id: null, recurring_id: null, receipt_url: null, receipt_data: null, is_neutral: false, created_at: '2026-07-10T00:00:00.000Z', updated_at: '2026-07-10T00:00:00.000Z' },
     ],
     recurringRules: [],
     budgets: [],
@@ -380,5 +380,55 @@ describe('data-integrity engine', () => {
     ]
     expect(summarizeIssues(issues).statusLabel).toBe('Attenzione urgente')
     expect(sortIssues(issues)[0].severity).toBe('CRITICAL')
+  })
+
+  it('7. crea ACCOUNT_RECONCILIATION_MISMATCH quando l\'ultima riconciliazione ha una differenza', () => {
+    const result = scanDataIntegrity(input({
+      accountReconciliations: [
+        { account_id: 'acc-a', status: 'mismatch', difference: -6.10, statement_date: '2026-07-20', created_at: '2026-07-20T00:00:00.000Z' },
+      ],
+    }))
+    const issue = result.issues.find((item) => item.ruleCode === 'ACCOUNT_RECONCILIATION_MISMATCH')
+    expect(issue).toBeDefined()
+    expect(issue?.entityIds).toEqual(['acc-a'])
+    expect(issue?.severity).toBe('WARNING')
+  })
+
+  it('7b. usa severità CRITICAL quando la differenza è ampia', () => {
+    const result = scanDataIntegrity(input({
+      accountReconciliations: [
+        { account_id: 'acc-a', status: 'mismatch', difference: -500, statement_date: '2026-07-20', created_at: '2026-07-20T00:00:00.000Z' },
+      ],
+    }))
+    const issue = result.issues.find((item) => item.ruleCode === 'ACCOUNT_RECONCILIATION_MISMATCH')
+    expect(issue?.severity).toBe('CRITICAL')
+  })
+
+  it('8. nessuna issue di mismatch quando l\'ultima riconciliazione è reconciled (differenza 0)', () => {
+    const result = scanDataIntegrity(input({
+      now: '2026-07-21T00:00:00.000Z',
+      accountReconciliations: [
+        { account_id: 'acc-a', status: 'reconciled', difference: 0, statement_date: '2026-07-20', created_at: '2026-07-20T00:00:00.000Z' },
+      ],
+    }))
+    expect(result.issues.some((issue) => issue.ruleCode === 'ACCOUNT_RECONCILIATION_MISMATCH')).toBe(false)
+    expect(result.issues.some((issue) => issue.ruleCode === 'ACCOUNT_NEVER_RECONCILED')).toBe(false)
+  })
+
+  it('segnala ACCOUNT_NEVER_RECONCILED solo per conti attivi con movimenti', () => {
+    const result = scanDataIntegrity(input())
+    const neverReconciled = result.issues.filter((issue) => issue.ruleCode === 'ACCOUNT_NEVER_RECONCILED')
+    // acc-a ha movimenti (tx-1) e non è mai stato riconciliato; acc-b non ha movimenti.
+    expect(neverReconciled.map((issue) => issue.entityIds[0])).toEqual(['acc-a'])
+  })
+
+  it('segnala ACCOUNT_RECONCILIATION_STALE oltre la soglia di 30 giorni', () => {
+    const result = scanDataIntegrity(input({
+      now: '2026-09-01T00:00:00.000Z',
+      accountReconciliations: [
+        { account_id: 'acc-a', status: 'reconciled', difference: 0, statement_date: '2026-07-01', created_at: '2026-07-01T00:00:00.000Z' },
+      ],
+    }))
+    expect(result.issues.some((issue) => issue.ruleCode === 'ACCOUNT_RECONCILIATION_STALE')).toBe(true)
   })
 })

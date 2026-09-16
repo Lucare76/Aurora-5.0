@@ -390,6 +390,42 @@ describe('transactions API route', () => {
 
       expect(response.status).toBe(400)
     })
+
+    it('forwards is_neutral=true for an expense marked as partita di giro', async () => {
+      const calls = mockSupabase()
+      const { POST } = await importRoute()
+
+      const response = await POST(makeRequest(validCreateBody({ type: 'expense', is_neutral: true })))
+
+      expect(response.status).toBe(201)
+      expect(calls[0].params.p_is_neutral).toBe(true)
+    })
+
+    it('defaults is_neutral to false when omitted on income/expense', async () => {
+      const calls = mockSupabase()
+      const { POST } = await importRoute()
+
+      const response = await POST(makeRequest(validCreateBody({ type: 'income' })))
+
+      expect(response.status).toBe(201)
+      expect(calls[0].params.p_is_neutral).toBe(false)
+    })
+
+    it('rejects is_neutral on a transfer (never confuse neutral with transfer)', async () => {
+      const calls = mockSupabase()
+      const { POST } = await importRoute()
+      const body = validCreateBody({
+        type: 'transfer',
+        destination_account_id: destinationAccountId,
+        is_neutral: true,
+      })
+      delete (body as { category_id?: string }).category_id
+
+      const response = await POST(makeRequest(body))
+
+      expect(response.status).toBe(400)
+      expect(calls).toHaveLength(0)
+    })
   })
 
   describe('PATCH', () => {
@@ -436,6 +472,26 @@ describe('transactions API route', () => {
           p_transaction_id: transactionId,
         },
       })
+    })
+
+    it('forwards is_neutral changes to the update RPC', async () => {
+      const calls = mockSupabase()
+      const { PATCH } = await importRoute()
+
+      const response = await PATCH(makeRequest(validPatchBody({ is_neutral: true })))
+
+      expect(response.status).toBe(200)
+      expect(calls[0].params.p_is_neutral).toBe(true)
+    })
+
+    it('sends null (unchanged) for is_neutral when omitted', async () => {
+      const calls = mockSupabase()
+      const { PATCH } = await importRoute()
+
+      const response = await PATCH(makeRequest(validPatchBody()))
+
+      expect(response.status).toBe(200)
+      expect(calls[0].params.p_is_neutral).toBeNull()
     })
   })
 

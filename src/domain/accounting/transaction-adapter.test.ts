@@ -159,6 +159,7 @@ function transaction(overrides: Partial<Transaction> = {}): Transaction {
     recurring_id: null,
     receipt_url: null,
     receipt_data: null,
+    is_neutral: false,
     created_at: '2026-03-10T00:00:00.000Z',
     updated_at: '2026-03-10T00:00:00.000Z',
     ...overrides,

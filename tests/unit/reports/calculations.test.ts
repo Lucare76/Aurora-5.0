@@ -16,12 +16,12 @@ const categories: ReportCategoryInput[] = [
 ]
 
 const transactions: ReportTransactionInput[] = [
-  { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1', account_id: accounts[0].id, category_id: categories[0].id, type: 'income', amount: 2000, description: 'Stipendio luglio', date: '2026-07-05', transfer_peer_id: null, recurring_id: null },
-  { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc2', account_id: accounts[0].id, category_id: categories[2].id, type: 'expense', amount: 700, description: 'Affitto', date: '2026-07-10', transfer_peer_id: null, recurring_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd' },
-  { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3', account_id: accounts[0].id, category_id: categories[3].id, type: 'expense', amount: 180, description: 'Spesa', date: '2026-07-12', transfer_peer_id: null, recurring_id: null },
-  { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc4', account_id: accounts[0].id, category_id: null, type: 'transfer', amount: 300, description: 'Giroconto', date: '2026-07-20', transfer_peer_id: accounts[1].id, recurring_id: null },
-  { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc5', account_id: accounts[0].id, category_id: categories[0].id, type: 'income', amount: 1500, description: 'Stipendio giugno', date: '2026-06-05', transfer_peer_id: null, recurring_id: null },
-  { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc6', account_id: accounts[0].id, category_id: categories[2].id, type: 'expense', amount: 650, description: 'Affitto giugno', date: '2026-06-10', transfer_peer_id: null, recurring_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd' },
+  { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1', account_id: accounts[0].id, category_id: categories[0].id, type: 'income', amount: 2000, description: 'Stipendio luglio', date: '2026-07-05', transfer_peer_id: null, recurring_id: null, is_neutral: false },
+  { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc2', account_id: accounts[0].id, category_id: categories[2].id, type: 'expense', amount: 700, description: 'Affitto', date: '2026-07-10', transfer_peer_id: null, recurring_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', is_neutral: false },
+  { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3', account_id: accounts[0].id, category_id: categories[3].id, type: 'expense', amount: 180, description: 'Spesa', date: '2026-07-12', transfer_peer_id: null, recurring_id: null, is_neutral: false },
+  { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc4', account_id: accounts[0].id, category_id: null, type: 'transfer', amount: 300, description: 'Giroconto', date: '2026-07-20', transfer_peer_id: accounts[1].id, recurring_id: null, is_neutral: false },
+  { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc5', account_id: accounts[0].id, category_id: categories[0].id, type: 'income', amount: 1500, description: 'Stipendio giugno', date: '2026-06-05', transfer_peer_id: null, recurring_id: null, is_neutral: false },
+  { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc6', account_id: accounts[0].id, category_id: categories[2].id, type: 'expense', amount: 650, description: 'Affitto giugno', date: '2026-06-10', transfer_peer_id: null, recurring_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', is_neutral: false },
 ]
 
 function report() {
@@ -49,6 +49,24 @@ describe('financial reports calculations', () => {
     expect(payload.summary.netCashFlow).toBe(1120)
     expect(payload.summary.internalTransfersAmount).toBe(300)
     expect(payload.summary.savingsRate).toBe(56)
+  })
+
+  it('9. esclude i movimenti neutri (partite di giro) da entrate e uscite del report', () => {
+    const { period, previousPeriod } = buildReportPeriods('2026-07-01', '2026-07-31')
+    const neutralExpense: ReportTransactionInput = { id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1', account_id: accounts[0].id, category_id: categories[3].id, type: 'expense', amount: 203.4, description: 'Anticipo spese per terzi', date: '2026-07-15', transfer_peer_id: null, recurring_id: null, is_neutral: true }
+    const neutralIncome: ReportTransactionInput = { id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2', account_id: accounts[0].id, category_id: categories[0].id, type: 'income', amount: 291.32, description: 'Rimborso da terzi', date: '2026-07-16', transfer_peer_id: null, recurring_id: null, is_neutral: true }
+
+    const withoutNeutrals = computeAdvancedReport({
+      accounts, categories, transactions, activeRecurringRulesCount: 1, period, previousPeriod,
+      accountFilter: null, categoryFilter: null, typeFilter: 'both', includeTransfers: true, includeArchivedAccounts: false,
+    })
+    const withNeutrals = computeAdvancedReport({
+      accounts, categories, transactions: [...transactions, neutralExpense, neutralIncome], activeRecurringRulesCount: 1, period, previousPeriod,
+      accountFilter: null, categoryFilter: null, typeFilter: 'both', includeTransfers: true, includeArchivedAccounts: false,
+    })
+
+    expect(withNeutrals.summary.totalIncome).toBe(withoutNeutrals.summary.totalIncome)
+    expect(withNeutrals.summary.totalExpenses).toBe(withoutNeutrals.summary.totalExpenses)
   })
 
   it('restituisce savingsRate null quando le entrate sono zero', () => {
