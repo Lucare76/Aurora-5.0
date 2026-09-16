@@ -129,7 +129,7 @@ export type AffordabilityDbData = {
     next_due_date: string
     is_active: boolean
   }>
-  recentTransactions: Array<Pick<Transaction, 'id' | 'type' | 'amount' | 'date' | 'transfer_peer_id'> & { account_id?: string }>
+  recentTransactions: Array<Pick<Transaction, 'id' | 'type' | 'amount' | 'date' | 'transfer_peer_id'> & { account_id?: string; is_neutral?: boolean }>
   loans: Array<{ id: string; remaining: number; is_settled: boolean; due_date: string | null }>
   loanPayments: Array<{ id: string; loan_id: string; amount: number; paid_at: string }>
   goals: Array<{ id: string; name: string; target_amount: number; current_amount: number; target_date: string | null; status: string; archived: boolean }>

@@ -269,4 +269,5 @@ export type ReportTransactionInput = {
   date: string
   transfer_peer_id: string | null
   recurring_id: string | null
+  is_neutral?: boolean
 }

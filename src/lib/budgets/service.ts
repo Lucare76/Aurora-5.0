@@ -706,6 +706,7 @@ export async function listMonthlyBudgets(
     .in('category_id', [...neededIds])
     .eq('type', 'expense')
     .is('transfer_peer_id', null)
+    .eq('is_neutral', false)
     .gte('date', start)
     .lte('date', end)
 
@@ -765,6 +766,7 @@ export async function listMonthlyBudgetsEnriched(
       .in('category_id', [...neededIds])
       .eq('type', 'expense')
       .is('transfer_peer_id', null)
+      .eq('is_neutral', false)
       .gte('date', curStart)
       .lte('date', curEnd),
     supabase
@@ -773,6 +775,7 @@ export async function listMonthlyBudgetsEnriched(
       .in('category_id', [...neededIds])
       .eq('type', 'expense')
       .is('transfer_peer_id', null)
+      .eq('is_neutral', false)
       .gte('date', prevStart)
       .lte('date', prevEnd),
   ])
@@ -872,6 +875,7 @@ export async function getBudgetDetail(
       .in('category_id', allCatIds)
       .eq('type', 'expense')
       .is('transfer_peer_id', null)
+      .eq('is_neutral', false)
       .gte('date', startStr)
       .lte('date', endStr)
       .order('date', { ascending: false }),
@@ -1018,6 +1022,7 @@ export async function getBudgetHistory(
       .in('category_id', allCatIds)
       .eq('type', 'expense')
       .is('transfer_peer_id', null)
+      .eq('is_neutral', false)
       .gte('date', startStr)
       .lte('date', endStr),
     supabase

@@ -173,7 +173,7 @@ export async function buildReportPayload(
       .order('sort_order', { ascending: true }),
     supabase
       .from('transactions')
-      .select('id,account_id,category_id,type,amount,description,date,transfer_peer_id,recurring_id')
+      .select('id,account_id,category_id,type,amount,description,date,transfer_peer_id,recurring_id,is_neutral')
       .gte('date', from)
       .lte('date', to)
       .order('date', { ascending: true }),

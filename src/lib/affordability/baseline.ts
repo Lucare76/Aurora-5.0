@@ -30,7 +30,7 @@ function recurringToMonthly(
 
 // ── Transactions → monthly average over lookback window ───────────────────────
 
-type TxSummary = { type: string; amount: number; date: string; transfer_peer_id: string | null }
+type TxSummary = { type: string; amount: number; date: string; transfer_peer_id: string | null; is_neutral?: boolean }
 
 function monthlyAvgFromTransactions(
   transactions: TxSummary[],
@@ -45,6 +45,7 @@ function monthlyAvgFromTransactions(
     (tx) =>
       tx.type === type &&
       tx.transfer_peer_id === null &&
+      !tx.is_neutral &&
       new Date(tx.date + 'T00:00:00Z') >= cutoff &&
       new Date(tx.date + 'T00:00:00Z') <= now,
   )

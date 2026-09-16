@@ -39,7 +39,7 @@ export function summarizeBudgets(params: {
   for (const budget of params.budgets.filter((item) => item.year === params.year && item.month === params.month)) {
     const categoryIds = categoryIdsForBudget(budget.category_id, params.categories)
     const spent = roundMoney(params.transactions
-      .filter((tx) => tx.type === 'expense' && !tx.transfer_peer_id && tx.date.slice(0, 7) === key && tx.category_id && categoryIds.has(tx.category_id))
+      .filter((tx) => tx.type === 'expense' && !tx.transfer_peer_id && !tx.is_neutral && tx.date.slice(0, 7) === key && tx.category_id && categoryIds.has(tx.category_id))
       .reduce((sum, tx) => sum + tx.amount, 0))
     const limit = roundMoney(budget.amount)
     const usage = limit > 0 ? roundMoney((spent / limit) * 100) : 0
