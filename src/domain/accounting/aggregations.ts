@@ -32,12 +32,31 @@ export function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100
 }
 
+/**
+ * A neutral transaction (partita di giro / rimborso di terzi) moves real money
+ * through the account — it must still affect the balance, appear in the
+ * transaction list, and be reconcilable against a bank statement — but it is
+ * not the user's own income or expense, so it must never enter personal
+ * spending/income stats, budgets, savings, or affordability. This is the
+ * single source of truth for that exclusion: every place that computes an
+ * economic metric from transactions must go through shouldIncludeInFinancialMetrics
+ * (or isCountableIncome/isCountableExpense below) instead of re-deriving the
+ * check locally.
+ */
+export function isEconomicallyNeutralTransaction(transaction: Pick<AppTransaction, 'isNeutral'>): boolean {
+  return transaction.isNeutral === true
+}
+
+export function shouldIncludeInFinancialMetrics(transaction: AppTransaction): boolean {
+  return transaction.transferReferenceKind === 'none' && !isEconomicallyNeutralTransaction(transaction)
+}
+
 export function isCountableIncome(transaction: AppTransaction): boolean {
-  return transaction.type === 'income' && transaction.transferReferenceKind === 'none'
+  return transaction.type === 'income' && shouldIncludeInFinancialMetrics(transaction)
 }
 
 export function isCountableExpense(transaction: AppTransaction): boolean {
-  return transaction.type === 'expense' && transaction.transferReferenceKind === 'none'
+  return transaction.type === 'expense' && shouldIncludeInFinancialMetrics(transaction)
 }
 
 export function isValidTransfer(transaction: AppTransaction): boolean {

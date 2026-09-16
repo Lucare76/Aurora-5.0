@@ -21,6 +21,8 @@ export type DeadlineRecurrence = 'NONE' | 'MONTHLY' | 'YEARLY'
 export type TimelineSubject = 'SELF' | 'AURORA' | 'ILENIA' | 'FAMILY'
 export type TimelineCategory = 'HEALTH' | 'THERAPY' | 'SCHOOL' | 'DOCUMENT' | 'ADMINISTRATIVE' | 'TRAVEL' | 'FAMILY' | 'MILESTONE' | 'OTHER'
 export type TimelineImportance = 'LOW' | 'NORMAL' | 'HIGH'
+export type ReconciliationStatus = 'reconciled' | 'mismatch' | 'pending' | 'superseded'
+export type ReconciliationSourceType = 'manual' | 'import'
 
 export interface Profile {
   id: string
@@ -165,6 +167,23 @@ export interface Transaction {
   recurring_id: string | null
   receipt_url: string | null
   receipt_data: Record<string, unknown> | null
+  is_neutral: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AccountReconciliation {
+  id: string
+  user_id: string
+  account_id: string
+  statement_date: string
+  bank_balance: number
+  app_balance_snapshot: number
+  difference: number
+  status: ReconciliationStatus
+  source_type: ReconciliationSourceType
+  source_reference: string | null
+  reconciled_at: string | null
   created_at: string
   updated_at: string
 }
@@ -595,6 +614,7 @@ export type Database = {
           recurring_id: string | null
           receipt_url: string | null
           receipt_data: Record<string, unknown> | null
+          is_neutral: boolean
           created_at: string
           updated_at: string
         }
@@ -612,6 +632,7 @@ export type Database = {
           recurring_id?: string | null
           receipt_url?: string | null
           receipt_data?: Record<string, unknown> | null
+          is_neutral?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -629,9 +650,29 @@ export type Database = {
           recurring_id?: string | null
           receipt_url?: string | null
           receipt_data?: Record<string, unknown> | null
+          is_neutral?: boolean
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
+      }
+      account_reconciliations: {
+        Row: AccountReconciliation
+        Insert: {
+          id?: string
+          user_id: string
+          account_id: string
+          statement_date: string
+          bank_balance: number
+          app_balance_snapshot: number
+          status?: ReconciliationStatus
+          source_type?: ReconciliationSourceType
+          source_reference?: string | null
+          reconciled_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Omit<AccountReconciliation, 'difference'>>
         Relationships: []
       }
       recurring_rules: {
@@ -1361,6 +1402,7 @@ export type Database = {
           p_notes?: string | null
           p_destination_account_id?: string | null
           p_recurring_id?: string | null
+          p_is_neutral?: boolean
         }
         Returns: Record<string, unknown>
       }
@@ -1380,6 +1422,7 @@ export type Database = {
           p_notes?: string | null
           p_destination_account_id?: string | null
           p_clear_category?: boolean
+          p_is_neutral?: boolean | null
         }
         Returns: Record<string, unknown>
       }

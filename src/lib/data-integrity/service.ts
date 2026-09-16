@@ -31,6 +31,7 @@ export async function fetchDataIntegrityInput(supabase: DataIntegritySupabase, u
     loanPayments,
     notifications,
     financialHealthSnapshots,
+    accountReconciliations,
   ] = await Promise.all([
     supabase.from('accounts').select('id,user_id,name,type,color,icon,balance,currency,is_active,is_hidden,sort_order,created_at,updated_at').eq('user_id', userId) as unknown as Promise<QueryResult<DataIntegrityInput['accounts'][number]>>,
     supabase.from('account_purpose_links').select('id,user_id,account_id,beneficiary_id,purpose,label,created_at,updated_at').eq('user_id', userId) as unknown as Promise<QueryResult<NonNullable<DataIntegrityInput['accountPurposeLinks']>[number]>>,
@@ -45,6 +46,7 @@ export async function fetchDataIntegrityInput(supabase: DataIntegritySupabase, u
     supabase.from('loan_payments').select('id,loan_id,user_id,amount,paid_at,notes,created_at').eq('user_id', userId) as unknown as Promise<QueryResult<DataIntegrityInput['loanPayments'][number]>>,
     (supabase as unknown as SupabaseClient).from('notifications').select('id,user_id,type,severity,title,message,dedupe_key,source_type,source_id,source_url,metadata,is_read,archived_at,resolved_at,snoozed_until,first_detected_at,last_detected_at,created_at,updated_at').eq('user_id', userId).limit(5000) as unknown as Promise<QueryResult<DataIntegrityInput['notifications'][number]>>,
     supabase.from('financial_health_snapshots').select('id,user_id,period_key,period_start,period_end,total_score,level,is_provisional,data_quality,observed_weight,metrics,component_scores,factors,recommendations,calculation_version,calculated_at,created_at,updated_at').eq('user_id', userId).order('period_start', { ascending: false }).limit(500) as unknown as Promise<QueryResult<DataIntegrityInput['financialHealthSnapshots'][number]>>,
+    supabase.from('account_reconciliations').select('account_id,status,difference,statement_date,created_at').eq('user_id', userId) as unknown as Promise<QueryResult<NonNullable<DataIntegrityInput['accountReconciliations']>[number]>>,
   ])
 
   const required = [accounts, categories, transactions, recurringRules, budgets, goals, goalContributions, loans, loanPayments]
@@ -66,6 +68,7 @@ export async function fetchDataIntegrityInput(supabase: DataIntegritySupabase, u
     loanPayments: loanPayments.data ?? [],
     notifications: notifications.error ? [] : (notifications.data ?? []),
     financialHealthSnapshots: financialHealthSnapshots.error ? [] : (financialHealthSnapshots.data ?? []),
+    accountReconciliations: accountReconciliations.error ? [] : (accountReconciliations.data ?? []),
   }
 }
 

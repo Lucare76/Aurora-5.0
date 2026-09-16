@@ -27,6 +27,7 @@ export type AppTransaction = {
   peerTransactionId: string | null
   transferReferenceKind: ClassifiedTransfer['kind']
   transferReference: ClassifiedTransfer
+  isNeutral: boolean
 }
 
 export type AdaptTransactionContext = {
@@ -68,6 +69,7 @@ export function adaptTransactionRow(
     peerTransactionId: transferReference.peerTransactionId,
     transferReferenceKind: transferReference.kind,
     transferReference,
+    isNeutral: transaction.is_neutral === true,
   }
 }
 

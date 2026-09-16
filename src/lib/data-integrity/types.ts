@@ -1,6 +1,7 @@
 import type {
   Account,
   AccountPurposeLink,
+  AccountReconciliation,
   AdiEntry,
   Budget,
   Category,
@@ -30,6 +31,7 @@ export type DataIntegrityCategory =
   | 'notifications'
   | 'temporal'
   | 'backup'
+  | 'reconciliation'
 
 export type DataIntegrityScanMode = 'quick' | 'full' | 'targeted'
 export type DataIntegrityConfidence = 'high' | 'medium' | 'low'
@@ -92,6 +94,9 @@ export type DataIntegrityRuleCode =
   | 'NOTIFICATION_SOURCE_ORPHAN'
   | 'NOTIFICATION_RESOLVED_UNREAD'
   | 'TEMPORAL_CREATED_AFTER_UPDATED'
+  | 'ACCOUNT_RECONCILIATION_MISMATCH'
+  | 'ACCOUNT_NEVER_RECONCILED'
+  | 'ACCOUNT_RECONCILIATION_STALE'
 
 export type DataIntegrityRuleDefinition = {
   code: DataIntegrityRuleCode
@@ -165,6 +170,7 @@ export type DataIntegrityInput = {
   loanPayments: LoanPayment[]
   notifications: Notification[]
   financialHealthSnapshots: FinancialHealthSnapshot[]
+  accountReconciliations?: Pick<AccountReconciliation, 'account_id' | 'status' | 'difference' | 'statement_date' | 'created_at'>[]
 }
 
 export type DataIntegritySummary = {
