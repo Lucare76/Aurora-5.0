@@ -112,7 +112,12 @@ export default function ReconciliationPage() {
         statementDate,
         bankBalance: parsedBankBalance,
       })
-      setHistory((prev) => [reconciliation, ...prev.map((row) => (row.status === 'superseded' ? row : { ...row, status: 'superseded' as const }))])
+      // Re-fetch rather than optimistically reordering client-side: a
+      // retroactive statement_date does not make the new row "current", and
+      // only the server (via listReconciliationHistory's statement_date-first
+      // ordering) knows the true current/superseded state after the insert.
+      const rows = await listReconciliationHistory(supabase, user.id, selectedAccount.id)
+      setHistory(rows)
       setBankBalanceInput('')
       toast.success(reconciliation.status === 'reconciled' ? 'Conto riconciliato' : 'Riconciliazione salvata: differenza rilevata')
     } catch (error) {

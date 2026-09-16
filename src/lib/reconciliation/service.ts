@@ -82,6 +82,7 @@ export async function listReconciliationHistory(
     .select('*')
     .eq('user_id', userId)
     .eq('account_id', accountId)
+    .order('statement_date', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -89,6 +90,13 @@ export async function listReconciliationHistory(
   return (data ?? []) as AccountReconciliation[]
 }
 
+/**
+ * The "current" reconciliation for a conto is the one with the latest
+ * statement_date, tied only by created_at — never insertion order alone
+ * (see compareReconciliationRecency). Ordering the query this way, rather
+ * than by created_at, is what makes a retroactively-inserted older statement
+ * correctly rank below an already-on-file newer one.
+ */
 export async function getLatestReconciliation(
   supabase: ReconciliationSupabase,
   userId: string,
@@ -99,6 +107,7 @@ export async function getLatestReconciliation(
     .select('*')
     .eq('user_id', userId)
     .eq('account_id', accountId)
+    .order('statement_date', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -115,6 +124,7 @@ export async function listLatestReconciliationsByAccount(
     .from('account_reconciliations')
     .select('*')
     .eq('user_id', userId)
+    .order('statement_date', { ascending: false })
     .order('created_at', { ascending: false })
 
   if (error) return new Map()

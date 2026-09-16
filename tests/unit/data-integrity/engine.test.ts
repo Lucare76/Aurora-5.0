@@ -382,33 +382,50 @@ describe('data-integrity engine', () => {
     expect(sortIssues(issues)[0].severity).toBe('CRITICAL')
   })
 
-  it('7. crea ACCOUNT_RECONCILIATION_MISMATCH quando l\'ultima riconciliazione ha una differenza', () => {
+  it('7. crea ACCOUNT_RECONCILIATION_MISMATCH quando l\'ultima riconciliazione ha una differenza, con evidence completa', () => {
     const result = scanDataIntegrity(input({
       accountReconciliations: [
-        { account_id: 'acc-a', status: 'mismatch', difference: -6.10, statement_date: '2026-07-20', created_at: '2026-07-20T00:00:00.000Z' },
+        { account_id: 'acc-a', status: 'mismatch', difference: -6.10, bank_balance: 993.90, app_balance_snapshot: 1000, statement_date: '2026-07-20', created_at: '2026-07-20T00:00:00.000Z' },
       ],
     }))
     const issue = result.issues.find((item) => item.ruleCode === 'ACCOUNT_RECONCILIATION_MISMATCH')
     expect(issue).toBeDefined()
     expect(issue?.entityIds).toEqual(['acc-a'])
     expect(issue?.severity).toBe('WARNING')
+    // 3. evidence: conto, saldo banca, saldo Aurora snapshot, differenza, data estratto — kind coerenti.
+    expect(issue?.evidence).toEqual(expect.arrayContaining([
+      { label: 'Conto', value: 'Bancoposta', kind: 'text' },
+      { label: 'Saldo banca', value: 993.90, kind: 'money' },
+      { label: 'Saldo Aurora', value: 1000, kind: 'money' },
+      { label: 'Differenza', value: -6.10, kind: 'money' },
+      { label: 'Data estratto', value: '2026-07-20', kind: 'date' },
+    ]))
+  })
+
+  it('+0.01 di differenza è già un mismatch per Data Integrity (nessuna tolleranza oltre l\'arrotondamento)', () => {
+    const result = scanDataIntegrity(input({
+      accountReconciliations: [
+        { account_id: 'acc-a', status: 'mismatch', difference: 0.01, bank_balance: 1000.01, app_balance_snapshot: 1000, statement_date: '2026-07-20', created_at: '2026-07-20T00:00:00.000Z' },
+      ],
+    }))
+    expect(result.issues.some((issue) => issue.ruleCode === 'ACCOUNT_RECONCILIATION_MISMATCH')).toBe(true)
   })
 
   it('7b. usa severità CRITICAL quando la differenza è ampia', () => {
     const result = scanDataIntegrity(input({
       accountReconciliations: [
-        { account_id: 'acc-a', status: 'mismatch', difference: -500, statement_date: '2026-07-20', created_at: '2026-07-20T00:00:00.000Z' },
+        { account_id: 'acc-a', status: 'mismatch', difference: -500, bank_balance: 500, app_balance_snapshot: 1000, statement_date: '2026-07-20', created_at: '2026-07-20T00:00:00.000Z' },
       ],
     }))
     const issue = result.issues.find((item) => item.ruleCode === 'ACCOUNT_RECONCILIATION_MISMATCH')
     expect(issue?.severity).toBe('CRITICAL')
   })
 
-  it('8. nessuna issue di mismatch quando l\'ultima riconciliazione è reconciled (differenza 0)', () => {
+  it('8. nessuna issue di mismatch quando l\'ultima riconciliazione è reconciled (differenza 0.00)', () => {
     const result = scanDataIntegrity(input({
       now: '2026-07-21T00:00:00.000Z',
       accountReconciliations: [
-        { account_id: 'acc-a', status: 'reconciled', difference: 0, statement_date: '2026-07-20', created_at: '2026-07-20T00:00:00.000Z' },
+        { account_id: 'acc-a', status: 'reconciled', difference: 0, bank_balance: 1000, app_balance_snapshot: 1000, statement_date: '2026-07-20', created_at: '2026-07-20T00:00:00.000Z' },
       ],
     }))
     expect(result.issues.some((issue) => issue.ruleCode === 'ACCOUNT_RECONCILIATION_MISMATCH')).toBe(false)
@@ -426,9 +443,25 @@ describe('data-integrity engine', () => {
     const result = scanDataIntegrity(input({
       now: '2026-09-01T00:00:00.000Z',
       accountReconciliations: [
-        { account_id: 'acc-a', status: 'reconciled', difference: 0, statement_date: '2026-07-01', created_at: '2026-07-01T00:00:00.000Z' },
+        { account_id: 'acc-a', status: 'reconciled', difference: 0, bank_balance: 1000, app_balance_snapshot: 1000, statement_date: '2026-07-01', created_at: '2026-07-01T00:00:00.000Z' },
       ],
     }))
     expect(result.issues.some((issue) => issue.ruleCode === 'ACCOUNT_RECONCILIATION_STALE')).toBe(true)
+  })
+
+  it('caso obbligatorio: una riconciliazione retroattiva (statement_date più vecchia) non deve mascherare il mismatch di quella corrente', () => {
+    const result = scanDataIntegrity(input({
+      now: '2026-09-16T00:00:00.000Z',
+      accountReconciliations: [
+        // Corrente: inserita per prima, statement_date più recente, differenza.
+        { account_id: 'acc-a', status: 'mismatch', difference: -6.10, bank_balance: 993.90, app_balance_snapshot: 1000, statement_date: '2026-09-15', created_at: '2026-09-15T09:00:00.000Z' },
+        // Retroattiva: inserita DOPO (created_at più recente) ma con statement_date
+        // più vecchia e riconciliata — non deve diventare "l'ultima" per lo scan.
+        { account_id: 'acc-a', status: 'superseded', difference: 0, bank_balance: 1000, app_balance_snapshot: 1000, statement_date: '2026-08-31', created_at: '2026-09-16T09:00:00.000Z' },
+      ],
+    }))
+    const issue = result.issues.find((item) => item.ruleCode === 'ACCOUNT_RECONCILIATION_MISMATCH')
+    expect(issue).toBeDefined()
+    expect(issue?.evidence).toEqual(expect.arrayContaining([{ label: 'Data estratto', value: '2026-09-15', kind: 'date' }]))
   })
 })

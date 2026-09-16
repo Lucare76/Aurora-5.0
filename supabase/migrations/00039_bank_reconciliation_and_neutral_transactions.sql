@@ -61,10 +61,13 @@ create table if not exists public.account_reconciliations (
 
 comment on table public.account_reconciliations is 'Storico delle riconciliazioni tra saldo estratto conto banca e saldo Aurora per un conto. Livello di controllo sopra accounts.balance, mai una seconda fonte di verita: non corregge automaticamente il saldo.';
 comment on column public.account_reconciliations.app_balance_snapshot is 'Saldo accounts.balance del conto al momento della riconciliazione (fotografia, non ricalcolato a posteriori).';
-comment on column public.account_reconciliations.difference is 'bank_balance - app_balance_snapshot, arrotondata al centesimo. |differenza| <= 0.01 => riconciliato.';
+comment on column public.account_reconciliations.difference is 'bank_balance - app_balance_snapshot, arrotondata al centesimo. differenza = 0.00 => reconciled; qualsiasi altro valore, anche +/-0.01, => mismatch. Nessuna tolleranza oltre l''arrotondamento al centesimo.';
 
 create index if not exists idx_account_reconciliations_user on public.account_reconciliations(user_id);
-create index if not exists idx_account_reconciliations_account_created on public.account_reconciliations(account_id, created_at desc);
+-- Ordinata come la query "corrente/storico" (statement_date desc, created_at
+-- desc): la riconciliazione attuale di un conto è sempre quella con lo
+-- statement_date più recente, mai quella inserita per ultima in assoluto.
+create index if not exists idx_account_reconciliations_account_statement on public.account_reconciliations(account_id, statement_date desc, created_at desc);
 
 alter table public.account_reconciliations enable row level security;
 
@@ -88,7 +91,17 @@ drop policy if exists "Users can update own account reconciliations" on public.a
 create policy "Users can update own account reconciliations"
 on public.account_reconciliations for update
 using ((select auth.uid()) = user_id)
-with check ((select auth.uid()) = user_id);
+with check (
+  -- Stessa verifica ownership dell'INSERT: senza questa, un utente potrebbe
+  -- ricollegare una propria riconciliazione a un account_id di un altro
+  -- utente (o lasciare user_id invariato ma spostare la riga "sotto" un
+  -- conto altrui), aggirando l'isolamento per-utente della tabella.
+  (select auth.uid()) = user_id
+  and exists (
+    select 1 from public.accounts a
+    where a.id = account_id and a.user_id = (select auth.uid())
+  )
+);
 
 drop policy if exists "Users can delete own account reconciliations" on public.account_reconciliations;
 create policy "Users can delete own account reconciliations"
@@ -99,23 +112,53 @@ drop trigger if exists set_updated_at on public.account_reconciliations;
 create trigger set_updated_at before update on public.account_reconciliations
 for each row execute function public.set_updated_at();
 
--- Ogni nuova riconciliazione per un conto "supersede" le precedenti riconciliazioni
--- attive (reconciled/mismatch) dello stesso conto: lo storico resta (nessuna riga
--- viene eliminata), ma "ultima riconciliazione valida" e sempre derivabile senza
--- stato duplicato su accounts, prendendo l'ultima riga per created_at.
+-- Ogni nuova riconciliazione per un conto "supersede" solo le riconciliazioni
+-- attive (reconciled/mismatch) dello stesso conto che sono cronologicamente
+-- PRECEDENTI ad essa, per (statement_date, created_at) — mai per solo ordine
+-- di inserimento. Questo è deliberato: un utente può inserire retroattivamente
+-- un estratto conto più vecchio DOPO che uno più recente è già a sistema (es.
+-- inserisce oggi il 2026-09-15, poi in un secondo momento il 2026-08-31); in
+-- quel caso la riga più vecchia (2026-08-31) nasce già "superseded" — non deve
+-- MAI scavalcare come "corrente" una riconciliazione con statement_date più
+-- recente solo perché inserita per ultima. Lo storico resta comunque intatto
+-- (nessuna riga viene eliminata); "ultima riconciliazione valida" resta
+-- derivabile senza stato duplicato su accounts, ordinando per
+-- (statement_date desc, created_at desc) — vedi compareReconciliationRecency
+-- in src/domain/accounting/reconciliation.ts, che questa logica rispecchia.
 create or replace function public.supersede_previous_reconciliations()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_is_most_recent boolean;
 begin
-  update public.account_reconciliations
-     set status = 'superseded'
-   where account_id = new.account_id
-     and id <> new.id
-     and user_id = new.user_id
-     and status in ('reconciled', 'mismatch');
+  select not exists (
+    select 1
+      from public.account_reconciliations existing
+     where existing.account_id = new.account_id
+       and existing.id <> new.id
+       and (existing.statement_date, existing.created_at) > (new.statement_date, new.created_at)
+  ) into v_is_most_recent;
+
+  if v_is_most_recent then
+    update public.account_reconciliations
+       set status = 'superseded'
+     where account_id = new.account_id
+       and id <> new.id
+       and user_id = new.user_id
+       and status in ('reconciled', 'mismatch')
+       and (statement_date, created_at) < (new.statement_date, new.created_at);
+  else
+    -- La nuova riga è retroattiva rispetto a una già presente: nasce già
+    -- superata, la riconciliazione più recente esistente resta "corrente".
+    update public.account_reconciliations
+       set status = 'superseded'
+     where id = new.id
+       and status in ('reconciled', 'mismatch');
+  end if;
+
   return new;
 end;
 $$;

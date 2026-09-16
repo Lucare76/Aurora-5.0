@@ -1,4 +1,4 @@
-import { daysSinceStatement } from '@/domain/accounting/reconciliation'
+import { compareReconciliationRecency, daysSinceStatement, isReconciliationBalanced } from '@/domain/accounting/reconciliation'
 import { DATA_INTEGRITY_CENT_TOLERANCE, DATA_INTEGRITY_MAX_ISSUES_PER_SCAN, DATA_INTEGRITY_RECONCILIATION_CRITICAL_AMOUNT, DATA_INTEGRITY_RECONCILIATION_STALE_DAYS, DATA_INTEGRITY_RULESET_VERSION, DATA_INTEGRITY_SEVERITY_PRIORITY, DATA_INTEGRITY_STATUS_PRIORITY } from './constants'
 import { cents, createDataIntegrityFingerprint, normalizeEntityIds, normalizeText } from './fingerprint'
 import { DATA_INTEGRITY_RULE_BY_CODE } from './registry'
@@ -415,7 +415,7 @@ function scanReconciliation(input: DataIntegrityInput, context: Context, add: (d
     const hasMovements = input.transactions.some((tx) => tx.account_id === account.id)
     if (!hasMovements) continue
 
-    const history = [...(reconciliationsByAccount.get(account.id) ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at))
+    const history = [...(reconciliationsByAccount.get(account.id) ?? [])].sort(compareReconciliationRecency)
     const latest = history[0]
 
     if (!latest) {
@@ -424,12 +424,14 @@ function scanReconciliation(input: DataIntegrityInput, context: Context, add: (d
     }
 
     const difference = Number(latest.difference)
-    if (Math.abs(difference) > DATA_INTEGRITY_CENT_TOLERANCE) {
+    if (!isReconciliationBalanced(difference)) {
       const severity: DataIntegritySeverity = Math.abs(difference) >= DATA_INTEGRITY_RECONCILIATION_CRITICAL_AMOUNT ? 'CRITICAL' : 'WARNING'
       add(issue('ACCOUNT_RECONCILIATION_MISMATCH', 'account', [account.id], 'L ultima riconciliazione del conto mostra una differenza tra saldo banca e saldo Aurora.', 'Il saldo del conto potrebbe non corrispondere all estratto conto reale.', 'Verifica movimenti mancanti, duplicati o non ancora registrati e riconcilia di nuovo.', [
         { label: 'Conto', value: account.name, kind: 'text' },
-        { label: 'Saldo banca', value: latest.statement_date, kind: 'date' },
+        { label: 'Saldo banca', value: Number(latest.bank_balance), kind: 'money' },
+        { label: 'Saldo Aurora', value: Number(latest.app_balance_snapshot), kind: 'money' },
         { label: 'Differenza', value: difference, kind: 'money' },
+        { label: 'Data estratto', value: latest.statement_date, kind: 'date' },
       ], `/reconciliation?account=${account.id}`, severity))
       continue
     }

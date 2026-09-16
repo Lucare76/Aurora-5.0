@@ -170,7 +170,7 @@ export type DataIntegrityInput = {
   loanPayments: LoanPayment[]
   notifications: Notification[]
   financialHealthSnapshots: FinancialHealthSnapshot[]
-  accountReconciliations?: Pick<AccountReconciliation, 'account_id' | 'status' | 'difference' | 'statement_date' | 'created_at'>[]
+  accountReconciliations?: Pick<AccountReconciliation, 'account_id' | 'status' | 'difference' | 'bank_balance' | 'app_balance_snapshot' | 'statement_date' | 'created_at'>[]
 }
 
 export type DataIntegritySummary = {

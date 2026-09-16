@@ -25,15 +25,20 @@ l'attuale sistema di saldo/RPC.
   logica RPC), invece di introdurre un quarto `TransactionType`. Questo evita di
   toccare la logica di saldo nelle RPC e i numerosi switch su `transaction.type`
   sparsi nel codice.
-- **Soglia cent-based.** `RECONCILIATION_CENT_TOLERANCE = 0.01` in
-  `src/domain/accounting/reconciliation.ts`, riusato sia per lo stato
-  riconciliato/mismatch sia per la regola Data Integrity, coerente col precedente
-  `DATA_INTEGRITY_CENT_TOLERANCE` già esistente.
-- **Storico riconciliazioni, mai stato duplicato su `accounts`.** Ogni nuova
-  riconciliazione per un conto marca `superseded` le precedenti (trigger
-  `supersede_previous_reconciliations`), così "ultima riconciliazione valida" è
-  sempre derivabile con una query, senza aggiungere colonne ridondanti a
-  `accounts`.
+- **Soglia cent-based, senza banda di tolleranza.** `calculateReconciliationDifference`
+  arrotonda al centesimo per essere floating-point-safe, ma `isReconciliationBalanced`
+  richiede una differenza arrotondata **esattamente 0.00**: anche +/-0.01 è mismatch.
+  La stessa funzione è riusata sia per lo stato riconciliato/mismatch sia per la
+  regola Data Integrity `ACCOUNT_RECONCILIATION_MISMATCH` (che non usa più la
+  generica `DATA_INTEGRITY_CENT_TOLERANCE` per questa decisione).
+- **Storico riconciliazioni, "corrente" derivata da `statement_date DESC, created_at
+  DESC`, mai dal solo ordine di inserimento.** Il trigger `supersede_previous_reconciliations`
+  confronta le tuple `(statement_date, created_at)`: una riga inserita
+  retroattivamente (statement_date più vecchia di una già presente) nasce già
+  `superseded` e non scavalca mai la riconciliazione più recente. Lo stesso
+  comparatore (`compareReconciliationRecency`) è condiviso da dominio, servizio
+  e Data Integrity, così "ultima riconciliazione valida" resta derivabile con
+  una query coerente ovunque, senza aggiungere colonne ridondanti a `accounts`.
 - **Utility centrale per l'esclusione dalle metriche.** `isEconomicallyNeutralTransaction()`
   e `shouldIncludeInFinancialMetrics()` in `src/domain/accounting/aggregations.ts`
   sono l'unico punto di verità; `isCountableIncome`/`isCountableExpense` (già usati
@@ -48,9 +53,11 @@ l'attuale sistema di saldo/RPC.
 - Tabella `account_reconciliations`: `account_id, statement_date, bank_balance,
   app_balance_snapshot, difference` (colonna generata), `status` (`reconciled |
   mismatch | pending | superseded`), `source_type` (`manual | import`),
-  `source_reference`, `reconciled_at`, timestamp. RLS + policy ownership-only,
-  indici su `user_id` e `(account_id, created_at desc)`, trigger `set_updated_at`
-  e trigger di "supersede" automatico.
+  `source_reference`, `reconciled_at`, timestamp. RLS (SELECT/INSERT/UPDATE/DELETE
+  tutte ownership-only; UPDATE verifica anche che `account_id` appartenga
+  all'utente, non solo `user_id`), indici su `user_id` e
+  `(account_id, statement_date desc, created_at desc)`, trigger `set_updated_at`
+  e trigger di "supersede" basato su `(statement_date, created_at)`.
 - `create_transaction_atomic` / `update_transaction_atomic`: firme estese con
   `p_is_neutral` (drop + create, non `create or replace`, perché Postgres
   identifica le funzioni per lista di parametri — vedi commento nella migration).
@@ -103,6 +110,49 @@ Una transazione con `is_neutral = true`:
 Non implementata alcuna euristica automatica per marcare un movimento come
 neutro (né in import, né in automazioni): la marcatura è sempre manuale, come
 richiesto ("NON cercare di indovinare da solo").
+
+## Hardening correttivo (review mirata post-sprint)
+
+Una seconda passata di review su questo branch (prima di applicare `00039` o
+aprire il merge) ha corretto 5 punti nel lavoro già presente:
+
+1. **Riconciliazione a 1 centesimo era troppo permissiva.** `isReconciliationBalanced`
+   usava una tolleranza `|differenza| <= 0.01`, quindi +/-0.01 risultava "riconciliato".
+   Corretto: il calcolo resta cent-based e floating-point-safe (arrotondamento
+   prima del confronto), ma ora richiede **esattamente 0.00** dopo l'arrotondamento.
+   Aggiornati i commenti SQL che citavano `<= 0.01`.
+2. **"Ultima riconciliazione" dipendeva da `created_at`, fragile con inserimenti
+   retroattivi.** Un estratto conto inserito retroattivamente (statement_date più
+   vecchia) diventava "corrente" solo perché inserito per ultimo, e il trigger
+   `supersede_previous_reconciliations` marcava `superseded` qualunque riga
+   precedente indipendentemente dalla data estratto. Corretto introducendo
+   `compareReconciliationRecency` (statement_date DESC, created_at DESC come
+   tie-breaker) come unico comparatore, condiviso da `latestReconciliationByAccount`,
+   dalle query di `src/lib/reconciliation/service.ts`, dallo scan Data Integrity e
+   dal trigger SQL (che ora confronta le tuple `(statement_date, created_at)` invece
+   di marcare tutto per ordine di inserimento). La UI di `/reconciliation` non fa
+   più un aggiornamento ottimistico locale dopo il salvataggio: ri-legge lo storico
+   dal server, l'unico che conosce lo stato corretto dopo l'insert.
+3. **Evidence Data Integrity errata.** `ACCOUNT_RECONCILIATION_MISMATCH` mostrava
+   una voce "Saldo banca" valorizzata con `statement_date` (una data spacciata per
+   importo). Corretto: l'evidence ora include conto, saldo banca (`money`), saldo
+   Aurora snapshot (`money`), differenza (`money`) e data estratto (`date`).
+4. **RLS UPDATE non verificava l'ownership di `account_id`.** La policy UPDATE
+   controllava solo `user_id`, permettendo in teoria di ricollegare una propria
+   riga a un conto di un altro utente. Aggiunta la stessa verifica `exists (...)`
+   già presente su INSERT.
+5. **Verifica retrocompatibilità RPC.** Cercate in tutto il repo (route API,
+   automazioni, restore, import, integration test) le chiamate a
+   `create_transaction_atomic`/`update_transaction_atomic`: tutte usano parametri
+   nominati via `supabase.rpc(name, {...})` e nessuna passa `p_is_neutral` in modo
+   incompatibile — ometterlo usa semplicemente il default (`false` in create,
+   "invariato" in update). Nessuna modifica di codice necessaria; verificato in
+   `src/app/api/aurora/route.ts`, `src/lib/automation/service.ts`,
+   `tests/integration/supabase-accounting.integration.test.ts`.
+
+Migration `00039` **modificata in place** (non con una `00040` successiva):
+non è mai stata applicata a nessun ambiente Supabase, quindi la correzione
+diretta è appropriata per un lavoro locale non ancora mergiato.
 
 ## Test aggiunti (FASE 11 — tutti i 12 casi obbligatori)
 
