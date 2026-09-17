@@ -8,16 +8,17 @@ import {
 import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { StatusBadge, type StatusTone } from '@/components/ui/status-badge'
 import { cn, formatCurrency } from '@/lib/utils'
 import { SIMULATION_BADGE, DISCLAIMER_TEXT } from '@/lib/scenarios/constants'
 import type { FinancialScenario } from '@/lib/scenarios/types'
 
-function statusLabel(status: FinancialScenario['status']) {
+function statusPresentation(status: FinancialScenario['status']): { label: string; tone: StatusTone } {
   switch (status) {
-    case 'ready':    return { label: 'Pronto',     cls: 'bg-emerald-100 text-emerald-700' }
-    case 'draft':    return { label: 'Bozza',      cls: 'bg-slate-100 text-slate-600' }
-    case 'outdated': return { label: 'Aggiornare', cls: 'bg-amber-100 text-amber-700' }
-    case 'archived': return { label: 'Archiviato', cls: 'bg-slate-100 text-slate-500' }
+    case 'ready':    return { label: 'Pronto', tone: 'success' }
+    case 'draft':    return { label: 'Bozza', tone: 'neutral' }
+    case 'outdated': return { label: 'Da aggiornare', tone: 'warning' }
+    case 'archived': return { label: 'Archiviato', tone: 'neutral' }
   }
 }
 
@@ -32,47 +33,48 @@ function ScenarioCard({
   onToggleFavorite: (id: string, fav: boolean) => void
   onArchive: (id: string) => void
 }) {
-  const { label, cls } = statusLabel(scenario.status)
+  const status = statusPresentation(scenario.status)
   const summary = scenario.result_summary
 
   return (
     <Card className="overflow-hidden transition-shadow hover:shadow-md">
       <CardContent className="p-4 sm:p-5">
-        {/* Top row: badge + favorite + delta */}
-        <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="mb-2 flex items-start justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', cls)}>{label}</span>
+            <StatusBadge tone={status.tone} label={status.label} />
             {scenario.is_favorite && (
-              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600" aria-label="Scenario preferito">
+                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" aria-hidden="true" />
+                <span className="sr-only">Preferito</span>
+              </span>
             )}
           </div>
           {summary && (
-            <span className={cn('text-sm font-semibold shrink-0', summary.finalBalance.delta >= 0 ? 'text-emerald-600' : 'text-red-500')}>
+            <span
+              className={cn('shrink-0 text-sm font-semibold tabular-nums', summary.finalBalance.delta >= 0 ? 'text-emerald-600' : 'text-red-500')}
+              aria-label={`Differenza finale ${formatCurrency(summary.finalBalance.delta)}`}
+            >
               {summary.finalBalance.delta >= 0 ? '+' : ''}{formatCurrency(summary.finalBalance.delta)}
             </span>
           )}
         </div>
 
-        {/* Title */}
-        <Link href={`/scenarios/${scenario.id}`} className="block">
-          <h3 className="font-semibold text-slate-900 hover:text-indigo-600 leading-snug line-clamp-2">
+        <Link href={`/scenarios/${scenario.id}`} className="block rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2">
+          <h3 className="line-clamp-2 font-semibold leading-snug text-slate-900 hover:text-indigo-600">
             {scenario.name}
           </h3>
         </Link>
 
-        {/* Description */}
         {scenario.description && (
-          <p className="mt-1 text-sm text-slate-500 line-clamp-2">{scenario.description}</p>
+          <p className="mt-1 line-clamp-2 text-sm text-slate-500">{scenario.description}</p>
         )}
 
-        {/* Meta */}
         <p className="mt-1.5 text-xs text-slate-400">
           {scenario.horizon_months} {scenario.horizon_months === 1 ? 'mese' : 'mesi'}
           {' · '}
           {scenario.actions.length} {scenario.actions.length === 1 ? 'azione' : 'azioni'}
         </p>
 
-        {/* Action row */}
         <div className="mt-3 flex items-center gap-1.5">
           <Link
             href={`/scenarios/${scenario.id}`}
@@ -81,29 +83,35 @@ function ScenarioCard({
             Apri
           </Link>
           <button
+            type="button"
             onClick={() => onToggleFavorite(scenario.id, !scenario.is_favorite)}
-            className="p-2 rounded-lg text-slate-400 hover:text-amber-500 transition-colors"
+            className="rounded-lg p-2 text-slate-400 transition-colors hover:text-amber-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
             title={scenario.is_favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
+            aria-label={scenario.is_favorite ? `Rimuovi ${scenario.name} dai preferiti` : `Aggiungi ${scenario.name} ai preferiti`}
           >
             {scenario.is_favorite
-              ? <StarOff className="h-4 w-4" />
-              : <Star className="h-4 w-4" />}
+              ? <StarOff className="h-4 w-4" aria-hidden="true" />
+              : <Star className="h-4 w-4" aria-hidden="true" />}
           </button>
           {scenario.status !== 'archived' && (
             <button
+              type="button"
               onClick={() => onArchive(scenario.id)}
-              className="p-2 rounded-lg text-slate-400 hover:text-amber-600 transition-colors"
+              className="rounded-lg p-2 text-slate-400 transition-colors hover:text-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
               title="Archivia"
+              aria-label={`Archivia ${scenario.name}`}
             >
-              <Archive className="h-4 w-4" />
+              <Archive className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
           <button
+            type="button"
             onClick={() => onDelete(scenario.id)}
-            className="p-2 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
+            className="rounded-lg p-2 text-slate-400 transition-colors hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
             title="Elimina"
+            aria-label={`Elimina ${scenario.name}`}
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
       </CardContent>
@@ -142,7 +150,8 @@ export default function ScenariosPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Eliminare questo scenario?')) return
     try {
-      await fetch(`/api/scenarios/${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/scenarios/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
       setScenarios((prev) => prev.filter((s) => s.id !== id))
       toast.success('Scenario eliminato.')
     } catch {
@@ -185,32 +194,35 @@ export default function ScenariosPage() {
 
   return (
     <div className="space-y-6">
-      {/* ── Page header ── */}
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <FlaskConical className="h-5 w-5 text-indigo-500 shrink-0" />
+            <FlaskConical className="h-5 w-5 shrink-0 text-indigo-500" aria-hidden="true" />
             <h1 className="text-2xl font-bold tracking-tight text-slate-950">Scenari finanziari</h1>
           </div>
-          <p className="mt-1 text-sm text-slate-500">{SIMULATION_BADGE}</p>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+            {SIMULATION_BADGE}. Confronta ipotesi senza modificare movimenti, saldi o budget reali.
+          </p>
         </div>
         <Link
           href="/scenarios/new"
           className={cn(buttonVariants(), 'gap-1.5 self-start shrink-0')}
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-4 w-4" aria-hidden="true" />
           Nuovo scenario
         </Link>
       </header>
 
-      {/* ── Filter tabs ── */}
-      <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
+      <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Filtra scenari">
         {FILTERS.map(({ key, label }) => (
           <button
             key={key}
+            type="button"
+            role="tab"
+            aria-selected={filter === key}
             onClick={() => setFilter(key)}
             className={cn(
-              'px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
+              'whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500',
               filter === key
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-500 hover:text-slate-700',
@@ -221,16 +233,15 @@ export default function ScenariosPage() {
         ))}
       </div>
 
-      {/* ── Content ── */}
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-slate-400">
-          <RefreshCw className="h-5 w-5 animate-spin mr-2" />
-          Caricamento...
+        <div className="flex items-center justify-center py-20 text-slate-400" role="status" aria-live="polite">
+          <RefreshCw className="mr-2 h-5 w-5 animate-spin" aria-hidden="true" />
+          Caricamento scenari…
         </div>
       ) : visible.length === 0 ? (
         <Card className="border-[#e5e7f0] bg-white">
-          <CardContent className="flex min-h-[280px] flex-col items-center justify-center gap-4 text-center p-8">
-            <FlaskConical className="h-12 w-12 text-slate-200" />
+          <CardContent className="flex min-h-[280px] flex-col items-center justify-center gap-4 p-8 text-center">
+            <FlaskConical className="h-12 w-12 text-slate-200" aria-hidden="true" />
             <div>
               <p className="font-semibold text-slate-700">Nessuno scenario trovato</p>
               <p className="mt-1 text-sm text-slate-500">
@@ -238,19 +249,19 @@ export default function ScenariosPage() {
                   ? 'Nessuno scenario preferito. Aggiungi la stella a uno scenario per trovarlo qui.'
                   : filter === 'archived'
                     ? 'Nessuno scenario archiviato.'
-                    : 'Crea il tuo primo scenario per simulare "cosa succederebbe se…"'}
+                    : 'Crea il tuo primo scenario per simulare “cosa succederebbe se…” senza cambiare i dati reali.'}
               </p>
             </div>
             {filter === 'all' && (
               <Link href="/scenarios/new" className={cn(buttonVariants({ variant: 'outline' }), 'gap-1.5')}>
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4" aria-hidden="true" />
                 Crea il primo scenario
               </Link>
             )}
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-live="polite">
           {visible.map((s) => (
             <ScenarioCard
               key={s.id}
@@ -263,8 +274,7 @@ export default function ScenariosPage() {
         </div>
       )}
 
-      {/* ── Disclaimer ── */}
-      <p className="text-xs text-slate-400 text-center pb-4">{DISCLAIMER_TEXT}</p>
+      <p className="pb-4 text-center text-xs leading-5 text-slate-400">{DISCLAIMER_TEXT}</p>
     </div>
   )
 }
