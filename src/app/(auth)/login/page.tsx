@@ -36,7 +36,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace('/dashboard')
+      router.replace('/onboarding')
     }
   }, [loading, router, user])
 
@@ -44,7 +44,7 @@ export default function LoginPage() {
     setFormError('')
     try {
       await signIn(values.email, values.password)
-      router.replace('/dashboard')
+      router.replace('/onboarding')
       router.refresh()
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Accesso non riuscito. Riprova.')
