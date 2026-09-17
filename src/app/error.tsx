@@ -12,6 +12,17 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error('[aurora-error]', error.digest ?? error.name)
+    void fetch('/api/observability/client-error', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: error.name,
+        message: error.message,
+        digest: error.digest,
+        path: window.location.pathname,
+      }),
+      keepalive: true,
+    }).catch(() => undefined)
   }, [error])
 
   return (
@@ -22,7 +33,7 @@ export default function Error({
         </div>
         <h1 className="mt-6 text-xl font-bold text-slate-950">Si è verificato un problema</h1>
         <p className="mt-3 text-sm text-slate-500">
-          Non è stato possibile caricare questa pagina. Nessun dato è stato modificato.
+          Non è stato possibile caricare questa pagina. Nessun dato è stato modificato. L’errore è stato registrato.
         </p>
         {error.digest && (
           <p className="mt-2 text-xs text-slate-400">Codice: {error.digest}</p>
