@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getMoreItems, getNavItems } from '@/components/app-layout-client'
+import { getMoreItems, getNavGroups, getNavItems } from '@/components/app-layout-client'
 import { getQuickCommands } from '@/components/global-command-menu'
 
 describe('private finance navigation visibility', () => {
@@ -81,5 +81,30 @@ describe('private finance navigation visibility', () => {
     expect(paths).toContain('/aurora')
     expect(paths).toContain('/adi')
     expect(paths.indexOf('/aurora')).toBeLessThan(paths.indexOf('/adi'))
+  })
+
+  it('organizza la sidebar in aree leggibili senza duplicare rotte', () => {
+    const groups = getNavGroups(true, true, true)
+    expect(groups.map((group) => group.label)).toEqual([
+      'Panoramica',
+      'Gestione denaro',
+      'Analisi e decisioni',
+      'Pianificazione',
+      'Aree personali',
+      'Sistema',
+    ])
+    const paths = groups.flatMap((group) => group.items.map((item) => item.path))
+    expect(new Set(paths).size).toBe(paths.length)
+    expect(paths).toContain('/settings')
+    expect(paths).toContain('/data-integrity')
+  })
+
+  it('mobile Altro esclude le quattro destinazioni gia presenti nella bottom bar', () => {
+    const morePaths = getMoreItems(true, true, true).map((item) => item.path)
+    expect(morePaths).not.toContain('/dashboard')
+    expect(morePaths).not.toContain('/transactions')
+    expect(morePaths).not.toContain('/accounts')
+    expect(morePaths).not.toContain('/budgets')
+    expect(morePaths).toContain('/reports')
   })
 })
