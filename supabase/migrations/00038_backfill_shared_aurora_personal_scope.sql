@@ -34,9 +34,9 @@ insert into public.account_purpose_links (user_id, account_id, beneficiary_id, p
 select distinct
   apl.user_id,
   apl.account_id,
-  null,
+  null::uuid,
   'PERSONAL',
-  null
+  null::text
 from public.account_purpose_links apl
 join public.accounts a
   on a.id = apl.account_id

@@ -233,6 +233,7 @@ type TxRow = {
   description: string | null
   date: string
   transfer_peer_id: string | null
+  is_neutral?: boolean
 }
 
 type CatRow = {
@@ -257,11 +258,11 @@ function sumAmt(txs: TxRow[]): number {
 }
 
 function isPureIncome(tx: TxRow): boolean {
-  return tx.type === 'income' && tx.transfer_peer_id === null
+  return tx.type === 'income' && tx.transfer_peer_id === null && !tx.is_neutral
 }
 
 function isPureExpense(tx: TxRow): boolean {
-  return tx.type === 'expense' && tx.transfer_peer_id === null
+  return tx.type === 'expense' && tx.transfer_peer_id === null && !tx.is_neutral
 }
 
 function isInMonth(tx: TxRow, year: number, month: number): boolean {
@@ -704,7 +705,7 @@ export async function buildDashboardPayload(supabase: SupabaseClient): Promise<D
       .select('id,name,type,color,icon,parent_id'),
     supabase
       .from('transactions')
-      .select('id,account_id,category_id,type,amount,description,date,transfer_peer_id')
+      .select('id,account_id,category_id,type,amount,description,date,transfer_peer_id,is_neutral')
       .gte('date', twelveMonthsAgoStr)
       .order('date', { ascending: false }),
     supabase

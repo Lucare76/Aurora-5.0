@@ -4,6 +4,8 @@ export const DATA_INTEGRITY_RULESET_VERSION = '2026.07.15'
 export const DATA_INTEGRITY_MAX_TRANSACTIONS = 100_000
 export const DATA_INTEGRITY_MAX_ISSUES_PER_SCAN = 2_000
 export const DATA_INTEGRITY_CENT_TOLERANCE = 0.01
+export const DATA_INTEGRITY_RECONCILIATION_STALE_DAYS = 30
+export const DATA_INTEGRITY_RECONCILIATION_CRITICAL_AMOUNT = 50
 
 export const DATA_INTEGRITY_SEVERITY_PRIORITY: Record<DataIntegritySeverity, number> = {
   CRITICAL: 3,
@@ -33,4 +35,5 @@ export const DATA_INTEGRITY_CATEGORY_LABELS: Record<DataIntegrityCategory, strin
   notifications: 'Avvisi',
   temporal: 'Coerenza temporale',
   backup: 'Backup',
+  reconciliation: 'Riconciliazione',
 }

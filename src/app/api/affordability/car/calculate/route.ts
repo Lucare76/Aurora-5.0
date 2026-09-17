@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       supabase.from('recurring_rules').select('id,account_id,type,amount,frequency,start_date,end_date,next_due_date,is_active').eq('user_id', user.id),
       supabase
         .from('transactions')
-        .select('id,account_id,type,amount,date,transfer_peer_id')
+        .select('id,account_id,type,amount,date,transfer_peer_id,is_neutral')
         .eq('user_id', user.id)
         .order('date', { ascending: false })
         .limit(500),

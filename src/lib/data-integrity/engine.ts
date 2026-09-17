@@ -1,7 +1,8 @@
-import { DATA_INTEGRITY_CENT_TOLERANCE, DATA_INTEGRITY_MAX_ISSUES_PER_SCAN, DATA_INTEGRITY_RULESET_VERSION, DATA_INTEGRITY_SEVERITY_PRIORITY, DATA_INTEGRITY_STATUS_PRIORITY } from './constants'
+import { compareReconciliationRecency, daysSinceStatement, isReconciliationBalanced } from '@/domain/accounting/reconciliation'
+import { DATA_INTEGRITY_CENT_TOLERANCE, DATA_INTEGRITY_MAX_ISSUES_PER_SCAN, DATA_INTEGRITY_RECONCILIATION_CRITICAL_AMOUNT, DATA_INTEGRITY_RECONCILIATION_STALE_DAYS, DATA_INTEGRITY_RULESET_VERSION, DATA_INTEGRITY_SEVERITY_PRIORITY, DATA_INTEGRITY_STATUS_PRIORITY } from './constants'
 import { cents, createDataIntegrityFingerprint, normalizeEntityIds, normalizeText } from './fingerprint'
 import { DATA_INTEGRITY_RULE_BY_CODE } from './registry'
-import type { DataIntegrityInput, DataIntegrityIssue, DataIntegrityIssueDraft, DataIntegrityScanMode, DataIntegrityScanResult, DataIntegritySummary } from './types'
+import type { DataIntegrityInput, DataIntegrityIssue, DataIntegrityIssueDraft, DataIntegrityScanMode, DataIntegrityScanResult, DataIntegritySeverity, DataIntegritySummary } from './types'
 
 type Context = {
   accountIds: Set<string>
@@ -36,6 +37,7 @@ export function scanDataIntegrity(input: DataIntegrityInput, mode: DataIntegrity
   scanFinancialHealthSnapshots(input, add)
   scanNotifications(input, context, add)
   scanTemporal(input, add)
+  scanReconciliation(input, context, add)
 
   const issues = drafts.map((draft) => materializeIssue(input.userId, draft))
   return {
@@ -405,6 +407,46 @@ function scanTemporal(input: DataIntegrityInput, add: (draft: DataIntegrityIssue
   }
 }
 
+function scanReconciliation(input: DataIntegrityInput, context: Context, add: (draft: DataIntegrityIssueDraft) => void) {
+  const reconciliationsByAccount = groupBy(input.accountReconciliations ?? [], (row) => row.account_id)
+
+  for (const account of input.accounts) {
+    if (!account.is_active) continue
+    const hasMovements = input.transactions.some((tx) => tx.account_id === account.id)
+    if (!hasMovements) continue
+
+    const history = [...(reconciliationsByAccount.get(account.id) ?? [])].sort(compareReconciliationRecency)
+    const latest = history[0]
+
+    if (!latest) {
+      add(issue('ACCOUNT_NEVER_RECONCILED', 'account', [account.id], 'Il conto non e mai stato riconciliato con un estratto conto.', 'Un eventuale scostamento tra saldo Aurora e saldo banca non verrebbe rilevato.', 'Esegui una riconciliazione dalla pagina dedicata.', [{ label: 'Conto', value: account.name, kind: 'text' }], `/reconciliation?account=${account.id}`))
+      continue
+    }
+
+    const difference = Number(latest.difference)
+    if (!isReconciliationBalanced(difference)) {
+      const severity: DataIntegritySeverity = Math.abs(difference) >= DATA_INTEGRITY_RECONCILIATION_CRITICAL_AMOUNT ? 'CRITICAL' : 'WARNING'
+      add(issue('ACCOUNT_RECONCILIATION_MISMATCH', 'account', [account.id], 'L ultima riconciliazione del conto mostra una differenza tra saldo banca e saldo Aurora.', 'Il saldo del conto potrebbe non corrispondere all estratto conto reale.', 'Verifica movimenti mancanti, duplicati o non ancora registrati e riconcilia di nuovo.', [
+        { label: 'Conto', value: account.name, kind: 'text' },
+        { label: 'Saldo banca', value: Number(latest.bank_balance), kind: 'money' },
+        { label: 'Saldo Aurora', value: Number(latest.app_balance_snapshot), kind: 'money' },
+        { label: 'Differenza', value: difference, kind: 'money' },
+        { label: 'Data estratto', value: latest.statement_date, kind: 'date' },
+      ], `/reconciliation?account=${account.id}`, severity))
+      continue
+    }
+
+    const daysSince = daysSinceStatement(latest.statement_date, context.nowDate)
+    if (daysSince > DATA_INTEGRITY_RECONCILIATION_STALE_DAYS) {
+      add(issue('ACCOUNT_RECONCILIATION_STALE', 'account', [account.id], `L ultima riconciliazione risale a ${daysSince} giorni fa.`, 'Un nuovo scostamento tra saldo banca e saldo Aurora potrebbe non essere ancora stato rilevato.', 'Esegui una nuova riconciliazione dalla pagina dedicata.', [
+        { label: 'Conto', value: account.name, kind: 'text' },
+        { label: 'Ultima riconciliazione', value: latest.statement_date, kind: 'date' },
+        { label: 'Giorni trascorsi', value: daysSince, kind: 'count' },
+      ], `/reconciliation?account=${account.id}`))
+    }
+  }
+}
+
 function issue(
   ruleCode: DataIntegrityIssueDraft['ruleCode'],
   entityType: string,
@@ -414,6 +456,7 @@ function issue(
   recommendation: string,
   evidence: DataIntegrityIssueDraft['evidence'],
   sourcePath?: string,
+  severity?: DataIntegrityIssueDraft['severity'],
 ): DataIntegrityIssueDraft {
-  return { ruleCode, entityType, entityIds, explanation, impact, recommendation, evidence, sourcePath }
+  return { ruleCode, entityType, entityIds, explanation, impact, recommendation, evidence, sourcePath, severity }
 }

@@ -45,6 +45,7 @@ interface ParsedRow {
   warning: string | null
   autoDetectedTransfer: boolean   // true when matched by KNOWN_TRANSFER_PATTERNS
   autoSuggestedCategory: boolean  // true when category was pre-filled by keyword rules
+  isNeutral: boolean              // partita di giro / rimborso di terzi: da marcare manualmente, mai dedotto automaticamente
 }
 
 interface TransferPair {
@@ -128,6 +129,7 @@ function makeRow(
     warning: null,
     autoDetectedTransfer: false,
     autoSuggestedCategory: false,
+    isNeutral: false,
   }
 }
 
@@ -502,6 +504,7 @@ export default function ImportEstratti() {
             description: row.description || 'Movimento importato',
             date: row.date,
             category_id: row.category_id || null,
+            is_neutral: row.isNeutral,
           })
         }
       } catch (e) {
@@ -822,8 +825,20 @@ export default function ImportEstratti() {
                                 )}
                               </td>
 
-                              {/* flag cella vuota (reserved) */}
-                              <td className="px-2 py-1.5" />
+                              {/* movimento neutro / partita di giro */}
+                              <td className="px-2 py-1.5">
+                                {!isTransfer && (
+                                  <label className="flex items-center gap-1 text-[10px] font-medium text-slate-500" title="Modifica il saldo ma non viene conteggiato come spesa o entrata personale">
+                                    <input
+                                      type="checkbox"
+                                      checked={row.isNeutral}
+                                      onChange={(e) => updateRow(row.id, { isNeutral: e.target.checked })}
+                                      className="h-3.5 w-3.5 rounded border-slate-300 accent-indigo-600"
+                                    />
+                                    Neutro
+                                  </label>
+                                )}
+                              </td>
                             </tr>
                           )
                         })}

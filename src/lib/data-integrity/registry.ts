@@ -50,6 +50,9 @@ export const DATA_INTEGRITY_RULES: DataIntegrityRuleDefinition[] = [
   rule('NOTIFICATION_SOURCE_ORPHAN', 'notifications', 'INFO', 'Avviso con sorgente non trovata', 'Un avviso punta a una sorgente che non esiste piu.', []),
   rule('NOTIFICATION_RESOLVED_UNREAD', 'notifications', 'INFO', 'Avviso risolto ancora non letto', 'Un avviso risolto resta marcato come non letto.', []),
   rule('TEMPORAL_CREATED_AFTER_UPDATED', 'temporal', 'INFO', 'Date tecniche incoerenti', 'Un record ha created_at successivo a updated_at.', []),
+  rule('ACCOUNT_RECONCILIATION_MISMATCH', 'reconciliation', 'WARNING', 'Riconciliazione con differenza', 'L ultima riconciliazione del conto mostra una differenza tra saldo banca e saldo Aurora.', ['open_record']),
+  rule('ACCOUNT_NEVER_RECONCILED', 'reconciliation', 'INFO', 'Conto mai riconciliato', 'Un conto attivo con movimenti non e mai stato riconciliato con un estratto conto.', ['open_record']),
+  rule('ACCOUNT_RECONCILIATION_STALE', 'reconciliation', 'INFO', 'Riconciliazione non aggiornata', 'L ultima riconciliazione del conto risale a piu di 30 giorni fa.', ['open_record']),
 ]
 
 export const DATA_INTEGRITY_RULE_BY_CODE = new Map(DATA_INTEGRITY_RULES.map((item) => [item.code, item]))

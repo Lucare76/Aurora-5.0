@@ -48,7 +48,7 @@ import { cn, formatCurrency } from '@/lib/utils'
 import type { Account, Category, Transaction, TransactionType } from '@/types/database'
 
 const BORDER = '#e5e7f0'
-const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
+const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,is_neutral,created_at,updated_at'
 
 interface ImportRow {
   date: string
@@ -101,6 +101,7 @@ const transactionSchema = z
     destination_account_id: z.string().optional(),
     category_id: z.string().optional(),
     notes: z.string().optional(),
+    is_neutral: z.boolean().optional(),
   })
   .refine((data) => data.type !== 'transfer' || Boolean(data.destination_account_id), {
     message: 'Seleziona il conto di destinazione',
@@ -129,6 +130,7 @@ const defaultValues: TransactionForm = {
   destination_account_id: '',
   category_id: '',
   notes: '',
+  is_neutral: false,
 }
 
 function getInitialSearchParams() {
@@ -492,6 +494,7 @@ export default function TransactionsPage() {
       destination_account_id: destinationId,
       category_id: transaction.category_id ?? '',
       notes: transaction.notes ?? '',
+      is_neutral: transaction.is_neutral === true,
     })
   }
 
@@ -750,6 +753,17 @@ export default function TransactionsPage() {
         <Label className="text-slate-700">Note</Label>
         <TextareaField {...targetForm.register('notes')} placeholder="Aggiungi una nota opzionale" />
       </div>
+
+      {selectedType !== 'transfer' && (
+        <label className="flex items-start gap-2 rounded-xl border border-[#e5e7f0] bg-white p-3 text-sm text-slate-700">
+          <input type="checkbox" className="mt-0.5" {...targetForm.register('is_neutral')} />
+          <span>
+            <span className="font-medium text-slate-900">Movimento neutro / partita di giro</span>
+            <br />
+            <span className="text-xs text-slate-500">Modifica il saldo del conto ma non viene conteggiato come spesa o entrata personale.</span>
+          </span>
+        </label>
+      )}
 
       {targetForm === form && automationSuggestion && (
         <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
@@ -1119,8 +1133,13 @@ export default function TransactionsPage() {
                             <Icon className="h-5 w-5" />
                           </div>
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-950">
-                              {transaction.description || (isTransfer ? 'Trasferimento' : 'Movimento')}
+                            <p className="flex items-center gap-2 truncate text-sm font-semibold text-slate-950">
+                              <span className="truncate">{transaction.description || (isTransfer ? 'Trasferimento' : 'Movimento')}</span>
+                              {transaction.is_neutral && (
+                                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                  Neutro
+                                </span>
+                              )}
                             </p>
                             <p className="mt-1 truncate text-xs text-slate-500">
                               {isTransfer
