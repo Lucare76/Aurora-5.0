@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Resend } from 'resend'
 
-const supabase = createAdminClient()
-const resend = new Resend(process.env.RESEND_API_KEY!)
-
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -32,10 +29,33 @@ function advanceDate(dateStr: string, frequency: string): string {
 }
 
 export async function GET(request: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) {
+    return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 503 })
+  }
+
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const resendApiKey = process.env.RESEND_API_KEY
+  if (!resendApiKey) {
+    return NextResponse.json({ error: 'RESEND_API_KEY is not configured' }, { status: 503 })
+  }
+
+  let supabase: ReturnType<typeof createAdminClient>
+  try {
+    // Runtime-only initialization: missing admin envs should fail this request,
+    // never module import / Next.js page-data collection during build.
+    supabase = createAdminClient()
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Supabase admin client is not configured' },
+      { status: 503 },
+    )
+  }
+  const resend = new Resend(resendApiKey)
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -54,7 +74,6 @@ export async function GET(request: NextRequest) {
     if (error) throw error
 
     for (const r of autoRules ?? []) {
-      // Crea transazione e aggiorna saldo in modo atomico
       const { error: rpcError } = await supabase.rpc('create_recurring_transaction', {
         p_user_id:      r.user_id,
         p_account_id:   r.account_id,
@@ -71,7 +90,6 @@ export async function GET(request: NextRequest) {
         continue
       }
 
-      // Avanza next_due_date e aggiorna last_run_date
       const nextDue = advanceDate(r.next_due_date, r.frequency)
       const isExpired = r.end_date && nextDue > r.end_date
 
@@ -84,7 +102,6 @@ export async function GET(request: NextRequest) {
         })
         .eq('id', r.id)
 
-      // Notifica email: transazione creata automaticamente
       const { data: userData } = await supabase.auth.admin.getUserById(r.user_id)
       const userEmail = userData?.user?.email
       if (userEmail) {
