@@ -1,0 +1,28 @@
+name: Production health
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-health
+  cancel-in-progress: true
+
+jobs:
+  health:
+    name: Aurora production health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check application and database health
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error --retry 2 --retry-delay 5 --max-time 20 https://aurora-5-0.vercel.app/api/health)"
+          echo "$response"
+          echo "$response" | grep -q '"ok":true'
+          echo "$response" | grep -q '"database":"ok"'
