@@ -49,7 +49,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace('/dashboard')
+      router.replace('/onboarding')
     }
   }, [loading, router, user])
 
@@ -62,7 +62,7 @@ export default function RegisterPage() {
         setSuccessMessage('Registrazione creata. Controlla la tua email per verificare l’account, poi accedi.')
         return
       }
-      router.replace('/dashboard')
+      router.replace('/onboarding')
       router.refresh()
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Registrazione non riuscita. Riprova.')
