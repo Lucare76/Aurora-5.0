@@ -5,7 +5,8 @@
 -- 2. impedire pagamenti <= 0 e sovrapagamenti;
 -- 3. impedire pagamenti associati a prestiti di un altro utente;
 -- 4. mantenere la coerenza anche in caso di UPDATE/DELETE di loan_payments;
--- 5. non modificare retroattivamente i dati esistenti durante la migration.
+-- 5. mantenere coerente il residuo quando cambia il capitale originario;
+-- 6. non modificare retroattivamente i dati esistenti durante la migration.
 
 -- ============================================================
 -- 1. Vincoli di dominio sui prestiti
@@ -29,7 +30,54 @@ alter table public.loan_payments
   add constraint loan_payments_amount_positive check (amount > 0) not valid;
 
 -- ============================================================
--- 2. Validazione pagamento prima della scrittura
+-- 2. Modifica capitale: residuo ricalcolato dai pagamenti
+-- ============================================================
+create or replace function public.sync_loan_on_amount_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_paid numeric(15,2);
+begin
+  if new.amount <= 0 then
+    raise exception 'Loan amount must be positive';
+  end if;
+
+  select coalesce(sum(lp.amount), 0)
+    into v_paid
+    from public.loan_payments lp
+   where lp.loan_id = old.id;
+
+  if v_paid > new.amount then
+    raise exception 'Loan amount cannot be lower than payments already registered';
+  end if;
+
+  new.remaining := new.amount - v_paid;
+  new.is_settled := (new.remaining = 0);
+  new.settled_at := case
+    when new.remaining = 0 then coalesce(old.settled_at, now())
+    else null
+  end;
+  new.updated_at := now();
+
+  return new;
+end;
+$$;
+
+revoke execute on function public.sync_loan_on_amount_change() from public, anon, authenticated;
+
+drop trigger if exists sync_loan_on_amount_change on public.loans;
+create trigger sync_loan_on_amount_change
+before update of amount
+on public.loans
+for each row
+when (old.amount is distinct from new.amount)
+execute function public.sync_loan_on_amount_change();
+
+-- ============================================================
+-- 3. Validazione pagamento prima della scrittura
 -- ============================================================
 create or replace function public.validate_loan_payment_mutation()
 returns trigger
@@ -87,7 +135,7 @@ on public.loan_payments
 for each row execute function public.validate_loan_payment_mutation();
 
 -- ============================================================
--- 3. Residuo derivato atomicamente dai pagamenti
+-- 4. Residuo derivato atomicamente dai pagamenti
 -- ============================================================
 create or replace function public.sync_loan_from_payments()
 returns trigger
@@ -164,7 +212,7 @@ on public.loan_payments
 for each row execute function public.sync_loan_from_payments();
 
 -- ============================================================
--- 4. RPC canonica per registrare un pagamento
+-- 5. RPC canonica per registrare un pagamento
 -- ============================================================
 -- La UI attuale continua a funzionare grazie ai trigger sopra. Questa RPC diventa
 -- il contratto canonico per nuovi client: lock del prestito + insert pagamento +
