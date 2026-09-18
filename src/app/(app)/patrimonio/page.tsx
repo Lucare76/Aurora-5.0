@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BarChart3, CheckCircle2, Landmark, Link2, Pencil, Plus, RefreshCw, Trash2, TrendingDown, TrendingUp, Unlink, Wallet } from 'lucide-react'
+import { BarChart3, CheckCircle2, Landmark, Link2, Pencil, Plus, RefreshCw, Trash2, TrendingDown, TrendingUp, Unlink, Upload, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,7 +19,7 @@ type ExternalAsset = {
   invested_amount: number | string
   current_value: number | string
   currency: string
-  source_type: 'MANUAL' | 'SCALABLE' | 'SCREENSHOT'
+  source_type: 'MANUAL' | 'SCALABLE' | 'SCREENSHOT' | 'POSTE'
   include_in_net_worth: boolean
   notes: string | null
   observed_at: string
@@ -67,13 +67,21 @@ type ScalableStatus = {
   } | null
 }
 
+type PosteAccount = {
+  id: string
+  name: string
+  type: string
+  balance: number
+  currency: string
+}
+
 type AssetForm = {
   name: string
   provider: string
   instrument: string
   investedAmount: string
   currentValue: string
-  sourceType: 'MANUAL' | 'SCALABLE' | 'SCREENSHOT'
+  sourceType: 'MANUAL' | 'SCALABLE' | 'SCREENSHOT' | 'POSTE'
   includeInNetWorth: boolean
 }
 
@@ -95,6 +103,7 @@ function formatMoney(value: number) {
 
 function sourceLabel(source: ExternalAsset['source_type']) {
   if (source === 'SCALABLE') return 'Scalable'
+  if (source === 'POSTE') return 'Poste'
   if (source === 'SCREENSHOT') return 'Screenshot'
   return 'Manuale'
 }
@@ -124,6 +133,13 @@ export default function PatrimonioPage() {
   const [scalableClientId, setScalableClientId] = useState('')
   const [scalableRefreshToken, setScalableRefreshToken] = useState('')
   const [configuringScalable, setConfiguringScalable] = useState(false)
+  const [posteAccounts, setPosteAccounts] = useState<PosteAccount[]>([])
+  const [posteFile, setPosteFile] = useState<File | null>(null)
+  const [importingPoste, setImportingPoste] = useState(false)
+  const [posteAccountId, setPosteAccountId] = useState('')
+  const [posteProductName, setPosteProductName] = useState('')
+  const [posteCurrentValue, setPosteCurrentValue] = useState('')
+  const [savingPosteManual, setSavingPosteManual] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -156,6 +172,25 @@ export default function PatrimonioPage() {
     else toast.error('Collegamento Scalable non riuscito. Riprova.')
     window.history.replaceState({}, '', window.location.pathname)
   }, [])
+
+  useEffect(() => {
+    const loadPosteAccounts = async () => {
+      try {
+        const response = await fetch('/api/integrations/poste/manual', { cache: 'no-store' })
+        if (!response.ok) return
+        const body = await response.json() as { data?: PosteAccount[] }
+        const accounts = body.data ?? []
+        setPosteAccounts(accounts)
+        if (!posteAccountId && accounts[0]) {
+          setPosteAccountId(accounts[0].id)
+          setPosteProductName(accounts[0].name)
+        }
+      } catch {
+        // The Poste panel remains usable for Excel import even if account suggestions fail.
+      }
+    }
+    void loadPosteAccounts()
+  }, [posteAccountId])
 
   const syncScalable = async () => {
     setSyncingScalable(true)
@@ -228,6 +263,72 @@ export default function PatrimonioPage() {
       await load()
     } finally {
       setConfiguringScalable(false)
+    }
+  }
+
+  const importPosteWorkbook = async () => {
+    if (!posteFile) {
+      toast.error('Seleziona prima il file Excel esportato da Poste.')
+      return
+    }
+    setImportingPoste(true)
+    try {
+      const body = new FormData()
+      body.set('file', posteFile)
+      const response = await fetch('/api/integrations/poste/import', {
+        method: 'POST',
+        body,
+      })
+      const result = await response.json().catch(() => ({})) as {
+        imported?: number
+        error?: string
+        missingAccounts?: string[]
+      }
+      if (!response.ok) {
+        if (result.error === 'POSTE_ACCOUNT_MAPPING_MISSING') {
+          toast.error(`Manca il conto Aurora: ${(result.missingAccounts ?? []).join(', ')}`)
+        } else if (result.error === 'POSTE_NO_SUPPORTED_ROWS') {
+          toast.error('Nel file non ho trovato Buono Ordinario o Buono 3x4 supportati.')
+        } else {
+          toast.error('Import Poste non riuscito. Controlla che sia il file Patrimonio Buoni.')
+        }
+        return
+      }
+      toast.success(`Poste aggiornato: ${result.imported ?? 0} prodotti importati.`)
+      setPosteFile(null)
+      await load()
+    } finally {
+      setImportingPoste(false)
+    }
+  }
+
+  const savePosteManualValue = async () => {
+    const currentValue = Number(posteCurrentValue.replace(/\./g, '').replace(',', '.'))
+    if (!posteAccountId || !posteProductName.trim() || !Number.isFinite(currentValue) || currentValue < 0) {
+      toast.error('Seleziona il conto e inserisci un valore Poste valido.')
+      return
+    }
+
+    setSavingPosteManual(true)
+    try {
+      const response = await fetch('/api/integrations/poste/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: posteAccountId,
+          productName: posteProductName.trim(),
+          currentValue,
+        }),
+      })
+      if (!response.ok) {
+        toast.error('Aggiornamento Poste non riuscito.')
+        return
+      }
+      toast.success('Valore Poste aggiornato e collegato al conto Aurora.')
+      setPosteCurrentValue('')
+      await load()
+    } finally {
+      setSavingPosteManual(false)
     }
   }
 
@@ -455,6 +556,90 @@ export default function PatrimonioPage() {
               </pre>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-yellow-200 bg-white shadow-sm">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-yellow-50 text-yellow-700">
+              <Landmark className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-bold text-slate-950">Poste Italiane · aggiornamento patrimonio</p>
+              <p className="mt-1 max-w-3xl text-sm text-slate-500">
+                Per i Buoni usa il file Excel “Patrimonio Buoni”. Per polizze, previdenza o schermate senza export usa l’aggiornamento manuale: Aurora collega il valore al conto esistente e aggiunge al patrimonio solo la differenza.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+              <p className="text-sm font-semibold text-slate-900">Importa Buoni da Excel</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Supportati: Buono Ordinario e Buono 3x4. Aurora usa il “Valore rimborso netto” e lo collega automaticamente al conto omonimo.
+              </p>
+              <input
+                className="mt-3 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-700"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(event) => setPosteFile(event.target.files?.[0] ?? null)}
+              />
+              <Button
+                type="button"
+                className="mt-3 gap-2"
+                onClick={importPosteWorkbook}
+                disabled={!posteFile || importingPoste}
+              >
+                <Upload className={importingPoste ? 'h-4 w-4 animate-pulse' : 'h-4 w-4'} />
+                {importingPoste ? 'Importo…' : 'Importa file Poste'}
+              </Button>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+              <p className="text-sm font-semibold text-slate-900">Aggiorna da schermata o documento</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Per prodotti senza Excel inserisci solo il valore attuale. Non vengono modificati né saldo del conto né transazioni.
+              </p>
+              <div className="mt-3 grid gap-3">
+                <select
+                  className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-indigo-400"
+                  value={posteAccountId}
+                  onChange={(event) => {
+                    const id = event.target.value
+                    const account = posteAccounts.find((item) => item.id === id)
+                    setPosteAccountId(id)
+                    if (account) setPosteProductName(account.name)
+                  }}
+                >
+                  {posteAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name} · {formatMoney(account.balance)}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  value={posteProductName}
+                  onChange={(event) => setPosteProductName(event.target.value)}
+                  placeholder="Nome prodotto Poste"
+                />
+                <Input
+                  value={posteCurrentValue}
+                  onChange={(event) => setPosteCurrentValue(event.target.value)}
+                  inputMode="decimal"
+                  placeholder="Valore attuale, es. 38458,44"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={savePosteManualValue}
+                  disabled={!posteAccountId || savingPosteManual}
+                >
+                  {savingPosteManual ? 'Salvo…' : 'Aggiorna valore Poste'}
+                </Button>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
