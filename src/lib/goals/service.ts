@@ -805,5 +805,10 @@ export async function getGoalsSummary(supabase: SupabaseClient): Promise<GoalSum
     .neq('status', 'ARCHIVED')
 
   if (error) throw error
-  return buildGoalsIntelligenceSummary((data ?? []) as SavingsGoal[], [])
+  const goals = (data ?? []) as SavingsGoal[]
+  const linkedByGoal = await loadGoalLinkedAggregates(supabase, goals.map((goal) => goal.id))
+  return buildGoalsIntelligenceSummary(
+    goals.map((goal) => applyLinkedAggregateToGoal(goal, linkedByGoal.get(goal.id))),
+    [],
+  )
 }
