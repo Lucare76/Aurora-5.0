@@ -787,7 +787,7 @@ export default function ImportEstratti() {
                 ) : reviewRows.length === 0 ? (
                   <p className="px-5 py-6 text-center text-sm text-slate-400">Nessun movimento normale da importare.</p>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto overscroll-x-contain [scrollbar-width:thin]">
                     <table className="w-full min-w-[920px]">
                       <thead className="border-b border-[#e5e7f0] bg-slate-50/80">
                         <tr>
@@ -939,7 +939,7 @@ export default function ImportEstratti() {
             </Card>
 
             {/* Save bar */}
-            <div className="flex items-center gap-4 pb-4">
+            <div className="flex flex-col gap-3 pb-4 min-[420px]:flex-row min-[420px]:items-center min-[420px]:gap-4">
               <Button
                 onClick={handleSave}
                 disabled={saving || counts.total === 0}
