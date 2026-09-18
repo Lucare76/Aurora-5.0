@@ -140,7 +140,11 @@ export default function PatrimonioPage() {
         }
         return
       }
-      toast.success(`Scalable aggiornato: ${body.holdings ?? 0} posizioni sincronizzate.`)
+      if ((body.holdings ?? 0) === 0) {
+        toast.warning('Scalable ha risposto, ma Aurora non ha trovato posizioni da importare. Riprova dopo l’aggiornamento.')
+      } else {
+        toast.success(`Scalable aggiornato: ${body.holdings ?? 0} posizioni sincronizzate.`)
+      }
       await load()
     } finally {
       setSyncingScalable(false)
