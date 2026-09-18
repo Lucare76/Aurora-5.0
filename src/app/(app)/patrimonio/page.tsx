@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BarChart3, CheckCircle2, Landmark, Pencil, Plus, Trash2, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
+import { BarChart3, CheckCircle2, Landmark, Link2, Pencil, Plus, RefreshCw, Trash2, TrendingDown, TrendingUp, Unlink, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,6 +33,18 @@ type AssetPayload = {
     gainLoss: number
     includedAssets: number
   }
+}
+
+type ScalableStatus = {
+  connected: boolean
+  configured: boolean
+  connection: {
+    connected_at: string
+    last_synced_at: string | null
+    last_error: string | null
+    scope: string | null
+    expires_at: string | null
+  } | null
 }
 
 type AssetForm = {
@@ -75,17 +87,23 @@ export default function PatrimonioPage() {
   const [editing, setEditing] = useState<ExternalAsset | null>(null)
   const [form, setForm] = useState<AssetForm>(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [scalableStatus, setScalableStatus] = useState<ScalableStatus | null>(null)
+  const [syncingScalable, setSyncingScalable] = useState(false)
+  const [disconnectingScalable, setDisconnectingScalable] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [overviewRes, assetsRes] = await Promise.all([
+      const [overviewRes, assetsRes, scalableRes] = await Promise.all([
         fetch('/api/dashboard/personal-overview', { cache: 'no-store' }),
         fetch('/api/patrimonio', { cache: 'no-store' }),
+        fetch('/api/integrations/scalable', { cache: 'no-store' }).catch(() => null),
       ])
       if (!overviewRes.ok || !assetsRes.ok) throw new Error('LOAD_FAILED')
       setOverview(await overviewRes.json() as PersonalOverviewPayload)
       setAssetsPayload(await assetsRes.json() as AssetPayload)
+      if (scalableRes?.ok) setScalableStatus(await scalableRes.json() as ScalableStatus)
+      else setScalableStatus(null)
     } catch {
       toast.error('Impossibile caricare il patrimonio.')
     } finally {
@@ -94,6 +112,52 @@ export default function PatrimonioPage() {
   }, [])
 
   useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get('scalable')
+    if (!status) return
+    if (status === 'connected') toast.success('Scalable collegato. Puoi sincronizzare il portafoglio.')
+    else if (status === 'denied') toast.info('Collegamento Scalable annullato.')
+    else if (status === 'missing-secret') toast.error('Configurazione server Scalable incompleta.')
+    else toast.error('Collegamento Scalable non riuscito. Riprova.')
+    window.history.replaceState({}, '', window.location.pathname)
+  }, [])
+
+  const syncScalable = async () => {
+    setSyncingScalable(true)
+    try {
+      const response = await fetch('/api/integrations/scalable/sync', { method: 'POST' })
+      const body = await response.json().catch(() => ({})) as { holdings?: number; error?: string }
+      if (!response.ok) {
+        if (body.error === 'SCALABLE_RECONNECT_REQUIRED') {
+          toast.error('Sessione Scalable scaduta. Ricollega il conto.')
+        } else {
+          toast.error('Sincronizzazione Scalable non riuscita.')
+        }
+        return
+      }
+      toast.success(`Scalable aggiornato: ${body.holdings ?? 0} posizioni sincronizzate.`)
+      await load()
+    } finally {
+      setSyncingScalable(false)
+    }
+  }
+
+  const disconnectScalable = async () => {
+    if (!window.confirm('Disconnettere Scalable da Aurora? Le posizioni già importate resteranno nel Patrimonio finché non le rimuovi.')) return
+    setDisconnectingScalable(true)
+    try {
+      const response = await fetch('/api/integrations/scalable', { method: 'DELETE' })
+      if (!response.ok) {
+        toast.error('Disconnessione Scalable non riuscita.')
+        return
+      }
+      toast.success('Scalable disconnesso da Aurora.')
+      await load()
+    } finally {
+      setDisconnectingScalable(false)
+    }
+  }
 
   const baseNetWorth = overview?.financial.netWorth ?? 0
   const externalValue = assetsPayload?.summary.externalValue ?? 0
@@ -237,6 +301,64 @@ export default function PatrimonioPage() {
         </CardContent>
       </Card>
 
+      <Card className="border-indigo-200 bg-white shadow-sm">
+        <CardContent className="p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                <BarChart3 className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-bold text-slate-950">Scalable Capital · sincronizzazione automatica</p>
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${scalableStatus?.connected ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                    {scalableStatus?.connected ? 'Collegato' : 'Non collegato'}
+                  </span>
+                </div>
+                <p className="mt-1 max-w-3xl text-sm text-slate-500">
+                  Aurora usa il collegamento MCP Scalable direttamente in sola lettura per importare posizioni e valori correnti. Non usa la sessione Scalable di ChatGPT e non può inviare ordini da questa integrazione.
+                </p>
+                {scalableStatus?.connection?.last_synced_at && (
+                  <p className="mt-2 text-xs text-slate-400">Ultima sincronizzazione: {new Date(scalableStatus.connection.last_synced_at).toLocaleString('it-IT')}</p>
+                )}
+                {scalableStatus?.connection?.last_error && (
+                  <p className="mt-2 text-xs font-medium text-red-600">Ultimo errore: {scalableStatus.connection.last_error}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {!scalableStatus?.connected ? (
+                <Button
+                  type="button"
+                  className="gap-2"
+                  onClick={() => { window.location.href = '/api/integrations/scalable/connect' }}
+                  disabled={scalableStatus?.configured === false}
+                >
+                  <Link2 className="h-4 w-4" />
+                  Collega Scalable
+                </Button>
+              ) : (
+                <>
+                  <Button type="button" className="gap-2" onClick={syncScalable} disabled={syncingScalable}>
+                    <RefreshCw className={syncingScalable ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+                    {syncingScalable ? 'Sincronizzo…' : 'Sincronizza ora'}
+                  </Button>
+                  <Button type="button" variant="outline" className="gap-2" onClick={disconnectScalable} disabled={disconnectingScalable}>
+                    <Unlink className="h-4 w-4" />
+                    Disconnetti
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+          {scalableStatus?.configured === false && (
+            <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Manca la chiave server <code>SCALABLE_TOKEN_ENCRYPTION_KEY</code>: il collegamento resta disabilitato finché non viene configurata su Vercel.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       <section>
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
@@ -316,11 +438,11 @@ export default function PatrimonioPage() {
         <CardContent className="grid gap-4 p-5 md:grid-cols-3">
           <div className="flex items-start gap-3">
             <Wallet className="mt-0.5 h-5 w-5 text-indigo-600" />
-            <div><p className="font-semibold text-slate-950">Conti Aurora</p><p className="mt-1 text-sm text-slate-500">Entrano automaticamente dal patrimonio personale già calcolato.</p></div>
+            <div><p className="font-semibold text-slate-950">Conti registrati nell’app</p><p className="mt-1 text-sm text-slate-500">Entrano automaticamente dal patrimonio personale già calcolato.</p></div>
           </div>
           <div className="flex items-start gap-3">
             <BarChart3 className="mt-0.5 h-5 w-5 text-indigo-600" />
-            <div><p className="font-semibold text-slate-950">Scalable</p><p className="mt-1 text-sm text-slate-500">Fonte prevista in sola lettura; fino alla sync diretta puoi aggiornare il valore qui.</p></div>
+            <div><p className="font-semibold text-slate-950">Scalable</p><p className="mt-1 text-sm text-slate-500">Collegamento MCP diretto in sola lettura: posizioni e valori vengono sincronizzati da Aurora.</p></div>
           </div>
           <div className="flex items-start gap-3">
             <Landmark className="mt-0.5 h-5 w-5 text-indigo-600" />
