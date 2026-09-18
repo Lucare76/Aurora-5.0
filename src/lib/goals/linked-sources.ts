@@ -48,9 +48,11 @@ export function buildGoalLinkedAggregate(
   snapshots: GoalSourceSnapshot[],
 ): Map<string, GoalLinkedAggregate> {
   const latestBySource = new Map<string, GoalSourceSnapshot>()
-  const ordered = [...snapshots].sort((a, b) =>
-    b.observed_at.localeCompare(a.observed_at) || b.created_at.localeCompare(a.created_at),
-  )
+  const ordered = snapshots
+    .filter((snapshot) => Boolean(snapshot.source_id && snapshot.observed_at && snapshot.created_at))
+    .sort((a, b) =>
+      b.observed_at.localeCompare(a.observed_at) || b.created_at.localeCompare(a.created_at),
+    )
   for (const snapshot of ordered) {
     if (!latestBySource.has(snapshot.source_id)) latestBySource.set(snapshot.source_id, snapshot)
   }
