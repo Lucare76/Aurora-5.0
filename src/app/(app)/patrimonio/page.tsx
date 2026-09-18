@@ -44,6 +44,17 @@ type ScalableStatus = {
     last_error: string | null
     scope: string | null
     expires_at: string | null
+    metadata?: {
+      portfolio_ids?: string[]
+      available_tools?: string[]
+      holdings_count?: number
+      savings_plans_count?: number
+      diagnostics?: Array<{
+        portfolioId: string
+        holdingsShape: unknown
+        holdingsObjectCount: number
+      }>
+    } | null
   } | null
 }
 
@@ -131,7 +142,11 @@ export default function PatrimonioPage() {
     setSyncingScalable(true)
     try {
       const response = await fetch('/api/integrations/scalable/sync', { method: 'POST' })
-      const body = await response.json().catch(() => ({})) as { holdings?: number; error?: string }
+      const body = await response.json().catch(() => ({})) as {
+        holdings?: number
+        error?: string
+        diagnostics?: Array<{ portfolioId: string; holdingsShape: unknown; holdingsObjectCount: number }>
+      }
       if (!response.ok) {
         if (body.error === 'SCALABLE_RECONNECT_REQUIRED') {
           toast.error('Sessione Scalable scaduta. Ricollega il conto.')
@@ -141,7 +156,7 @@ export default function PatrimonioPage() {
         return
       }
       if ((body.holdings ?? 0) === 0) {
-        toast.warning('Scalable ha risposto, ma Aurora non ha trovato posizioni da importare. Riprova dopo l’aggiornamento.')
+        toast.warning('Scalable ha risposto, ma Aurora non ha trovato posizioni da importare. Ho salvato una diagnostica tecnica sicura qui sotto.')
       } else {
         toast.success(`Scalable aggiornato: ${body.holdings ?? 0} posizioni sincronizzate.`)
       }
@@ -393,6 +408,24 @@ export default function PatrimonioPage() {
             <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
               Manca la chiave server <code>SCALABLE_TOKEN_ENCRYPTION_KEY</code>: il collegamento resta disabilitato finché non viene configurata su Vercel.
             </p>
+          )}
+
+          {scalableStatus?.connection?.last_error === 'NO_HOLDINGS_PARSED' && (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+              <p className="text-sm font-semibold text-amber-900">Diagnostica Scalable</p>
+              <p className="mt-1 text-sm text-amber-800">
+                Nessun valore sensibile viene mostrato: qui vedi solo nomi dei campi, tipi e conteggi restituiti da Scalable.
+              </p>
+              <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-white p-3 text-[11px] leading-5 text-slate-700 ring-1 ring-amber-100">
+                {JSON.stringify({
+                  portfolioIds: scalableStatus.connection.metadata?.portfolio_ids ?? [],
+                  availableTools: scalableStatus.connection.metadata?.available_tools ?? [],
+                  holdingsCount: scalableStatus.connection.metadata?.holdings_count ?? 0,
+                  savingsPlansCount: scalableStatus.connection.metadata?.savings_plans_count ?? 0,
+                  diagnostics: scalableStatus.connection.metadata?.diagnostics ?? [],
+                }, null, 2)}
+              </pre>
+            </div>
           )}
         </CardContent>
       </Card>
