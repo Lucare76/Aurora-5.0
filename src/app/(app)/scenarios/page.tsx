@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { StatusBadge, type StatusTone } from '@/components/ui/status-badge'
+import { InlineEmptyState, PageLoadingState } from '@/components/shared/PageState'
 import { cn, formatCurrency } from '@/lib/utils'
 import { SIMULATION_BADGE, DISCLAIMER_TEXT } from '@/lib/scenarios/constants'
 import type { FinancialScenario } from '@/lib/scenarios/types'
@@ -234,32 +235,18 @@ export default function ScenariosPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-slate-400" role="status" aria-live="polite">
-          <RefreshCw className="mr-2 h-5 w-5 animate-spin" aria-hidden="true" />
-          Caricamento scenari…
-        </div>
+        <PageLoadingState label="Caricamento scenari…" rows={3} />
       ) : visible.length === 0 ? (
-        <Card className="border-[#e5e7f0] bg-white">
-          <CardContent className="flex min-h-[280px] flex-col items-center justify-center gap-4 p-8 text-center">
-            <FlaskConical className="h-12 w-12 text-slate-200" aria-hidden="true" />
-            <div>
-              <p className="font-semibold text-slate-700">Nessuno scenario trovato</p>
-              <p className="mt-1 text-sm text-slate-500">
-                {filter === 'favorite'
-                  ? 'Nessuno scenario preferito. Aggiungi la stella a uno scenario per trovarlo qui.'
-                  : filter === 'archived'
-                    ? 'Nessuno scenario archiviato.'
-                    : 'Crea il tuo primo scenario per simulare “cosa succederebbe se…” senza cambiare i dati reali.'}
-              </p>
-            </div>
-            {filter === 'all' && (
-              <Link href="/scenarios/new" className={cn(buttonVariants({ variant: 'outline' }), 'gap-1.5')}>
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Crea il primo scenario
-              </Link>
-            )}
-          </CardContent>
-        </Card>
+        <InlineEmptyState
+          icon={FlaskConical}
+          title="Nessuno scenario trovato"
+          description={filter === 'favorite'
+            ? 'Aggiungi la stella a uno scenario per ritrovarlo tra i preferiti.'
+            : filter === 'archived'
+              ? 'Gli scenari archiviati compariranno qui.'
+              : 'Crea il primo scenario per esplorare una scelta senza modificare i dati reali.'}
+          action={filter === 'all' ? <Link href="/scenarios/new" className={cn(buttonVariants({ variant: 'outline' }), 'gap-1.5')}><Plus className="h-4 w-4" aria-hidden="true" />Crea il primo scenario</Link> : undefined}
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-live="polite">
           {visible.map((s) => (
