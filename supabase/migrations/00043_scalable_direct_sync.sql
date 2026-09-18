@@ -5,8 +5,7 @@ alter table public.external_assets
   add column if not exists external_key text;
 
 create unique index if not exists idx_external_assets_user_source_key
-  on public.external_assets(user_id, source_type, external_key)
-  where external_key is not null;
+  on public.external_assets(user_id, source_type, external_key);
 
 create table if not exists public.scalable_connections (
   user_id uuid primary key references auth.users(id) on delete cascade,
