@@ -80,7 +80,6 @@ export default function DashboardPage() {
   const [patrimonioSummary, setPatrimonioSummary] = useState<{
     externalValue: number
     investedAmount: number
-    gainLoss: number
     netWorthAdjustment: number
     historyBaseline7d: number | null
     historyBaseline30d: number | null
@@ -102,7 +101,6 @@ export default function DashboardPage() {
           summary?: {
             externalValue?: number
             investedAmount?: number
-            gainLoss?: number
             netWorthAdjustment?: number
             historyBaseline7d?: number | null
             historyBaseline30d?: number | null
@@ -111,7 +109,6 @@ export default function DashboardPage() {
         setPatrimonioSummary({
           externalValue: Number(patrimonioBody.summary?.externalValue ?? 0),
           investedAmount: Number(patrimonioBody.summary?.investedAmount ?? 0),
-          gainLoss: Number(patrimonioBody.summary?.gainLoss ?? 0),
           netWorthAdjustment: Number(patrimonioBody.summary?.netWorthAdjustment ?? patrimonioBody.summary?.externalValue ?? 0),
           historyBaseline7d: patrimonioBody.summary?.historyBaseline7d == null ? null : Number(patrimonioBody.summary.historyBaseline7d),
           historyBaseline30d: patrimonioBody.summary?.historyBaseline30d == null ? null : Number(patrimonioBody.summary.historyBaseline30d),
