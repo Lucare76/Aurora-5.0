@@ -291,15 +291,73 @@ export async function callScalableTool(session: McpSession, toolName: string, po
   return result.response?.result ?? null
 }
 
+function parseJsonLikeText(value: string): unknown | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const candidates = [trimmed]
+  const fenced = trimmed.match(/\`\`\`(?:json)?\s*([\s\S]*?)\`\`\`/i)
+  if (fenced?.[1]) candidates.push(fenced[1].trim())
+
+  const firstObject = trimmed.indexOf('{')
+  const lastObject = trimmed.lastIndexOf('}')
+  if (firstObject >= 0 && lastObject > firstObject) candidates.push(trimmed.slice(firstObject, lastObject + 1))
+
+  const firstArray = trimmed.indexOf('[')
+  const lastArray = trimmed.lastIndexOf(']')
+  if (firstArray >= 0 && lastArray > firstArray) candidates.push(trimmed.slice(firstArray, lastArray + 1))
+
+  for (const candidate of candidates) {
+    try { return JSON.parse(candidate) } catch { /* try next */ }
+  }
+  return null
+}
+
+function normalizeStructuredContent(value: unknown): unknown {
+  if (typeof value === 'string') return parseJsonLikeText(value) ?? value
+  if (Array.isArray(value)) return value.map((item) => normalizeStructuredContent(item))
+  if (!value || typeof value !== 'object') return value
+
+  const row = value as Record<string, unknown>
+  const normalized: Record<string, unknown> = {}
+  for (const [key, child] of Object.entries(row)) normalized[key] = normalizeStructuredContent(child)
+  return normalized
+}
+
 function structuredToolData(result: any): any {
   if (!result) return null
-  if (result.structuredContent != null) return result.structuredContent
-  const content = Array.isArray(result.content) ? result.content : []
-  for (const item of content) {
-    if (item?.type !== 'text' || typeof item.text !== 'string') continue
-    try { return JSON.parse(item.text) } catch { /* not JSON */ }
+
+  if (result.structuredContent != null) {
+    return normalizeStructuredContent(result.structuredContent)
   }
-  return result
+
+  const content = Array.isArray(result.content) ? result.content : []
+  const parsedItems: unknown[] = []
+
+  for (const item of content) {
+    if (!item || typeof item !== 'object') continue
+
+    if (item.type === 'text' && typeof item.text === 'string') {
+      parsedItems.push(parseJsonLikeText(item.text) ?? item.text)
+      continue
+    }
+
+    if (item.type === 'resource') {
+      const resource = item.resource
+      if (resource && typeof resource === 'object') {
+        if (typeof resource.text === 'string') parsedItems.push(parseJsonLikeText(resource.text) ?? resource.text)
+        else if (resource.contents != null) parsedItems.push(normalizeStructuredContent(resource.contents))
+      }
+      continue
+    }
+
+    if (item.json != null) parsedItems.push(normalizeStructuredContent(item.json))
+    else parsedItems.push(normalizeStructuredContent(item))
+  }
+
+  if (parsedItems.length === 1) return parsedItems[0]
+  if (parsedItems.length > 1) return parsedItems
+  return normalizeStructuredContent(result)
 }
 
 function asNumber(value: unknown): number | null {
