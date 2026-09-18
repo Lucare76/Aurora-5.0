@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: backup-restore-rehearsal
@@ -48,3 +49,15 @@ jobs:
           npx vitest run
           tests/unit/patrimonio/linked-assets.test.ts
           tests/unit/patrimonio/patrimonio-linked-history-migration.test.ts
+
+      - name: Open alert issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          title="Aurora backup restore rehearsal failed"
+          existing="$(gh issue list --state open --search "$title in:title" --json number --jq 'length')"
+          if [ "$existing" = "0" ]; then
+            gh issue create --title "$title" --body "La prova periodica di backup/restore è fallita. Verificare il workflow **Backup Restore Rehearsal** prima di affidarsi a un ripristino reale. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
