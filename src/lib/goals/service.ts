@@ -633,7 +633,10 @@ export async function listGoals(supabase: SupabaseClient): Promise<GoalProgress[
 
   if (contributionError) throw contributionError
   const byGoal = groupContributionsByGoal((contributionData ?? []) as GoalContribution[])
-  return goals.map((goal) => enrichGoal(goal, byGoal.get(goal.id) ?? [])).sort(sortGoals)
+  const linkedByGoal = await loadGoalLinkedAggregates(supabase, goals.map((goal) => goal.id))
+  return goals
+    .map((goal) => enrichGoal(goal, byGoal.get(goal.id) ?? [], new Date(), false, linkedByGoal.get(goal.id)))
+    .sort(sortGoals)
 }
 
 export async function createGoal(supabase: SupabaseClient, input: CreateGoalInput): Promise<{ id: string }> {
