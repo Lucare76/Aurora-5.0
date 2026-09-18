@@ -90,6 +90,10 @@ export default function PatrimonioPage() {
   const [scalableStatus, setScalableStatus] = useState<ScalableStatus | null>(null)
   const [syncingScalable, setSyncingScalable] = useState(false)
   const [disconnectingScalable, setDisconnectingScalable] = useState(false)
+  const [scalableSetupOpen, setScalableSetupOpen] = useState(false)
+  const [scalableClientId, setScalableClientId] = useState('')
+  const [scalableRefreshToken, setScalableRefreshToken] = useState('')
+  const [configuringScalable, setConfiguringScalable] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -156,6 +160,36 @@ export default function PatrimonioPage() {
       await load()
     } finally {
       setDisconnectingScalable(false)
+    }
+  }
+
+
+  const configureScalable = async () => {
+    if (!scalableClientId.trim() || !scalableRefreshToken.trim()) {
+      toast.error('Inserisci Client ID e Refresh Token generati dallo script locale.')
+      return
+    }
+    setConfiguringScalable(true)
+    try {
+      const response = await fetch('/api/integrations/scalable/configure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: scalableClientId.trim(),
+          refreshToken: scalableRefreshToken.trim(),
+        }),
+      })
+      if (!response.ok) {
+        toast.error('Configurazione Scalable non riuscita. Rigenera le credenziali locali e riprova.')
+        return
+      }
+      setScalableSetupOpen(false)
+      setScalableClientId('')
+      setScalableRefreshToken('')
+      toast.success('Scalable collegato ad Aurora.')
+      await load()
+    } finally {
+      setConfiguringScalable(false)
     }
   }
 
@@ -316,7 +350,7 @@ export default function PatrimonioPage() {
                   </span>
                 </div>
                 <p className="mt-1 max-w-3xl text-sm text-slate-500">
-                  Aurora usa il collegamento MCP Scalable direttamente in sola lettura per importare posizioni e valori correnti. Non usa la sessione Scalable di ChatGPT e non può inviare ordini da questa integrazione.
+                  Aurora sincronizza Scalable direttamente in sola lettura. Per il primo collegamento serve una breve autorizzazione locale, perché Scalable non accetta callback web generiche per questa integrazione.
                 </p>
                 {scalableStatus?.connection?.last_synced_at && (
                   <p className="mt-2 text-xs text-slate-400">Ultima sincronizzazione: {new Date(scalableStatus.connection.last_synced_at).toLocaleString('it-IT')}</p>
@@ -331,11 +365,11 @@ export default function PatrimonioPage() {
                 <Button
                   type="button"
                   className="gap-2"
-                  onClick={() => { window.location.href = '/api/integrations/scalable/connect' }}
+                  onClick={() => setScalableSetupOpen(true)}
                   disabled={scalableStatus?.configured === false}
                 >
                   <Link2 className="h-4 w-4" />
-                  Collega Scalable
+                  Configura Scalable
                 </Button>
               ) : (
                 <>
@@ -450,6 +484,32 @@ export default function PatrimonioPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={scalableSetupOpen} onOpenChange={setScalableSetupOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader><DialogTitle>Collega Scalable ad Aurora</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 text-sm text-indigo-900">
+              <p className="font-semibold">1. Genera le credenziali sul tuo PC</p>
+              <p className="mt-1 text-indigo-800">Apri PowerShell nella cartella Aurora e lancia:</p>
+              <code className="mt-2 block rounded-xl bg-white px-3 py-2 text-xs text-slate-800">node scripts/scalable-bootstrap.mjs</code>
+              <p className="mt-2 text-indigo-800">Si aprirà Scalable nel browser per login, 2FA e autorizzazione. Alla fine il terminale mostrerà Client ID e Refresh Token.</p>
+            </div>
+            <div>
+              <Label>Client ID</Label>
+              <Input className="mt-1.5" value={scalableClientId} onChange={(e) => setScalableClientId(e.target.value)} autoComplete="off" />
+            </div>
+            <div>
+              <Label>Refresh Token</Label>
+              <Input className="mt-1.5" type="password" value={scalableRefreshToken} onChange={(e) => setScalableRefreshToken(e.target.value)} autoComplete="off" />
+              <p className="mt-1 text-xs text-slate-500">Non inviarlo in chat. Aurora lo cifra prima di salvarlo.</p>
+            </div>
+            <Button className="h-11 w-full" onClick={configureScalable} disabled={configuringScalable}>
+              {configuringScalable ? 'Verifico e collego…' : 'Salva e collega Scalable'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
         <DialogContent className="sm:max-w-lg">
