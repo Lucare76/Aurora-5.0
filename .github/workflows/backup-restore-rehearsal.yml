@@ -1,0 +1,63 @@
+name: Backup Restore Rehearsal
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 3 * * 0'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: backup-restore-rehearsal
+  cancel-in-progress: false
+
+jobs:
+  restore-rehearsal:
+    name: Verify backup restore path
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54329
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
+      ENABLE_BACKUP_RESTORE_REAL: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore dry-run and atomic route tests
+        run: >
+          npx vitest run
+          tests/unit/backup/backup-restore-dry-run.test.ts
+          tests/api/backup-restore-route.test.ts
+          tests/unit/backup/backup-restore-migration-static.test.ts
+          --testTimeout=60000
+
+      - name: Patrimonio snapshot regression
+        run: >
+          npx vitest run
+          tests/unit/patrimonio/linked-assets.test.ts
+          tests/unit/patrimonio/patrimonio-linked-history-migration.test.ts
+
+      - name: Open alert issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          title="Aurora backup restore rehearsal failed"
+          existing="$(gh issue list --state open --search "$title in:title" --json number --jq 'length')"
+          if [ "$existing" = "0" ]; then
+            gh issue create --title "$title" --body "La prova periodica di backup/restore è fallita. Verificare il workflow **Backup Restore Rehearsal** prima di affidarsi a un ripristino reale. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi

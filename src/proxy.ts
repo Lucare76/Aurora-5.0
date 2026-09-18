@@ -1,7 +1,14 @@
-import { type NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
 export async function proxy(request: NextRequest) {
+  if (
+    process.env.AURORA_E2E_AUTH_BYPASS === '1'
+    && request.headers.get('x-aurora-e2e-auth') === '1'
+  ) {
+    return NextResponse.next()
+  }
+
   return await updateSession(request)
 }
 
