@@ -11,7 +11,7 @@ const assetSchema = z.object({
   investedAmount: z.coerce.number().finite().min(0).default(0),
   currentValue: z.coerce.number().finite().min(0),
   currency: z.string().trim().min(3).max(3).default('EUR'),
-  sourceType: z.enum(['MANUAL', 'SCALABLE', 'SCREENSHOT']).default('MANUAL'),
+  sourceType: z.enum(['MANUAL', 'SCALABLE', 'SCREENSHOT', 'POSTE']).default('MANUAL'),
   includeInNetWorth: z.boolean().default(true),
   notes: z.string().trim().max(1000).nullable().optional(),
   observedAt: z.string().datetime().optional(),
