@@ -234,7 +234,6 @@ export default function PatrimonioPage() {
   const baseNetWorth = overview?.financial.netWorth ?? 0
   const externalValue = assetsPayload?.summary.externalValue ?? 0
   const investedAmount = assetsPayload?.summary.investedAmount ?? 0
-  const gainLoss = assetsPayload?.summary.gainLoss ?? 0
   const netWorthAdjustment = assetsPayload?.summary.netWorthAdjustment ?? externalValue
   const consolidated = baseNetWorth + netWorthAdjustment
   const consolidatedChange7d = assetsPayload?.summary.historyBaseline7d == null
