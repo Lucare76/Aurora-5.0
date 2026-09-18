@@ -36,6 +36,16 @@ describe('linked patrimonio assets', () => {
     }, null)).toBe(1000)
   })
 
+  it('does not contribute excluded assets even when linked', () => {
+    expect(assetNetWorthContribution({
+      id: 'excluded',
+      name: 'Excluded',
+      current_value: 1200,
+      include_in_net_worth: false,
+      linked_account_id: 'scalable',
+    }, 1000)).toBe(0)
+  })
+
   it('compares with the latest snapshot at or before the requested lookback', () => {
     const now = new Date('2026-09-18T12:00:00.000Z')
     const snapshots = [
@@ -44,5 +54,16 @@ describe('linked patrimonio assets', () => {
     ]
     expect(historicalChange(105, snapshots, 7, now)).toBe(5)
     expect(historicalChange(105, snapshots, 30, now)).toBe(15)
+  })
+
+  it('returns null until enough history exists and ignores future snapshots', () => {
+    const now = new Date('2026-09-18T12:00:00.000Z')
+    const snapshots = [
+      { asset_id: 'a', current_value: 999, observed_at: '2026-09-19T12:00:00.000Z' },
+      { asset_id: 'a', current_value: 100, observed_at: '2026-09-15T12:00:00.000Z' },
+    ]
+
+    expect(historicalChange(105, snapshots, 7, now)).toBeNull()
+    expect(historicalChange(105, snapshots, 1, now)).toBe(5)
   })
 })
