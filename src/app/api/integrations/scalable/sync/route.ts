@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { buildPersonalOverviewPayload } from '@/lib/dashboard/personal-overview'
+import { assetNetWorthContribution, resolveScalableLinkedAccount } from '@/lib/patrimonio/linked-assets'
 import { createClient } from '@/lib/supabase/server'
 import {
   decryptSecret,
@@ -58,15 +60,30 @@ export async function POST() {
 
     const portfolio = await readScalablePortfolio(accessToken)
 
-    const { data: existingRows, error: existingError } = await supabase
-      .from('external_assets')
-      .select('external_key,invested_amount')
-      .eq('user_id', user.id)
-      .eq('source_type', 'SCALABLE')
+    const [existingRes, accountsRes] = await Promise.all([
+      supabase
+        .from('external_assets')
+        .select('external_key,invested_amount')
+        .eq('user_id', user.id)
+        .eq('source_type', 'SCALABLE'),
+      supabase
+        .from('accounts')
+        .select('id,name,balance')
+        .eq('user_id', user.id),
+    ])
 
-    if (existingError) throw existingError
+    if (existingRes.error) throw existingRes.error
+    if (accountsRes.error) throw accountsRes.error
+
+    const existingRows = existingRes.data ?? []
+    const accounts = (accountsRes.data ?? []).map((account) => ({
+      id: String(account.id),
+      name: String(account.name),
+      balance: Number(account.balance ?? 0),
+    }))
+    const accountById = new Map(accounts.map((account) => [account.id, account]))
     const existingInvested = new Map(
-      (existingRows ?? []).map((row) => [String(row.external_key), Number(row.invested_amount ?? 0)]),
+      existingRows.map((row) => [String(row.external_key), Number(row.invested_amount ?? 0)]),
     )
 
     const planByKey = new Map<string, { amount: number | null; nextExecutionDate: string | null }>()
@@ -78,14 +95,17 @@ export async function POST() {
       })
     }
 
+    const observedAt = new Date().toISOString()
     const rows = portfolio.holdings.map((holding) => {
       const existingAmount = existingInvested.get(holding.externalKey)
       const investedAmount = holding.investedAmount != null
         ? Math.max(0, holding.investedAmount)
         : (existingAmount ?? Math.max(0, holding.currentValue))
       const plan = planByKey.get(holding.externalKey)
+      const linkedAccount = resolveScalableLinkedAccount(holding.name, accounts)
       const notes = [
         holding.investedAmount == null && existingAmount == null ? 'Capitale versato inizializzato al valore attuale: verifica una volta il dato.' : null,
+        linkedAccount ? `Collegato al conto Aurora: ${linkedAccount.name}` : null,
         plan?.amount != null
           ? `PAC Scalable: ${plan.amount} ${holding.currency || 'EUR'}${plan.nextExecutionDate ? ` · prossima esecuzione ${plan.nextExecutionDate}` : ''}`
           : null,
@@ -102,21 +122,50 @@ export async function POST() {
         currency: holding.currency || 'EUR',
         source_type: 'SCALABLE',
         external_key: holding.externalKey,
+        linked_account_id: linkedAccount?.id ?? null,
         include_in_net_worth: true,
         notes,
-        observed_at: new Date().toISOString(),
+        observed_at: observedAt,
       }
     })
 
+    let syncedAssets: Array<{
+      id: string
+      external_key: string | null
+      current_value: number | string
+      linked_account_id: string | null
+    }> = []
+
     if (rows.length > 0) {
-      const { error: upsertError } = await supabase
+      const { data: upserted, error: upsertError } = await supabase
         .from('external_assets')
         .upsert(rows, { onConflict: 'user_id,source_type,external_key' })
+        .select('id,external_key,current_value,linked_account_id')
       if (upsertError) throw upsertError
+      syncedAssets = (upserted ?? []).map((asset) => ({
+        id: String(asset.id),
+        external_key: asset.external_key ? String(asset.external_key) : null,
+        current_value: asset.current_value,
+        linked_account_id: asset.linked_account_id ? String(asset.linked_account_id) : null,
+      }))
+
+      const snapshots = syncedAssets.map((asset) => ({
+        user_id: user.id,
+        asset_id: asset.id,
+        current_value: Number(asset.current_value ?? 0),
+        linked_account_balance: asset.linked_account_id
+          ? accountById.get(asset.linked_account_id)?.balance ?? null
+          : null,
+        observed_at: observedAt,
+      }))
+      if (snapshots.length > 0) {
+        const { error: snapshotError } = await supabase.from('external_asset_snapshots').insert(snapshots)
+        if (snapshotError) throw snapshotError
+      }
     }
 
     const activeKeys = new Set(rows.map((row) => row.external_key))
-    const staleKeys = (existingRows ?? [])
+    const staleKeys = existingRows
       .map((row) => String(row.external_key ?? ''))
       .filter((key) => key && !activeKeys.has(key))
 
@@ -126,7 +175,7 @@ export async function POST() {
         .update({
           include_in_net_worth: false,
           notes: 'Posizione non più restituita da Scalable nell’ultima sincronizzazione.',
-          observed_at: new Date().toISOString(),
+          observed_at: observedAt,
         })
         .eq('user_id', user.id)
         .eq('source_type', 'SCALABLE')
@@ -134,12 +183,41 @@ export async function POST() {
       if (staleError) throw staleError
     }
 
+    const { data: allAssets, error: allAssetsError } = await supabase
+      .from('external_assets')
+      .select('id,name,current_value,include_in_net_worth,linked_account_id')
+      .eq('user_id', user.id)
+    if (allAssetsError) throw allAssetsError
+
+    const netWorthAdjustment = (allAssets ?? []).reduce((sum, asset) => {
+      const linkedId = asset.linked_account_id ? String(asset.linked_account_id) : null
+      const linkedBalance = linkedId ? accountById.get(linkedId)?.balance ?? null : null
+      return sum + assetNetWorthContribution({
+        id: String(asset.id),
+        name: String(asset.name),
+        current_value: asset.current_value,
+        include_in_net_worth: Boolean(asset.include_in_net_worth),
+        linked_account_id: linkedId,
+      }, linkedBalance)
+    }, 0)
+
+    const overview = await buildPersonalOverviewPayload(supabase, user)
+    const baseNetWorth = Number(overview.financial.netWorth ?? 0)
+    const { error: patrimonioSnapshotError } = await supabase.from('patrimonio_snapshots').insert({
+      user_id: user.id,
+      base_net_worth: baseNetWorth,
+      net_worth_adjustment: netWorthAdjustment,
+      consolidated_value: baseNetWorth + netWorthAdjustment,
+      observed_at: observedAt,
+    })
+    if (patrimonioSnapshotError) throw patrimonioSnapshotError
+
     const zeroHoldings = portfolio.holdings.length === 0
 
     await supabase
       .from('scalable_connections')
       .update({
-        last_synced_at: new Date().toISOString(),
+        last_synced_at: observedAt,
         last_error: zeroHoldings ? 'NO_HOLDINGS_PARSED' : null,
         metadata: {
           portfolio_ids: portfolio.portfolioIds,
