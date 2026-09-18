@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import * as XLSX from 'xlsx'
 import Papa from 'papaparse'
@@ -9,8 +9,10 @@ import {
   ArrowLeft,
   ArrowLeftRight,
   CheckCircle2,
+  CreditCard,
   FileSpreadsheet,
   FileText,
+  RefreshCw,
   Upload,
   Zap,
 } from 'lucide-react'
@@ -311,6 +313,9 @@ export default function ImportEstratti() {
   const [parsing, setParsing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [quickAmex, setQuickAmex] = useState(false)
+  const [quickAmexPending, setQuickAmexPending] = useState(false)
+  const quickAmexInputRef = useRef<HTMLInputElement | null>(null)
 
   const bpAccount = useMemo(() => accounts.find((a) => a.name === 'Bancoposta'), [accounts])
   const amexAccount = useMemo(() => accounts.find((a) => a.name === 'Carta di Credito'), [accounts])
@@ -337,6 +342,19 @@ export default function ImportEstratti() {
       total: included.length + transferPairs.length,
     }
   }, [rows, transferPairs])
+
+  const reviewRows = useMemo(() => {
+    if (!quickAmex) return rows
+    return rows.filter((row) =>
+      row.included &&
+      (Boolean(row.warning) || (row.type !== 'transfer' && !row.category_id)),
+    )
+  }, [quickAmex, rows])
+
+  const quickReadyCount = useMemo(
+    () => quickAmex ? Math.max(rows.filter((row) => row.included).length - reviewRows.length, 0) : 0,
+    [quickAmex, reviewRows.length, rows],
+  )
 
   const handleParse = useCallback(async () => {
     if (!bpFile && !amexFile) { toast.error('Carica almeno un file'); return }
@@ -456,6 +474,20 @@ export default function ImportEstratti() {
       setParsing(false)
     }
   }, [bpFile, amexFile, bpAccount, amexAccount, commissionCat, accounts, categories, supabase])
+
+  useEffect(() => {
+    if (!quickAmexPending || !amexFile) return
+    setQuickAmexPending(false)
+    void handleParse()
+  }, [amexFile, handleParse, quickAmexPending])
+
+  const handleQuickAmexFile = (file: File | null) => {
+    if (!file) return
+    setQuickAmex(true)
+    setBpFile(null)
+    setAmexFile(file)
+    setQuickAmexPending(true)
+  }
 
   const handleSave = useCallback(async () => {
     setSaving(true)
@@ -613,6 +645,53 @@ export default function ImportEstratti() {
         {/* ── UPLOAD STEP ── */}
         {step === 'upload' && (
           <div className="space-y-5">
+            <Card className="overflow-hidden border-violet-200 bg-gradient-to-br from-violet-50 via-white to-indigo-50 shadow-sm">
+              <CardContent className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                <div className="flex min-w-0 items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-sm">
+                    <CreditCard className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-violet-600">Aggiornamento rapido</p>
+                    <h2 className="mt-1 text-lg font-bold text-slate-950">Aggiorna American Express</h2>
+                    <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+                      Seleziona il CSV scaricato da Amex. Aurora esclude automaticamente i duplicati,
+                      prepara i nuovi movimenti e ti mostra solo quelli che richiedono attenzione.
+                    </p>
+                    <p className="mt-2 text-xs font-medium text-slate-500">Nessuna password Amex viene salvata o richiesta.</p>
+                  </div>
+                </div>
+                <div className="shrink-0">
+                  <input
+                    ref={quickAmexInputRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="sr-only"
+                    onChange={(event) => {
+                      handleQuickAmexFile(event.target.files?.[0] ?? null)
+                      event.currentTarget.value = ''
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    className="h-11 gap-2 bg-violet-600 px-5 hover:bg-violet-700"
+                    disabled={!amexAccount || parsing}
+                    onClick={() => quickAmexInputRef.current?.click()}
+                  >
+                    <RefreshCw className={cn('h-4 w-4', parsing && 'animate-spin')} />
+                    {parsing ? 'Analisi in corso…' : 'Aggiorna Amex'}
+                  </Button>
+                  {!amexAccount && <p className="mt-2 max-w-52 text-xs text-amber-700">Crea prima il conto “Carta di Credito”.</p>}
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-200" />
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">oppure importazione completa</span>
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
+
             <div className="grid gap-5 md:grid-cols-2">
               <FileZone
                 label="Estratto Bancoposta (.xlsx)"
@@ -621,7 +700,7 @@ export default function ImportEstratti() {
                 file={bpFile}
                 accountFound={!!bpAccount}
                 accountName="Bancoposta"
-                onFile={setBpFile}
+                onFile={(file) => { setQuickAmex(false); setBpFile(file) }}
               />
               <FileZone
                 label="Estratto American Express (.csv)"
@@ -630,7 +709,7 @@ export default function ImportEstratti() {
                 file={amexFile}
                 accountFound={!!amexAccount}
                 accountName="Carta di Credito"
-                onFile={setAmexFile}
+                onFile={(file) => { setQuickAmex(false); setAmexFile(file) }}
               />
             </div>
             <Button onClick={handleParse} disabled={(!bpFile && !amexFile) || parsing} className="h-11 gap-2 px-8">
@@ -688,14 +767,24 @@ export default function ImportEstratti() {
             <Card className="border-[#e5e7f0] bg-white shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold">
-                  Movimenti da importare
+                  {quickAmex ? 'Movimenti da verificare' : 'Movimenti da importare'}
                   <span className="ml-2 font-normal text-slate-400">
-                    {rows.length} totali · {rows.filter((r) => r.included).length} selezionati
+                    {quickAmex
+                      ? `${reviewRows.length} da verificare · ${quickReadyCount} pronti · ${counts.duplicates} duplicati esclusi`
+                      : `${rows.length} totali · ${rows.filter((r) => r.included).length} selezionati`}
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                {rows.length === 0 ? (
+                {quickAmex && reviewRows.length === 0 ? (
+                  <div className="m-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center">
+                    <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-600" />
+                    <p className="mt-2 text-sm font-semibold text-emerald-800">Nessun movimento richiede verifica</p>
+                    <p className="mt-1 text-sm text-emerald-700">
+                      {quickReadyCount} nuovi movimenti sono pronti per l’importazione; {counts.duplicates} duplicati sono già esclusi.
+                    </p>
+                  </div>
+                ) : reviewRows.length === 0 ? (
                   <p className="px-5 py-6 text-center text-sm text-slate-400">Nessun movimento normale da importare.</p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -717,7 +806,7 @@ export default function ImportEstratti() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#f0f1f5]">
-                        {rows.map((row) => {
+                        {reviewRows.map((row) => {
                           const otherAccounts = activeAccounts.filter((a) => a.id !== row.account_id)
                           const isTransfer = row.type === 'transfer'
                           const missingDest = isTransfer && !row.destination_account_id
@@ -856,7 +945,11 @@ export default function ImportEstratti() {
                 disabled={saving || counts.total === 0}
                 className="h-11 gap-2 px-8"
               >
-                {saving ? `Importazione… ${progress}%` : `Importa ${counts.total} operazioni selezionate`}
+                {saving
+                  ? `Importazione… ${progress}%`
+                  : quickAmex
+                    ? `Importa ${counts.total} nuovi movimenti Amex`
+                    : `Importa ${counts.total} operazioni selezionate`}
               </Button>
               {saving && (
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">

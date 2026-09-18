@@ -14,6 +14,7 @@ import type { GoalLinkedSource } from '@/lib/goals/linked-sources'
 type Props = {
   goalId: string
   sources: GoalLinkedSource[]
+  targetAmount: number
   manualCurrentAmount: number
   linkedSourceAmount: number
   linkedMonthlyPlanAmount: number
@@ -53,6 +54,7 @@ function toNullableNumber(value: string): number | null {
 export function GoalLinkedSourcesCard({
   goalId,
   sources,
+  targetAmount,
   manualCurrentAmount,
   linkedSourceAmount,
   linkedMonthlyPlanAmount,
@@ -67,6 +69,7 @@ export function GoalLinkedSourcesCard({
     () => manualCurrentAmount + linkedSourceAmount,
     [manualCurrentAmount, linkedSourceAmount],
   )
+  const difference = totalTracked - targetAmount
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }))
@@ -162,7 +165,7 @@ export function GoalLinkedSourcesCard({
               Fonti collegate
             </CardTitle>
             <p className="mt-1 text-sm text-slate-500">
-              Snapshot in sola lettura: non crea movimenti e non può inviare ordini al provider.
+              Collega conti o investimenti al target. Gli snapshot sono in sola lettura e non possono inviare ordini.
             </p>
           </div>
           <Button type="button" size="sm" className="shrink-0 gap-2" onClick={openNew}>
@@ -173,16 +176,21 @@ export function GoalLinkedSourcesCard({
         <CardContent>
           <div className="mb-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl bg-[#f8f9fc] p-4">
-              <p className="text-xs text-slate-500">Versamenti manuali</p>
-              <p className="mt-1 font-bold tabular-nums text-slate-950">{formatCurrency(manualCurrentAmount)}</p>
+              <p className="text-xs text-slate-500">Target</p>
+              <p className="mt-1 font-bold tabular-nums text-slate-950">{formatCurrency(targetAmount)}</p>
             </div>
             <div className="rounded-2xl bg-indigo-50 p-4">
-              <p className="text-xs text-indigo-600">Fonti collegate</p>
-              <p className="mt-1 font-bold tabular-nums text-indigo-700">{formatCurrency(linkedSourceAmount)}</p>
+              <p className="text-xs text-indigo-600">Valore attuale</p>
+              <p className="mt-1 font-bold tabular-nums text-indigo-700">{formatCurrency(totalTracked)}</p>
+              <p className="mt-1 text-[11px] text-indigo-500">
+                Manuale {formatCurrency(manualCurrentAmount)} · fonti {formatCurrency(linkedSourceAmount)}
+              </p>
             </div>
-            <div className="rounded-2xl bg-emerald-50 p-4">
-              <p className="text-xs text-emerald-700">Totale tracciato</p>
-              <p className="mt-1 font-bold tabular-nums text-emerald-800">{formatCurrency(totalTracked)}</p>
+            <div className={difference >= 0 ? "rounded-2xl bg-emerald-50 p-4" : "rounded-2xl bg-slate-50 p-4"}>
+              <p className={difference >= 0 ? "text-xs text-emerald-700" : "text-xs text-slate-500"}>Differenza</p>
+              <p className={difference >= 0 ? "mt-1 font-bold tabular-nums text-emerald-800" : "mt-1 font-bold tabular-nums text-slate-950"}>
+                {difference >= 0 ? '+' : '−'}{formatCurrency(Math.abs(difference))}
+              </p>
             </div>
           </div>
 
@@ -197,7 +205,7 @@ export function GoalLinkedSourcesCard({
             <div className="rounded-2xl border border-dashed border-[#e5e7f0] bg-[#f8f9fc] p-6 text-center">
               <p className="text-sm font-semibold text-slate-700">Nessuna fonte esterna collegata</p>
               <p className="mt-1 text-sm text-slate-500">
-                Puoi registrare uno snapshot letto da Scalable MCP e usarlo nel progresso dell’obiettivo.
+                Puoi registrare uno snapshot letto da Scalable oppure un valore manuale per Poste, Moneyfarm o altre fonti.
               </p>
             </div>
           ) : (
@@ -256,7 +264,7 @@ export function GoalLinkedSourcesCard({
             <DialogTitle>Snapshot fonte esterna</DialogTitle>
           </DialogHeader>
           <div className="rounded-2xl bg-indigo-50 p-4 text-sm leading-6 text-indigo-800">
-            Inserisci i valori letti in sola lettura. Aurora li usa solo per il progresso dell’obiettivo:
+            Inserisci il valore attuale letto dalla fonte. Aurora lo confronta con il target:
             nessun saldo, movimento o ordine viene modificato.
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

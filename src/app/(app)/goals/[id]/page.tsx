@@ -156,7 +156,7 @@ export default function GoalDetailPage() {
           {canAdd && (
             <Button className="gap-2" onClick={openContributionCreate}>
               <Plus className="h-4 w-4" />
-              Aggiungi versamento
+              Aggiorna manualmente
             </Button>
           )}
         </div>
@@ -196,14 +196,15 @@ export default function GoalDetailPage() {
         </section>
 
         <section className="grid gap-4 sm:grid-cols-3">
-          <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-5"><p className="text-sm text-slate-500">Importo target</p><p className="mt-2 text-2xl font-bold tabular-nums">{formatCurrency(goal.target_amount)}</p></CardContent></Card>
-          <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-5"><p className="text-sm text-slate-500">Accumulato</p><p className="mt-2 text-2xl font-bold tabular-nums text-indigo-600">{formatCurrency(goal.current_amount)}</p></CardContent></Card>
-          <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-5"><p className="text-sm text-slate-500">Residuo</p><p className="mt-2 text-2xl font-bold tabular-nums text-slate-950">{formatCurrency(goal.remainingAmount)}</p></CardContent></Card>
+          <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-5"><p className="text-sm text-slate-500">Target</p><p className="mt-2 text-2xl font-bold tabular-nums">{formatCurrency(goal.target_amount)}</p></CardContent></Card>
+          <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-5"><p className="text-sm text-slate-500">Valore attuale</p><p className="mt-2 text-2xl font-bold tabular-nums text-indigo-600">{formatCurrency(goal.current_amount)}</p></CardContent></Card>
+          <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-5"><p className="text-sm text-slate-500">Differenza</p><p className={cn('mt-2 text-2xl font-bold tabular-nums', goal.current_amount >= goal.target_amount ? 'text-emerald-600' : 'text-slate-950')}>{goal.current_amount >= goal.target_amount ? '+' : '−'}{formatCurrency(Math.abs(goal.current_amount - goal.target_amount))}</p></CardContent></Card>
         </section>
 
         <GoalLinkedSourcesCard
           goalId={goal.id}
           sources={detail.linkedSources}
+          targetAmount={goal.target_amount}
           manualCurrentAmount={goal.manualCurrentAmount ?? goal.current_amount}
           linkedSourceAmount={goal.linkedSourceAmount ?? 0}
           linkedMonthlyPlanAmount={goal.linkedMonthlyPlanAmount ?? 0}
@@ -260,15 +261,15 @@ export default function GoalDetailPage() {
         <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
           <Card className="border-[#e5e7f0] bg-white shadow-sm">
             <CardHeader>
-              <CardTitle className="text-lg text-slate-950">Andamento versamenti</CardTitle>
-              <p className="text-sm text-slate-500">Crescita cumulata dello storico registrato.</p>
+              <CardTitle className="text-lg text-slate-950">Andamento aggiornamenti manuali</CardTitle>
+              <p className="text-sm text-slate-500">Crescita cumulata degli aggiornamenti manuali registrati.</p>
             </CardHeader>
             <CardContent>
               {chartData.every((p) => p.contributedAmount === 0) ? (
                 <div className="flex h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#e5e7f0] bg-[#f8f9fc] text-center">
                   <PiggyBank className="h-9 w-9 text-slate-300" />
-                  <p className="mt-3 text-sm font-semibold text-slate-700">Nessun versamento registrato</p>
-                  <p className="mt-1 text-sm text-slate-500">Aggiungi il primo versamento per vedere il grafico.</p>
+                  <p className="mt-3 text-sm font-semibold text-slate-700">Nessun aggiornamento manuale</p>
+                  <p className="mt-1 text-sm text-slate-500">Se l’obiettivo usa una fonte collegata, il valore attuale è già conteggiato sopra.</p>
                 </div>
               ) : (
                 <div className="h-[280px]">
@@ -296,14 +297,14 @@ export default function GoalDetailPage() {
 
           <Card className="border-[#e5e7f0] bg-white shadow-sm">
             <CardHeader>
-              <CardTitle className="text-lg text-slate-950">Versamenti</CardTitle>
-              <p className="text-sm text-slate-500">Storico cronologico: mostrati gli ultimi {Math.min(contributionCount, 50)} di {contributionCount} versamenti.</p>
+              <CardTitle className="text-lg text-slate-950">Aggiornamenti manuali</CardTitle>
+              <p className="text-sm text-slate-500">Storico cronologico: mostrati gli ultimi {Math.min(contributionCount, 50)} di {contributionCount} aggiornamenti.</p>
             </CardHeader>
             <CardContent>
               {contributions.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-[#e5e7f0] bg-[#f8f9fc] p-6 text-center">
-                  <p className="text-sm font-semibold text-slate-700">Nessun versamento</p>
-                  <p className="mt-1 text-sm text-slate-500">Aggiungi un versamento per aggiornare accumulato, residuo, percentuale e stato dell’obiettivo.</p>
+                  <p className="text-sm font-semibold text-slate-700">Nessun aggiornamento manuale</p>
+                  <p className="mt-1 text-sm text-slate-500">Puoi usare solo una fonte collegata oppure registrare qui aggiornamenti manuali del valore.</p>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
@@ -313,7 +314,7 @@ export default function GoalDetailPage() {
                         <Plus className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-slate-900">Versamento del {formatDate(row.date)}</p>
+                        <p className="font-semibold text-slate-900">Aggiornamento del {formatDate(row.date)}</p>
                         {row.note && <p className="mt-0.5 truncate text-xs text-slate-500">{row.note}</p>}
                         <p className="mt-0.5 text-xs text-slate-400">Creato il {formatDate(row.created_at)}</p>
                       </div>
@@ -348,7 +349,7 @@ export default function GoalDetailPage() {
           <DialogHeader><DialogTitle>{editingContribution ? 'Modifica versamento' : 'Aggiungi versamento'}</DialogTitle></DialogHeader>
           <form onSubmit={form.handleSubmit(onSubmit)} className="mt-4 space-y-5">
             <div className="rounded-2xl bg-indigo-50 p-4 text-sm text-indigo-800">
-              Il denaro viene conteggiato solo nell’obiettivo, senza modificare i saldi dei conti.
+              Questo valore viene conteggiato solo nell’obiettivo e non modifica i saldi dei conti.
             </div>
             <div className="space-y-2">
               <Label>Importo</Label>
@@ -364,7 +365,7 @@ export default function GoalDetailPage() {
               <Input {...form.register('note')} className="h-11 border-[#e5e7f0] bg-white" placeholder="Facoltativa" />
             </div>
             <Button type="submit" className="h-12 w-full" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Salvataggio...' : editingContribution ? 'Salva modifiche' : 'Registra versamento'}
+              {form.formState.isSubmitting ? 'Salvataggio...' : editingContribution ? 'Salva modifiche' : 'Registra aggiornamento'}
             </Button>
           </form>
         </DialogContent>

@@ -98,6 +98,8 @@ function GoalCard({
   const isArchived = goal.status === 'ARCHIVED' || goal.archived
   const isComplete = goal.status === 'COMPLETED'
   const smart = intelligentStatusLabel(goal.intelligentStatus)
+  const difference = Number(goal.current_amount) - Number(goal.target_amount)
+  const hasLinkedSource = (goal.linkedSourceAmount ?? 0) > 0
 
   return (
     <Card className="border-[#e5e7f0] bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
@@ -135,7 +137,7 @@ function GoalCard({
                 {!isArchived && (
                   <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-indigo-700 hover:bg-indigo-50" onClick={() => { setMenuOpen(false); onContribution(goal) }}>
                     <Plus className="h-4 w-4" />
-                    Versamento
+                    Aggiorna manualmente
                   </button>
                 )}
                 <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50" onClick={() => { setMenuOpen(false); onEdit(goal) }}>
@@ -159,18 +161,25 @@ function GoalCard({
 
         <div className="mt-5 grid grid-cols-3 gap-3 rounded-2xl bg-[#f8f9fc] p-3 text-sm">
           <div>
-            <p className="text-xs text-slate-500">Accumulato</p>
-            <p className="mt-1 font-bold tabular-nums text-slate-950">{formatCurrency(goal.current_amount)}</p>
-          </div>
-          <div>
             <p className="text-xs text-slate-500">Target</p>
             <p className="mt-1 font-bold tabular-nums text-slate-950">{formatCurrency(goal.target_amount)}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-500">Residuo</p>
-            <p className="mt-1 font-bold tabular-nums text-indigo-600">{formatCurrency(goal.remainingAmount)}</p>
+            <p className="text-xs text-slate-500">Valore attuale</p>
+            <p className="mt-1 font-bold tabular-nums text-indigo-600">{formatCurrency(goal.current_amount)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-500">Differenza</p>
+            <p className={cn('mt-1 font-bold tabular-nums', difference >= 0 ? 'text-emerald-600' : 'text-slate-950')}>
+              {difference >= 0 ? '+' : '−'}{formatCurrency(Math.abs(difference))}
+            </p>
           </div>
         </div>
+        {hasLinkedSource && (
+          <p className="mt-2 text-xs font-medium text-indigo-600">
+            Valore aggiornato anche da fonti collegate.
+          </p>
+        )}
 
         <div className="mt-4">
           <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-slate-500">
@@ -209,7 +218,7 @@ function GoalCard({
         )}
 
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
-          <p className="text-xs text-slate-500">Apri il dettaglio per vedere e gestire i versamenti.</p>
+          <p className="text-xs text-slate-500">Apri il dettaglio per aggiornare il valore e gestire le fonti collegate.</p>
           <Link
             href={`/goals/${goal.id}`}
             className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'shrink-0 gap-2 border-indigo-100 text-indigo-700 hover:bg-indigo-50')}
@@ -365,7 +374,7 @@ export default function GoalsPage() {
             <p className="text-sm font-medium text-indigo-600">Pianificazione</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Obiettivi di risparmio</h1>
             <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-500">
-              Tieni separati i traguardi personali dalla contabilità: i versamenti aggiornano solo l’avanzamento dell’obiettivo.
+              Imposta un target e confrontalo con il valore attuale. Puoi aggiornarlo manualmente o tramite fonti collegate.
             </p>
           </div>
           <Button onClick={openCreate} className="h-11 gap-2">
@@ -376,7 +385,7 @@ export default function GoalsPage() {
 
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
           <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-4 sm:p-5"><p className="text-xs font-medium text-slate-500">Target totale</p><p className="mt-2 text-xl font-bold tabular-nums sm:text-2xl">{formatCurrency(summary.totalTarget)}</p></CardContent></Card>
-          <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-4 sm:p-5"><p className="text-xs font-medium text-slate-500">Accumulato</p><p className="mt-2 text-xl font-bold tabular-nums text-indigo-600 sm:text-2xl">{formatCurrency(summary.totalSaved)}</p></CardContent></Card>
+          <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-4 sm:p-5"><p className="text-xs font-medium text-slate-500">Valore attuale</p><p className="mt-2 text-xl font-bold tabular-nums text-indigo-600 sm:text-2xl">{formatCurrency(summary.totalSaved)}</p></CardContent></Card>
           <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-4 sm:p-5"><p className="text-xs font-medium text-slate-500">Attivi</p><p className="mt-2 text-xl font-bold tabular-nums sm:text-2xl">{summary.active}</p></CardContent></Card>
           <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-4 sm:p-5"><p className="text-xs font-medium text-slate-500">Completati</p><p className="mt-2 text-xl font-bold tabular-nums text-emerald-600 sm:text-2xl">{summary.completed}</p></CardContent></Card>
         </section>
@@ -483,7 +492,7 @@ export default function GoalsPage() {
               <Input {...contributionForm.register('note')} className="h-11 border-[#e5e7f0] bg-white" placeholder="Facoltativa" />
             </div>
             <Button type="submit" className="h-12 w-full" disabled={contributionForm.formState.isSubmitting}>
-              {contributionForm.formState.isSubmitting ? 'Salvataggio...' : 'Registra versamento'}
+              {contributionForm.formState.isSubmitting ? 'Salvataggio...' : 'Registra aggiornamento'}
             </Button>
           </form>
         </DialogContent>
