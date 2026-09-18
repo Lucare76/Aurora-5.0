@@ -9,7 +9,7 @@ const patchSchema = z.object({
   instrument: z.string().trim().max(180).nullable().optional(),
   investedAmount: z.coerce.number().finite().min(0).optional(),
   currentValue: z.coerce.number().finite().min(0).optional(),
-  sourceType: z.enum(['MANUAL', 'SCALABLE', 'SCREENSHOT']).optional(),
+  sourceType: z.enum(['MANUAL', 'SCALABLE', 'SCREENSHOT', 'POSTE']).optional(),
   includeInNetWorth: z.boolean().optional(),
   notes: z.string().trim().max(1000).nullable().optional(),
   observedAt: z.string().datetime().optional(),
