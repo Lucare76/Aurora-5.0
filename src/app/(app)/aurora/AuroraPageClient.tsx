@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, ArrowLeftRight, BadgeCheck, Landmark, Loader2, Pencil, Plus, Save, Trash2, X, RefreshCw, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { InlineEmptyState, PageLoadingState } from '@/components/shared/PageState'
 import { formatCurrency } from '@/lib/utils'
 
 type Account = { id: string; name: string; balance: number; currency: string; is_active: boolean; type: string; color?: string | null }
@@ -141,7 +142,7 @@ export function AuroraSavingsPageClient() {
   const schemaReady = data?.schemaReady ?? true
 
   if (loading && !data) {
-    return <div className="rounded-2xl border border-[#e5e7f0] bg-white p-6 text-sm text-slate-500">Caricamento area Aurora...</div>
+    return <PageLoadingState label="Caricamento area Aurora…" rows={4} />
   }
 
   return (
@@ -214,7 +215,7 @@ export function AuroraSavingsPageClient() {
         <div className="rounded-2xl border border-[#e5e7f0] bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2"><Landmark className="h-5 w-5 text-indigo-600" /><h2 className="text-base font-semibold text-slate-950">Conti Aurora</h2></div>
           <div className="mt-4 space-y-3">
-            {(data?.summary.byAccount ?? []).length === 0 ? <p className="text-sm text-slate-500">Imposta un conto fonte o crea un conto Aurora per iniziare.</p> : data!.summary.byAccount.map((account) => {
+            {(data?.summary.byAccount ?? []).length === 0 ? <InlineEmptyState icon={Wallet} title="Nessun conto Aurora collegato" description="Imposta un conto fonte esistente oppure crea un nuovo conto dedicato per iniziare." /> : data!.summary.byAccount.map((account) => {
               const isAlsoPersonal = (data?.accountScopes ?? []).some((entry) => entry.accountId === account.accountId && entry.scopes.includes('PERSONAL'))
               return (
                 <div key={account.accountId} className="rounded-xl border border-[#e5e7f0] p-3">
@@ -300,7 +301,7 @@ export function AuroraSavingsPageClient() {
         <div className="rounded-2xl border border-[#e5e7f0] bg-white shadow-sm">
           <div className="border-b border-[#e5e7f0] p-5"><h2 className="text-base font-semibold text-slate-950">Ultimi movimenti Aurora</h2></div>
           <div className="divide-y divide-[#e5e7f0]">
-            {(data?.summary.recentTransactions ?? []).length === 0 ? <p className="p-5 text-sm text-slate-500">Nessun movimento Aurora registrato.</p> : data!.summary.recentTransactions.slice(0, 8).map((tx) => {
+            {(data?.summary.recentTransactions ?? []).length === 0 ? <div className="p-4"><InlineEmptyState icon={ArrowLeftRight} title="Nessun movimento Aurora" description="I movimenti e i giroconti dedicati compariranno qui dopo la prima registrazione." /></div> : data!.summary.recentTransactions.slice(0, 8).map((tx) => {
               const impact = tx.auroraImpact ?? (tx.type === 'expense' ? -Number(tx.amount) : Number(tx.amount))
               return (
               <div key={tx.id} className="flex items-center justify-between gap-3 p-4">
