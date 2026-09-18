@@ -204,6 +204,7 @@ export default function GoalDetailPage() {
         <GoalLinkedSourcesCard
           goalId={goal.id}
           sources={detail.linkedSources}
+          targetAmount={goal.target_amount}
           manualCurrentAmount={goal.manualCurrentAmount ?? goal.current_amount}
           linkedSourceAmount={goal.linkedSourceAmount ?? 0}
           linkedMonthlyPlanAmount={goal.linkedMonthlyPlanAmount ?? 0}
