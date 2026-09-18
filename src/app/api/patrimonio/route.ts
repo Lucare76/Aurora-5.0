@@ -31,7 +31,7 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
-  const since = new Date(Date.now() - 45 * 86_400_000).toISOString()
+  const since = new Date(Date.now() - 95 * 86_400_000).toISOString()
   const [assetsRes, accountsRes, snapshotsRes, patrimonioSnapshotsRes] = await Promise.all([
     supabase
       .from('external_assets')
@@ -89,6 +89,13 @@ export async function GET() {
       net_worth_contribution: assetNetWorthContribution(asset, linked?.balance ?? null),
       change_7d: historicalChange(current, snapshots, 7),
       change_30d: historicalChange(current, snapshots, 30),
+      change_90d: historicalChange(current, snapshots, 90),
+      history: snapshots
+        .map((snapshot) => ({
+          value: Number(snapshot.current_value || 0),
+          observedAt: snapshot.observed_at,
+        }))
+        .sort((a, b) => new Date(a.observedAt).getTime() - new Date(b.observedAt).getTime()),
     }
   })
 
@@ -111,6 +118,13 @@ export async function GET() {
       includedAssets: included.length,
       historyBaseline7d: historyBaseline(patrimonioSnapshots, 7),
       historyBaseline30d: historyBaseline(patrimonioSnapshots, 30),
+      historyBaseline90d: historyBaseline(patrimonioSnapshots, 90),
+      history: patrimonioSnapshots
+        .map((snapshot) => ({
+          value: Number(snapshot.consolidated_value || 0),
+          observedAt: snapshot.observed_at,
+        }))
+        .sort((a, b) => new Date(a.observedAt).getTime() - new Date(b.observedAt).getTime()),
     },
   })
 }
