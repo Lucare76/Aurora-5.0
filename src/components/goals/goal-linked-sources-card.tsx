@@ -68,7 +68,7 @@ export function GoalLinkedSourcesCard({
     [manualCurrentAmount, linkedSourceAmount],
   )
 
-  const update = (key: keyof FormState, value: string) => {
+  const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }))
   }
 
@@ -262,14 +262,14 @@ export function GoalLinkedSourcesCard({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Provider</Label>
-              <select value={form.provider} onChange={(e) => update('provider', e.target.value)} className="h-11 w-full rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm">
+              <select value={form.provider} onChange={(e) => update('provider', e.target.value as FormState['provider'])} className="h-11 w-full rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm">
                 <option value="SCALABLE">Scalable Capital</option>
                 <option value="MANUAL">Altro / manuale</option>
               </select>
             </div>
             <div className="space-y-2">
               <Label>Tipo fonte</Label>
-              <select value={form.sourceType} onChange={(e) => update('sourceType', e.target.value)} className="h-11 w-full rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm">
+              <select value={form.sourceType} onChange={(e) => update('sourceType', e.target.value as FormState['sourceType'])} className="h-11 w-full rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm">
                 <option value="POSITION">Posizione</option>
                 <option value="CASH">Liquidità</option>
                 <option value="PORTFOLIO">Portafoglio</option>
