@@ -362,33 +362,90 @@ function portfolioIdsFromResult(result: unknown) {
   return [...ids]
 }
 
+function flattenScalarLeaves(value: unknown, prefix = '', out: Record<string, unknown> = {}) {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => flattenScalarLeaves(item, prefix ? `${prefix}.${index}` : String(index), out))
+    return out
+  }
+  if (!value || typeof value !== 'object') {
+    if (prefix) out[prefix] = value
+    return out
+  }
+
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    const path = prefix ? `${prefix}.${key}` : key
+    if (child && typeof child === 'object') flattenScalarLeaves(child, path, out)
+    else out[path] = child
+  }
+  return out
+}
+
+function scalarBySuffix(flat: Record<string, unknown>, suffixes: string[]) {
+  const normalizedSuffixes = suffixes.map((value) => value.toLowerCase().replaceAll('_', ''))
+  for (const [path, value] of Object.entries(flat)) {
+    const normalizedPath = path.toLowerCase().replaceAll('_', '')
+    if (normalizedSuffixes.some((suffix) => normalizedPath === suffix || normalizedPath.endsWith(`.${suffix}`))) {
+      return value
+    }
+  }
+  return undefined
+}
+
+function stringFromNested(row: Record<string, unknown>, keys: string[]) {
+  const direct = stringValue(row, keys)
+  if (direct) return direct
+  const flat = flattenScalarLeaves(row)
+  const value = scalarBySuffix(flat, keys)
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+function numberFromNested(row: Record<string, unknown>, keys: string[]) {
+  const direct = numericValue(row, keys)
+  if (direct != null) return direct
+  const flat = flattenScalarLeaves(row)
+  const value = scalarBySuffix(flat, keys)
+  return asNumber(value)
+}
+
 function holdingFromRow(row: Record<string, unknown>, portfolioId: string): ScalableHolding | null {
-  const isin = stringValue(row, ['isin', 'ISIN'])
+  const isin = stringFromNested(row, ['isin', 'ISIN'])
   if (!isin) return null
 
-  const currentValue = numericValue(row, [
-    'marketValue', 'market_value', 'currentValue', 'current_value', 'positionValue', 'position_value', 'value',
+  const quantity = numberFromNested(row, ['quantity', 'shares', 'units'])
+  const unitPrice = numberFromNested(row, [
+    'lastPrice', 'last_price', 'price', 'currentPrice', 'current_price', 'quote', 'latestPrice', 'latest_price',
   ])
+
+  let currentValue = numberFromNested(row, [
+    'marketValue', 'market_value', 'currentValue', 'current_value', 'positionValue', 'position_value',
+    'valuation', 'valuationAmount', 'valuation_amount', 'totalValue', 'total_value',
+  ])
+  if (currentValue == null && quantity != null && unitPrice != null) currentValue = quantity * unitPrice
   if (currentValue == null) return null
 
-  const quantity = numericValue(row, ['quantity', 'shares', 'units'])
-  const unitPrice = numericValue(row, ['lastPrice', 'last_price', 'price', 'currentPrice', 'current_price', 'quote'])
-  let investedAmount = numericValue(row, [
-    'cost', 'costBasis', 'cost_basis', 'purchaseValue', 'purchase_value', 'investedAmount', 'invested_amount', 'acquisitionValue', 'acquisition_value',
+  let investedAmount = numberFromNested(row, [
+    'cost', 'costBasis', 'cost_basis', 'purchaseValue', 'purchase_value', 'investedAmount', 'invested_amount',
+    'acquisitionValue', 'acquisition_value', 'totalCost', 'total_cost',
   ])
 
-  const averagePurchasePrice = numericValue(row, ['averagePurchasePrice', 'average_purchase_price', 'averageBuyPrice', 'average_buy_price'])
+  const averagePurchasePrice = numberFromNested(row, [
+    'averagePurchasePrice', 'average_purchase_price', 'averageBuyPrice', 'average_buy_price', 'averagePrice', 'average_price',
+  ])
   if (investedAmount == null && quantity != null && averagePurchasePrice != null) investedAmount = quantity * averagePurchasePrice
 
-  const profitLoss = numericValue(row, [
-    'profitLoss', 'profit_loss', 'absoluteReturn', 'absolute_return', 'simpleAbsoluteReturn', 'simple_absolute_return', 'sinceBuyAbsoluteReturn',
+  const profitLoss = numberFromNested(row, [
+    'profitLoss', 'profit_loss', 'absoluteReturn', 'absolute_return', 'simpleAbsoluteReturn', 'simple_absolute_return',
+    'sinceBuyAbsoluteReturn', 'since_buy_absolute_return', 'performanceAbsolute', 'performance_absolute',
   ])
   if (investedAmount == null && profitLoss != null) investedAmount = currentValue - profitLoss
 
-  const name = stringValue(row, [
-    'name', 'securityName', 'security_name', 'instrumentName', 'instrument_name', 'displayName', 'display_name', 'title',
+  const name = stringFromNested(row, [
+    'name', 'securityName', 'security_name', 'instrumentName', 'instrument_name', 'displayName', 'display_name',
+    'title', 'security.name', 'instrument.name',
   ]) ?? isin
-  const currency = stringValue(row, ['currency', 'currencyCode', 'currency_code']) ?? 'EUR'
+  const currency = stringFromNested(row, [
+    'currency', 'currencyCode', 'currency_code', 'marketValue.currency', 'currentValue.currency',
+  ]) ?? 'EUR'
 
   return {
     portfolioId,
