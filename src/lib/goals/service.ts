@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { GoalContribution, SavingsGoal, SavingsGoalStatus } from '@/types/database'
+import { loadGoalLinkedAggregates } from '@/lib/goals/linked-sources'
+import type { GoalLinkedAggregate, GoalLinkedSource } from '@/lib/goals/linked-sources'
 
 export type IntelligentGoalStatus =
   | 'COMPLETED'
