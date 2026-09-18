@@ -37,13 +37,37 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (value.notes !== undefined) patch.notes = value.notes || null
   if (value.observedAt !== undefined) patch.observed_at = value.observedAt
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('external_assets')
     .update(patch)
     .eq('id', id)
     .eq('user_id', user.id)
+    .select('id,current_value,linked_account_id,observed_at')
+    .single()
 
   if (error) return NextResponse.json({ error: 'ASSET_UPDATE_FAILED' }, { status: 500 })
+
+  if (value.currentValue !== undefined && updated) {
+    let linkedAccountBalance: number | null = null
+    if (updated.linked_account_id) {
+      const { data: account } = await supabase
+        .from('accounts')
+        .select('balance')
+        .eq('id', updated.linked_account_id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      linkedAccountBalance = account ? Number(account.balance ?? 0) : null
+    }
+
+    await supabase.from('external_asset_snapshots').insert({
+      user_id: user.id,
+      asset_id: updated.id,
+      current_value: Number(updated.current_value ?? 0),
+      linked_account_balance: linkedAccountBalance,
+      observed_at: updated.observed_at,
+    })
+  }
+
   return NextResponse.json({ ok: true })
 }
 
