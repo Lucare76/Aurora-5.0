@@ -531,13 +531,36 @@ export function buildGoalInsights(
   return insights.sort((a, b) => insightRank(a) - insightRank(b)).slice(0, maxCount)
 }
 
-function enrichGoal(goalInput: SavingsGoal, contributions: GoalContribution[], now = new Date(), includeHistory = false): GoalProgress {
-  const goal = normalizeGoal(goalInput)
+export function applyLinkedAggregateToGoal(goalInput: SavingsGoal, linked?: GoalLinkedAggregate): SavingsGoal {
+  if (!linked || linked.totalValue <= 0) return goalInput
+  const effectiveCurrent = round2(Number(goalInput.current_amount) + linked.totalValue)
+  const status: SavingsGoalStatus = goalInput.archived || goalInput.status === 'ARCHIVED'
+    ? 'ARCHIVED'
+    : effectiveCurrent >= Number(goalInput.target_amount)
+      ? 'COMPLETED'
+      : goalInput.status === 'COMPLETED'
+        ? 'COMPLETED'
+        : 'ACTIVE'
+  return { ...goalInput, current_amount: effectiveCurrent, status }
+}
+
+function enrichGoal(
+  goalInput: SavingsGoal,
+  contributions: GoalContribution[],
+  now = new Date(),
+  includeHistory = false,
+  linked?: GoalLinkedAggregate,
+): GoalProgress {
+  const manualCurrentAmount = round2(Number(goalInput.current_amount))
+  const goal = normalizeGoal(applyLinkedAggregateToGoal(goalInput, linked))
   const forecast = buildGoalForecast(goal, contributions, now)
   const pace = buildGoalPace(goal, contributions, now)
   const insights = buildGoalInsights(goal, contributions, now, 1)
   return {
     ...goal,
+    manualCurrentAmount,
+    linkedSourceAmount: round2(linked?.totalValue ?? 0),
+    linkedMonthlyPlanAmount: round2(linked?.monthlyPlanAmount ?? 0),
     forecast,
     pace,
     intelligentStatus: pace.intelligentStatus,
