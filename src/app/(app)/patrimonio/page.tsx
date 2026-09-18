@@ -23,6 +23,12 @@ type ExternalAsset = {
   include_in_net_worth: boolean
   notes: string | null
   observed_at: string
+  linked_account_id?: string | null
+  linked_account_name?: string | null
+  linked_account_balance?: number | null
+  net_worth_contribution?: number
+  change_7d?: number | null
+  change_30d?: number | null
 }
 
 type AssetPayload = {
@@ -31,7 +37,10 @@ type AssetPayload = {
     externalValue: number
     investedAmount: number
     gainLoss: number
+    netWorthAdjustment: number
     includedAssets: number
+    historyBaseline7d: number | null
+    historyBaseline30d: number | null
   }
 }
 
@@ -88,6 +97,16 @@ function sourceLabel(source: ExternalAsset['source_type']) {
   if (source === 'SCALABLE') return 'Scalable'
   if (source === 'SCREENSHOT') return 'Screenshot'
   return 'Manuale'
+}
+
+function DeltaLine({ value, label }: { value: number | null; label: string }) {
+  if (value == null) return <span className="text-slate-400">{label}: storico in raccolta</span>
+  const positive = value >= 0
+  return (
+    <span className={positive ? 'text-emerald-600' : 'text-red-600'}>
+      {positive ? '+' : '−'}{formatMoney(Math.abs(value))} {label}
+    </span>
+  )
 }
 
 export default function PatrimonioPage() {
@@ -216,7 +235,14 @@ export default function PatrimonioPage() {
   const externalValue = assetsPayload?.summary.externalValue ?? 0
   const investedAmount = assetsPayload?.summary.investedAmount ?? 0
   const gainLoss = assetsPayload?.summary.gainLoss ?? 0
-  const consolidated = baseNetWorth + externalValue
+  const netWorthAdjustment = assetsPayload?.summary.netWorthAdjustment ?? externalValue
+  const consolidated = baseNetWorth + netWorthAdjustment
+  const consolidatedChange7d = assetsPayload?.summary.historyBaseline7d == null
+    ? null
+    : consolidated - assetsPayload.summary.historyBaseline7d
+  const consolidatedChange30d = assetsPayload?.summary.historyBaseline30d == null
+    ? null
+    : consolidated - assetsPayload.summary.historyBaseline30d
 
   const includedAssets = useMemo(
     () => (assetsPayload?.data ?? []).filter((asset) => asset.include_in_net_worth),
@@ -300,7 +326,7 @@ export default function PatrimonioPage() {
           <p className="text-sm font-semibold text-indigo-600">Patrimonio consolidato</p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">Patrimonio</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-            Somma il patrimonio già registrato in Aurora agli investimenti esterni che non sono già presenti nei Conti.
+            Consolida i valori di mercato con i Conti Aurora già esistenti, aggiungendo solo la differenza per evitare doppi conteggi.
           </p>
         </div>
         <Button onClick={openCreate} className="h-11 gap-2">
@@ -314,7 +340,10 @@ export default function PatrimonioPage() {
           <CardContent className="p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Patrimonio finanziario totale</p>
             <p className="mt-2 text-3xl font-bold tabular-nums text-slate-950">{formatMoney(consolidated)}</p>
-            <p className="mt-2 text-xs text-slate-500">Aurora + investimenti esterni inclusi.</p>
+            <div className="mt-2 flex flex-col gap-1 text-xs font-medium">
+              <DeltaLine value={consolidatedChange7d} label="rispetto a 7 giorni fa" />
+              <DeltaLine value={consolidatedChange30d} label="rispetto a 30 giorni fa" />
+            </div>
           </CardContent>
         </Card>
         <Card className="border-slate-200 bg-white shadow-sm">
@@ -328,16 +357,16 @@ export default function PatrimonioPage() {
           <CardContent className="p-5">
             <p className="text-xs text-slate-500">Investimenti esterni</p>
             <p className="mt-2 text-2xl font-bold tabular-nums text-indigo-600">{formatMoney(externalValue)}</p>
-            <p className="mt-2 text-xs text-slate-400">{includedAssets.length} voci incluse nel totale.</p>
+            <p className="mt-2 text-xs text-slate-400">{includedAssets.length} posizioni monitorate; i conti collegati non vengono sommati due volte.</p>
           </CardContent>
         </Card>
         <Card className="border-slate-200 bg-white shadow-sm">
           <CardContent className="p-5">
-            <p className="text-xs text-slate-500">Risultato investimenti</p>
-            <p className={`mt-2 text-2xl font-bold tabular-nums ${gainLoss >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-              {gainLoss >= 0 ? '+' : '−'}{formatMoney(Math.abs(gainLoss))}
+            <p className="text-xs text-slate-500">Adeguamento ai valori attuali</p>
+            <p className={`mt-2 text-2xl font-bold tabular-nums ${netWorthAdjustment >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+              {netWorthAdjustment >= 0 ? '+' : '−'}{formatMoney(Math.abs(netWorthAdjustment))}
             </p>
-            <p className="mt-2 text-xs text-slate-400">Valore attuale − capitale versato.</p>
+            <p className="mt-2 text-xs text-slate-400">Solo la differenza rispetto ai Conti Aurora collegati.</p>
           </CardContent>
         </Card>
       </section>
@@ -348,7 +377,7 @@ export default function PatrimonioPage() {
           <div>
             <p className="text-sm font-semibold text-amber-900">Regola anti-doppio conteggio</p>
             <p className="mt-1 text-sm text-amber-800">
-              Inserisci qui solo valori che non sono già compresi nei Conti di Aurora. Se un investimento è già un conto Aurora, disattiva “Includi nel patrimonio”.
+              iShares Core MSCI World è collegato a “Aurora Piano di Accumulo”; Vanguard FTSE All-World è collegato a “Scalable”. Nel totale entra solo la differenza tra valore di mercato e saldo del conto collegato.
             </p>
           </div>
         </CardContent>
@@ -434,7 +463,7 @@ export default function PatrimonioPage() {
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-slate-950">Investimenti e attività esterne</h2>
-            <p className="mt-1 text-sm text-slate-500">Capitale versato, valore attuale e differenza per ogni posizione.</p>
+            <p className="mt-1 text-sm text-slate-500">Valore attuale, conto Aurora collegato e andamento a 7/30 giorni.</p>
           </div>
           <p className="text-sm font-semibold text-slate-500">Versato totale: {formatMoney(investedAmount)}</p>
         </div>
@@ -455,8 +484,9 @@ export default function PatrimonioPage() {
             {(assetsPayload?.data ?? []).map((asset) => {
               const invested = Number(asset.invested_amount)
               const current = Number(asset.current_value)
-              const diff = current - invested
-              const pct = invested > 0 ? (diff / invested) * 100 : null
+              const linkedBalance = asset.linked_account_balance == null ? null : Number(asset.linked_account_balance)
+              const diff = linkedBalance == null ? current - invested : current - linkedBalance
+              const pct = linkedBalance == null && invested > 0 ? (diff / invested) * 100 : null
               return (
                 <Card key={asset.id} className={`border-slate-200 bg-white shadow-sm ${asset.include_in_net_worth ? '' : 'opacity-60'}`}>
                   <CardHeader className="p-5 pb-3">
@@ -473,23 +503,30 @@ export default function PatrimonioPage() {
                   <CardContent className="p-5 pt-0">
                     <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-50 p-3">
                       <div>
-                        <p className="text-[11px] text-slate-500">Versato</p>
-                        <p className="mt-1 font-bold tabular-nums text-slate-950">{formatMoney(invested)}</p>
+                        <p className="text-[11px] text-slate-500">{linkedBalance == null ? 'Versato' : 'Conto Aurora'}</p>
+                        <p className="mt-1 font-bold tabular-nums text-slate-950">{formatMoney(linkedBalance ?? invested)}</p>
                       </div>
                       <div>
                         <p className="text-[11px] text-slate-500">Valore attuale</p>
                         <p className="mt-1 font-bold tabular-nums text-indigo-600">{formatMoney(current)}</p>
                       </div>
                       <div>
-                        <p className="text-[11px] text-slate-500">Differenza</p>
+                        <p className="text-[11px] text-slate-500">{linkedBalance == null ? 'Differenza' : 'Adeguamento'}</p>
                         <p className={`mt-1 flex items-center gap-1 font-bold tabular-nums ${diff >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                           {diff >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
                           {diff >= 0 ? '+' : '−'}{formatMoney(Math.abs(diff))}
                         </p>
                       </div>
                     </div>
+                    {asset.linked_account_name && (
+                      <p className="mt-3 text-xs font-semibold text-indigo-700">Collegato al conto Aurora: {asset.linked_account_name}</p>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium">
+                      <DeltaLine value={asset.change_7d ?? null} label="vs 7 giorni fa" />
+                      <DeltaLine value={asset.change_30d ?? null} label="vs 30 giorni fa" />
+                    </div>
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-                      <span>{pct == null ? 'Rendimento n/d' : `Rendimento ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`}</span>
+                      <span>{linkedBalance != null ? 'Confronto con saldo conto Aurora' : pct == null ? 'Rendimento n/d' : `Rendimento ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`}</span>
                       <span>Aggiornato {new Date(asset.observed_at).toLocaleDateString('it-IT')}</span>
                     </div>
                     {!asset.include_in_net_worth && <p className="mt-2 text-xs font-semibold text-amber-700">Escluso dal patrimonio totale per evitare doppio conteggio.</p>}
