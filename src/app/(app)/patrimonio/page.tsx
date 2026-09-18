@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BarChart3, CheckCircle2, Landmark, Link2, Pencil, Plus, RefreshCw, Trash2, TrendingDown, TrendingUp, Unlink, Upload, Wallet } from 'lucide-react'
+import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -29,7 +30,16 @@ type ExternalAsset = {
   net_worth_contribution?: number
   change_7d?: number | null
   change_30d?: number | null
+  change_90d?: number | null
+  history?: HistoryPoint[]
 }
+
+type HistoryPoint = {
+  value: number
+  observedAt: string
+}
+
+type HistoryPeriod = 7 | 30 | 90
 
 type AssetPayload = {
   data: ExternalAsset[]
@@ -41,6 +51,8 @@ type AssetPayload = {
     includedAssets: number
     historyBaseline7d: number | null
     historyBaseline30d: number | null
+    historyBaseline90d: number | null
+    history: HistoryPoint[]
   }
 }
 
@@ -118,6 +130,74 @@ function DeltaLine({ value, label }: { value: number | null; label: string }) {
   )
 }
 
+function periodHistory(history: HistoryPoint[] | undefined, days: HistoryPeriod, currentValue: number) {
+  const cutoff = Date.now() - days * 86_400_000
+  const now = Date.now()
+  const validHistory = (history ?? [])
+    .map((point) => ({ ...point, value: Number(point.value) }))
+    .filter((point) => Number.isFinite(point.value) && new Date(point.observedAt).getTime() <= now)
+    .sort((a, b) => new Date(a.observedAt).getTime() - new Date(b.observedAt).getTime())
+  const baseline = validHistory.filter((point) => new Date(point.observedAt).getTime() <= cutoff).at(-1)
+  const points = validHistory.filter((point) => new Date(point.observedAt).getTime() > cutoff)
+  if (baseline) points.unshift(baseline)
+
+  const last = points.at(-1)
+  if (!last || new Date(last.observedAt).toDateString() !== new Date().toDateString()) {
+    points.push({ value: currentValue, observedAt: new Date().toISOString() })
+  } else {
+    last.value = currentValue
+  }
+  return points
+}
+
+function historyStats(points: HistoryPoint[]) {
+  if (points.length < 2) return null
+  const first = points[0].value
+  const last = points.at(-1)?.value ?? first
+  const change = last - first
+  return {
+    change,
+    percentage: first === 0 ? null : (change / first) * 100,
+    minimum: Math.min(...points.map((point) => point.value)),
+    maximum: Math.max(...points.map((point) => point.value)),
+  }
+}
+
+function MiniHistoryChart({ points, id, height = 112 }: { points: HistoryPoint[]; id: string; height?: number }) {
+  if (points.length < 2) {
+    return (
+      <div className="flex items-center justify-center rounded-2xl bg-slate-50 text-xs text-slate-400" style={{ height }}>
+        Storico in raccolta
+      </div>
+    )
+  }
+  const rising = points.at(-1)!.value >= points[0].value
+  const color = rising ? '#059669' : '#dc2626'
+  return (
+    <div style={{ height }} className="w-full" aria-label="Grafico storico valori">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={points} margin={{ top: 8, right: 2, bottom: 2, left: 2 }}>
+          <defs>
+            <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={color} stopOpacity={0.24} />
+              <stop offset="95%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <YAxis hide domain={['dataMin', 'dataMax']} />
+          <Tooltip
+            formatter={(value) => [formatMoney(Number(value)), 'Valore']}
+            labelFormatter={(_, payload) => payload[0]?.payload?.observedAt
+              ? new Date(payload[0].payload.observedAt).toLocaleDateString('it-IT')
+              : ''}
+            contentStyle={{ borderRadius: 12, borderColor: '#e2e8f0', fontSize: 12 }}
+          />
+          <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2.5} fill={`url(#${id})`} dot={false} activeDot={{ r: 4 }} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
 export default function PatrimonioPage() {
   const [overview, setOverview] = useState<PersonalOverviewPayload | null>(null)
   const [assetsPayload, setAssetsPayload] = useState<AssetPayload | null>(null)
@@ -140,6 +220,7 @@ export default function PatrimonioPage() {
   const [posteProductName, setPosteProductName] = useState('')
   const [posteCurrentValue, setPosteCurrentValue] = useState('')
   const [savingPosteManual, setSavingPosteManual] = useState(false)
+  const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>(30)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -343,6 +424,11 @@ export default function PatrimonioPage() {
   const consolidatedChange30d = assetsPayload?.summary.historyBaseline30d == null
     ? null
     : consolidated - assetsPayload.summary.historyBaseline30d
+  const consolidatedHistory = useMemo(
+    () => periodHistory(assetsPayload?.summary.history, historyPeriod, consolidated),
+    [assetsPayload?.summary.history, consolidated, historyPeriod],
+  )
+  const consolidatedStats = useMemo(() => historyStats(consolidatedHistory), [consolidatedHistory])
 
   const includedAssets = useMemo(
     () => (assetsPayload?.data ?? []).filter((asset) => asset.include_in_net_worth),
@@ -470,6 +556,50 @@ export default function PatrimonioPage() {
           </CardContent>
         </Card>
       </section>
+
+      <Card className="overflow-hidden border-indigo-200 bg-white shadow-sm">
+        <CardContent className="p-4 min-[360px]:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-bold text-slate-950">Andamento del patrimonio</p>
+              <p className="mt-1 text-xs text-slate-500">Valori consolidati registrati da Aurora.</p>
+            </div>
+            <div className="grid grid-cols-3 rounded-xl bg-slate-100 p-1" aria-label="Periodo storico">
+              {([7, 30, 90] as const).map((period) => (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => setHistoryPeriod(period)}
+                  className={`min-h-9 rounded-lg px-3 text-xs font-bold transition ${historyPeriod === period ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500'}`}
+                >
+                  {period}G
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4">
+            <MiniHistoryChart points={consolidatedHistory} id="patrimonio-history" height={160} />
+          </div>
+          {consolidatedStats ? (
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-[11px] text-slate-500">Variazione</p>
+                <p className={`mt-1 font-bold tabular-nums ${consolidatedStats.change >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {consolidatedStats.change >= 0 ? '+' : '−'}{formatMoney(Math.abs(consolidatedStats.change))}
+                </p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-[11px] text-slate-500">Percentuale</p>
+                <p className={`mt-1 font-bold tabular-nums ${consolidatedStats.change >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {consolidatedStats.percentage == null ? 'n/d' : `${consolidatedStats.percentage >= 0 ? '+' : ''}${consolidatedStats.percentage.toFixed(2)}%`}
+                </p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3"><p className="text-[11px] text-slate-500">Minimo</p><p className="mt-1 font-bold tabular-nums text-slate-950">{formatMoney(consolidatedStats.minimum)}</p></div>
+              <div className="rounded-xl bg-slate-50 p-3"><p className="text-[11px] text-slate-500">Massimo</p><p className="mt-1 font-bold tabular-nums text-slate-950">{formatMoney(consolidatedStats.maximum)}</p></div>
+            </div>
+          ) : <p className="mt-3 text-center text-xs text-slate-400">Servono almeno due rilevazioni per calcolare variazione, minimo e massimo.</p>}
+        </CardContent>
+      </Card>
 
       <Card className="border-amber-200 bg-amber-50/70 shadow-sm">
         <CardContent className="flex items-start gap-3 p-4">
@@ -647,7 +777,7 @@ export default function PatrimonioPage() {
         <div className="mb-3 flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-950">Investimenti e attività esterne</h2>
-            <p className="mt-1 text-sm text-slate-500">Valore attuale, conto Aurora collegato e andamento a 7/30 giorni.</p>
+            <p className="mt-1 text-sm text-slate-500">Valore attuale, conto Aurora collegato e storico a 7/30/90 giorni.</p>
           </div>
           <p className="text-sm font-semibold text-slate-500">Versato totale: {formatMoney(investedAmount)}</p>
         </div>
@@ -671,6 +801,8 @@ export default function PatrimonioPage() {
               const linkedBalance = asset.linked_account_balance == null ? null : Number(asset.linked_account_balance)
               const diff = linkedBalance == null ? current - invested : current - linkedBalance
               const pct = linkedBalance == null && invested > 0 ? (diff / invested) * 100 : null
+              const assetHistory = periodHistory(asset.history, historyPeriod, current)
+              const assetStats = historyStats(assetHistory)
               return (
                 <Card key={asset.id} className={`border-slate-200 bg-white shadow-sm ${asset.include_in_net_worth ? '' : 'opacity-60'}`}>
                   <CardHeader className="p-5 pb-3">
@@ -708,6 +840,23 @@ export default function PatrimonioPage() {
                     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium">
                       <DeltaLine value={asset.change_7d ?? null} label="vs 7 giorni fa" />
                       <DeltaLine value={asset.change_30d ?? null} label="vs 30 giorni fa" />
+                    </div>
+                    <div className="mt-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+                      <div className="mb-1 flex items-center justify-between gap-3">
+                        <p className="text-xs font-semibold text-slate-700">Storico {historyPeriod} giorni</p>
+                        {assetStats?.percentage != null && (
+                          <p className={`text-xs font-bold tabular-nums ${assetStats.change >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {assetStats.percentage >= 0 ? '+' : ''}{assetStats.percentage.toFixed(2)}%
+                          </p>
+                        )}
+                      </div>
+                      <MiniHistoryChart points={assetHistory} id={`asset-history-${asset.id}`} height={82} />
+                      {assetStats && (
+                        <div className="mt-2 flex flex-wrap justify-between gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                          <span>Min {formatMoney(assetStats.minimum)}</span>
+                          <span>Max {formatMoney(assetStats.maximum)}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
                       <span>{linkedBalance != null ? 'Confronto con saldo conto Aurora' : pct == null ? 'Rendimento n/d' : `Rendimento ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`}</span>
