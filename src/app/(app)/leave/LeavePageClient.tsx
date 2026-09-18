@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { StatusBadge } from '@/components/ui/status-badge'
+import { InlineEmptyState, PageLoadingState } from '@/components/shared/PageState'
 import {
   annualVacationAllowance,
   annualVacationRemaining,
@@ -276,7 +277,7 @@ export function LeavePageClient() {
         </Card>
       </div>
 
-      {loading ? <p className="text-sm text-slate-500">Caricamento ferie e permessi...</p> : null}
+      {loading ? <PageLoadingState label="Caricamento ferie e permessi…" rows={3} /> : null}
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-xl bg-white">
@@ -336,7 +337,7 @@ function HistoryList({ title, entries, onEdit, onDelete }: { title: string; entr
     <div>
       <h2 className="mb-3 font-semibold text-slate-950">{title}</h2>
       <div className="space-y-2">
-        {entries.length === 0 ? <p className="rounded-2xl border border-dashed border-[#e5e7f0] p-4 text-sm text-slate-500">Nessun elemento registrato.</p> : entries.map((entry) => (
+        {entries.length === 0 ? <InlineEmptyState icon={CalendarDays} title="Nessuna voce registrata" description="Le ferie e i permessi 104 del periodo selezionato compariranno qui." /> : entries.map((entry) => (
           <div key={entry.id} className="flex items-center gap-3 rounded-2xl border border-[#e5e7f0] p-3">
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-slate-950">{entry.type === 'VACATION' ? `${entry.start_date} - ${entry.end_date}` : entry.start_date}</p>

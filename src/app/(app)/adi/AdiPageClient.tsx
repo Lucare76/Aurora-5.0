@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, BadgeEuro, Loader2, Pencil, Plus, Save, WalletCards, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { InlineEmptyState, PageLoadingState } from '@/components/shared/PageState'
 import { ADI_CATEGORY_LABELS, ADI_CATEGORIES } from '@/lib/dependent-finance/constants'
 import type { AdiCategory, AdiEntry } from '@/lib/dependent-finance/types'
 import { formatCurrency } from '@/lib/utils'
@@ -146,7 +147,7 @@ export function AdiPageClient() {
   }
 
   if (loading && !data) {
-    return <div className="rounded-2xl border border-[#e5e7f0] bg-white p-6 text-sm text-slate-500">Caricamento gestione ADI...</div>
+    return <PageLoadingState label="Caricamento gestione ADI…" rows={4} />
   }
 
   const summary = data?.summary
@@ -188,7 +189,7 @@ export function AdiPageClient() {
         <p className="mt-1 text-sm text-slate-500">Confronto separato tra accrediti ADI, spese ADI e residuo per mensilità.</p>
         <div className="mt-4 space-y-3">
           {(summary?.monthlyTrend ?? []).length === 0 ? (
-            <p className="text-sm text-slate-500">Nessun andamento disponibile.</p>
+            <InlineEmptyState icon={BadgeEuro} title="Andamento non ancora disponibile" description="Registra il primo accredito o una spesa ADI per iniziare a costruire lo storico mensile." />
           ) : summary!.monthlyTrend.map((row) => (
             <div key={row.month} className="grid gap-2 rounded-xl border border-[#e5e7f0] p-3 sm:grid-cols-4 sm:items-center">
               <p className="text-sm font-semibold text-slate-950">{row.month}</p>
@@ -285,7 +286,7 @@ export function AdiPageClient() {
         </div>
         <div className="divide-y divide-[#e5e7f0]">
           {(data?.entries ?? []).length === 0 ? (
-            <p className="p-5 text-sm text-slate-500">Nessun movimento ADI nel filtro selezionato.</p>
+            <div className="p-4"><InlineEmptyState icon={WalletCards} title="Nessun movimento nel filtro" description="Prova a cambiare periodo oppure registra il primo accredito o la prima spesa ADI." /></div>
           ) : data!.entries.map((entry) => (
             <div key={entry.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
               {editing?.entryId === entry.id ? (

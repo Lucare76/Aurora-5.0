@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { StatusBadge, type StatusTone } from '@/components/ui/status-badge'
+import { PageLoadingState } from '@/components/shared/PageState'
 import {
   TIMELINE_CATEGORIES,
   TIMELINE_CATEGORY_LABELS,
@@ -249,7 +250,7 @@ export function TimelinePageClient() {
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? <p className="text-sm text-slate-500">Caricamento Timeline...</p> : null}
+          {loading ? <PageLoadingState label="Caricamento timeline…" rows={3} /> : null}
           {!loading && events.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-[#d8dceb] bg-[#f8f9fc] p-8 text-center">
               <History className="mx-auto h-10 w-10 text-indigo-500" />
@@ -281,7 +282,7 @@ export function TimelinePageClient() {
 
           {!loading && hasMore ? (
             <div className="mt-6 flex justify-center">
-              <Button variant="outline" onClick={() => loadEvents({ reset: false })} disabled={loadingMore}>{loadingMore ? 'Caricamento...' : `Carica altri (${events.length}/${total})`}</Button>
+              <Button variant="outline" onClick={() => loadEvents({ reset: false })} disabled={loadingMore}>{loadingMore ? 'Caricamento…' : `Carica altri (${events.length}/${total})`}</Button>
             </div>
           ) : null}
         </CardContent>
