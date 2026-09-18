@@ -429,7 +429,7 @@ export default function PatrimonioPage() {
             Consolida i valori di mercato con i Conti Aurora già esistenti, aggiungendo solo la differenza per evitare doppi conteggi.
           </p>
         </div>
-        <Button onClick={openCreate} className="h-11 gap-2">
+        <Button onClick={openCreate} className="h-11 w-full gap-2 sm:w-auto">
           <Plus className="h-4 w-4" />
           Aggiungi investimento
         </Button>
@@ -439,7 +439,7 @@ export default function PatrimonioPage() {
         <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-white shadow-sm">
           <CardContent className="p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Patrimonio finanziario totale</p>
-            <p className="mt-2 text-3xl font-bold tabular-nums text-slate-950">{formatMoney(consolidated)}</p>
+            <p className="mt-2 break-words text-2xl font-bold tabular-nums text-slate-950 min-[360px]:text-3xl">{formatMoney(consolidated)}</p>
             <div className="mt-2 flex flex-col gap-1 text-xs font-medium">
               <DeltaLine value={consolidatedChange7d} label="rispetto a 7 giorni fa" />
               <DeltaLine value={consolidatedChange30d} label="rispetto a 30 giorni fa" />
@@ -449,21 +449,21 @@ export default function PatrimonioPage() {
         <Card className="border-slate-200 bg-white shadow-sm">
           <CardContent className="p-5">
             <p className="text-xs text-slate-500">Patrimonio già in Aurora</p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-slate-950">{formatMoney(baseNetWorth)}</p>
+            <p className="mt-2 break-words text-xl font-bold tabular-nums text-slate-950 min-[360px]:text-2xl">{formatMoney(baseNetWorth)}</p>
             <p className="mt-2 text-xs text-slate-400">Lo stesso valore della Dashboard personale.</p>
           </CardContent>
         </Card>
         <Card className="border-slate-200 bg-white shadow-sm">
           <CardContent className="p-5">
             <p className="text-xs text-slate-500">Investimenti esterni</p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-indigo-600">{formatMoney(externalValue)}</p>
+            <p className="mt-2 break-words text-xl font-bold tabular-nums text-indigo-600 min-[360px]:text-2xl">{formatMoney(externalValue)}</p>
             <p className="mt-2 text-xs text-slate-400">{includedAssets.length} posizioni monitorate; i conti collegati non vengono sommati due volte.</p>
           </CardContent>
         </Card>
         <Card className="border-slate-200 bg-white shadow-sm">
           <CardContent className="p-5">
             <p className="text-xs text-slate-500">Adeguamento ai valori attuali</p>
-            <p className={`mt-2 text-2xl font-bold tabular-nums ${netWorthAdjustment >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            <p className={`mt-2 break-words text-xl font-bold tabular-nums min-[360px]:text-2xl ${netWorthAdjustment >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
               {netWorthAdjustment >= 0 ? '+' : '−'}{formatMoney(Math.abs(netWorthAdjustment))}
             </p>
             <p className="mt-2 text-xs text-slate-400">Solo la differenza rispetto ai Conti Aurora collegati.</p>
@@ -486,11 +486,11 @@ export default function PatrimonioPage() {
       <Card className="border-indigo-200 bg-white shadow-sm">
         <CardContent className="p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start gap-3">
+            <div className="flex min-w-0 items-start gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
                 <BarChart3 className="h-5 w-5" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-bold text-slate-950">Scalable Capital · sincronizzazione automatica</p>
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${scalableStatus?.connected ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
@@ -508,11 +508,11 @@ export default function PatrimonioPage() {
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex w-full flex-col gap-2 min-[420px]:w-auto min-[420px]:flex-row min-[420px]:flex-wrap">
               {!scalableStatus?.connected ? (
                 <Button
                   type="button"
-                  className="gap-2"
+                  className="w-full gap-2 min-[420px]:w-auto"
                   onClick={() => setScalableSetupOpen(true)}
                   disabled={scalableStatus?.configured === false}
                 >
@@ -521,11 +521,11 @@ export default function PatrimonioPage() {
                 </Button>
               ) : (
                 <>
-                  <Button type="button" className="gap-2" onClick={syncScalable} disabled={syncingScalable}>
+                  <Button type="button" className="w-full gap-2 min-[420px]:w-auto" onClick={syncScalable} disabled={syncingScalable}>
                     <RefreshCw className={syncingScalable ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
                     {syncingScalable ? 'Sincronizzo…' : 'Sincronizza ora'}
                   </Button>
-                  <Button type="button" variant="outline" className="gap-2" onClick={disconnectScalable} disabled={disconnectingScalable}>
+                  <Button type="button" variant="outline" className="w-full gap-2 min-[420px]:w-auto" onClick={disconnectScalable} disabled={disconnectingScalable}>
                     <Unlink className="h-4 w-4" />
                     Disconnetti
                   </Button>
@@ -587,7 +587,7 @@ export default function PatrimonioPage() {
               />
               <Button
                 type="button"
-                className="mt-3 gap-2"
+                className="mt-3 w-full gap-2 min-[420px]:w-auto"
                 onClick={importPosteWorkbook}
                 disabled={!posteFile || importingPoste}
               >
@@ -644,7 +644,7 @@ export default function PatrimonioPage() {
       </Card>
 
       <section>
-        <div className="mb-3 flex items-end justify-between gap-3">
+        <div className="mb-3 flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-950">Investimenti e attività esterne</h2>
             <p className="mt-1 text-sm text-slate-500">Valore attuale, conto Aurora collegato e andamento a 7/30 giorni.</p>
@@ -685,14 +685,14 @@ export default function PatrimonioPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-5 pt-0">
-                    <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-50 p-3">
+                    <div className="grid grid-cols-1 gap-2 rounded-2xl bg-slate-50 p-3 min-[390px]:grid-cols-3">
                       <div>
                         <p className="text-[11px] text-slate-500">{linkedBalance == null ? 'Versato' : 'Conto Aurora'}</p>
-                        <p className="mt-1 font-bold tabular-nums text-slate-950">{formatMoney(linkedBalance ?? invested)}</p>
+                        <p className="mt-1 break-words font-bold tabular-nums text-slate-950">{formatMoney(linkedBalance ?? invested)}</p>
                       </div>
                       <div>
                         <p className="text-[11px] text-slate-500">Valore attuale</p>
-                        <p className="mt-1 font-bold tabular-nums text-indigo-600">{formatMoney(current)}</p>
+                        <p className="mt-1 break-words font-bold tabular-nums text-indigo-600">{formatMoney(current)}</p>
                       </div>
                       <div>
                         <p className="text-[11px] text-slate-500">{linkedBalance == null ? 'Differenza' : 'Adeguamento'}</p>
@@ -714,9 +714,9 @@ export default function PatrimonioPage() {
                       <span>Aggiornato {new Date(asset.observed_at).toLocaleDateString('it-IT')}</span>
                     </div>
                     {!asset.include_in_net_worth && <p className="mt-2 text-xs font-semibold text-amber-700">Escluso dal patrimonio totale per evitare doppio conteggio.</p>}
-                    <div className="mt-4 flex gap-2 border-t border-slate-100 pt-4">
-                      <Button variant="outline" size="sm" className="gap-2" onClick={() => openEdit(asset)}><Pencil className="h-3.5 w-3.5" />Aggiorna</Button>
-                      <Button variant="ghost" size="sm" className="gap-2 text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => remove(asset)}><Trash2 className="h-3.5 w-3.5" />Rimuovi</Button>
+                    <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 min-[360px]:flex-row">
+                      <Button variant="outline" size="sm" className="w-full gap-2 min-[360px]:w-auto" onClick={() => openEdit(asset)}><Pencil className="h-3.5 w-3.5" />Aggiorna</Button>
+                      <Button variant="ghost" size="sm" className="w-full gap-2 text-red-600 hover:bg-red-50 hover:text-red-700 min-[360px]:w-auto" onClick={() => remove(asset)}><Trash2 className="h-3.5 w-3.5" />Rimuovi</Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -727,7 +727,7 @@ export default function PatrimonioPage() {
       </section>
 
       <Card className="border-slate-200 bg-white shadow-sm">
-        <CardContent className="grid gap-4 p-5 md:grid-cols-3">
+        <CardContent className="grid min-w-0 gap-4 p-4 min-[360px]:p-5 md:grid-cols-3">
           <div className="flex items-start gap-3">
             <Wallet className="mt-0.5 h-5 w-5 text-indigo-600" />
             <div><p className="font-semibold text-slate-950">Conti registrati nell’app</p><p className="mt-1 text-sm text-slate-500">Entrano automaticamente dal patrimonio personale già calcolato.</p></div>
@@ -744,7 +744,7 @@ export default function PatrimonioPage() {
       </Card>
 
       <Dialog open={scalableSetupOpen} onOpenChange={setScalableSetupOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-xl">
           <DialogHeader><DialogTitle>Collega Scalable ad Aurora</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 text-sm text-indigo-900">
@@ -770,7 +770,7 @@ export default function PatrimonioPage() {
       </Dialog>
 
       <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader><DialogTitle>{editing ? 'Aggiorna investimento' : 'Aggiungi investimento'}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             <div><Label>Nome</Label><Input className="mt-1.5" value={form.name} onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))} placeholder="Es. Aurora Piano di Accumulo" /></div>

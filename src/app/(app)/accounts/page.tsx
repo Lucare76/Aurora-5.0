@@ -437,7 +437,7 @@ export default function AccountsPage() {
               </div>
             )}
           <Card className="overflow-hidden border-[#e5e7f0] bg-white shadow-sm">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overscroll-x-contain [scrollbar-width:thin]">
               <table className="w-full min-w-[560px]">
                 <thead className="border-b border-[#e5e7f0] bg-slate-50/80">
                   <tr>

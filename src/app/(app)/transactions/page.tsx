@@ -1284,8 +1284,8 @@ export default function TransactionsPage() {
                     <span className="ml-2 text-red-500">· {importRows.filter((r) => !r.valid).length} non valide (saltate)</span>
                   )}
                 </p>
-                <div className="max-h-72 overflow-y-auto rounded-2xl border border-[#e5e7f0]">
-                  <table className="w-full text-xs">
+                <div className="max-h-72 overflow-auto overscroll-x-contain rounded-2xl border border-[#e5e7f0]">
+                  <table className="w-full min-w-[640px] text-xs">
                     <thead className="sticky top-0 bg-slate-50">
                       <tr className="border-b border-[#e5e7f0] text-left">
                         <th className="px-3 py-2 font-medium text-slate-500">Data</th>
@@ -1331,7 +1331,7 @@ export default function TransactionsPage() {
                 </div>
               )}
 
-              <div className="flex justify-between gap-3">
+              <div className="flex flex-col-reverse gap-3 min-[420px]:flex-row min-[420px]:justify-between">
                 <Button variant="outline" onClick={() => setImportStep('upload')} disabled={importBusy}>
                   Indietro
                 </Button>

@@ -532,7 +532,7 @@ function ReportsPageContent() {
                               <p className="text-sm text-slate-500">Vista aggregata per categoria padre, con sottocategorie nel dettaglio.</p>
                             </div>
                             {categoryMode === 'both' && (
-                              <div className="aurora-no-print flex rounded-xl bg-slate-100 p-1">
+                              <div className="aurora-no-print flex max-w-full overflow-x-auto overscroll-x-contain rounded-xl bg-slate-100 p-1 [scrollbar-width:thin]">
                                 <button type="button" onClick={() => setCategorySide('expense')} className={cn('rounded-lg px-3 py-1.5 text-sm font-semibold', effectiveCategorySide === 'expense' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500')}>Uscite</button>
                                 <button type="button" onClick={() => setCategorySide('income')} className={cn('rounded-lg px-3 py-1.5 text-sm font-semibold', effectiveCategorySide === 'income' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500')}>Entrate</button>
                               </div>
@@ -627,7 +627,7 @@ function ReportsPageContent() {
                         {availableTableViews.length > 1 && (
                           <div className="aurora-no-print flex rounded-xl bg-slate-100 p-1">
                             {availableTableViews.map((view) => (
-                              <button key={view} type="button" onClick={() => setTableView(view)} className={cn('rounded-lg px-3 py-1.5 text-sm font-semibold', tableView === view ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500')}>
+                              <button key={view} type="button" onClick={() => setTableView(view)} className={cn('shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold', tableView === view ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500')}>
                                 {TABLE_VIEW_LABELS[view]}
                               </button>
                             ))}
@@ -636,9 +636,9 @@ function ReportsPageContent() {
                       </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                      <div className="overflow-x-auto">
+                      <div className="overflow-x-auto overscroll-x-contain [scrollbar-width:thin]">
                         {tableView === 'monthly' && (
-                          <table className="w-full text-sm">
+                          <table className="w-full min-w-[680px] text-sm">
                             <thead><tr className="border-b bg-slate-50 text-left text-slate-500"><th className="px-5 py-3">{report.monthlySeries[0]?.key.length === 10 ? 'Giorno' : 'Mese'}</th><th className="px-5 py-3 text-right">Entrate</th><th className="px-5 py-3 text-right">Uscite</th><th className="px-5 py-3 text-right">Cash flow</th><th className="px-5 py-3 text-right">Tasso</th><th className="px-5 py-3 text-right">Movimenti</th></tr></thead>
                             <tbody>{report.monthlySeries.map((row) => <tr key={row.key} className="border-b last:border-b-0"><td className="px-5 py-3 font-semibold text-slate-900"><Link className="hover:text-indigo-600" href={`/transactions?from=${row.from}&to=${row.to}`}>{row.key}</Link></td><td className="px-5 py-3 text-right tabular-nums text-emerald-600">{formatCurrency(row.income)}</td><td className="px-5 py-3 text-right tabular-nums text-red-600">{formatCurrency(row.expenses)}</td><td className="px-5 py-3 text-right tabular-nums font-semibold">{formatCurrency(row.cashFlow)}</td><td className="px-5 py-3 text-right tabular-nums">{row.savingsRate === null ? '—' : `${row.savingsRate.toFixed(1)}%`}</td><td className="px-5 py-3 text-right tabular-nums">{row.transactionCount}</td></tr>)}</tbody>
                           </table>
@@ -651,14 +651,14 @@ function ReportsPageContent() {
                                 <button type="button" onClick={() => setCategorySide('income')} className={cn('rounded-lg px-3 py-1.5 text-sm font-semibold', effectiveCategorySide === 'income' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500')}>Entrate</button>
                               </div>
                             )}
-                            <table className="w-full text-sm">
+                            <table className="w-full min-w-[680px] text-sm">
                               <thead><tr className="border-b bg-slate-50 text-left text-slate-500"><th className="px-5 py-3">Categoria</th><th className="px-5 py-3 text-right">Importo</th><th className="px-5 py-3 text-right">%</th><th className="px-5 py-3 text-right">Confronto</th><th className="px-5 py-3 text-right">Movimenti</th></tr></thead>
                               <tbody>{activeCategoryRows.map((row) => <tr key={row.categoryId} className="border-b last:border-b-0"><td className="px-5 py-3"><Link className="font-semibold text-slate-900 hover:text-indigo-600" href={`${transactionBase}&category=${row.categoryId}&type=${effectiveCategorySide}`}>{row.icon} {row.categoryName}</Link>{row.children.length > 0 && <p className="mt-1 text-xs text-slate-400">{row.children.map((child) => child.categoryName).join(', ')}</p>}</td><td className="px-5 py-3 text-right tabular-nums font-semibold">{formatCurrency(row.amount)}</td><td className="px-5 py-3 text-right tabular-nums">{row.percentage.toFixed(1)}%</td><td className="px-5 py-3 text-right tabular-nums">{row.changeAmount >= 0 ? '+' : ''}{formatCurrency(row.changeAmount)}</td><td className="px-5 py-3 text-right tabular-nums">{row.transactionCount}</td></tr>)}</tbody>
                             </table>
                           </>
                         )}
                         {tableView === 'accounts' && (
-                          <table className="w-full text-sm">
+                          <table className="w-full min-w-[680px] text-sm">
                             <thead><tr className="border-b bg-slate-50 text-left text-slate-500"><th className="px-5 py-3">Conto</th><th className="px-5 py-3 text-right">Saldo iniziale</th><th className="px-5 py-3 text-right">Entrate</th><th className="px-5 py-3 text-right">Uscite</th><th className="px-5 py-3 text-right">Trasferimenti</th><th className="px-5 py-3 text-right">Saldo finale</th></tr></thead>
                             <tbody>{report.accounts.map((row) => <tr key={row.accountId} className="border-b last:border-b-0"><td className="px-5 py-3"><Link className="font-semibold text-slate-900 hover:text-indigo-600" href={`${transactionBase}&account=${row.accountId}`}>{row.accountName}</Link><p className="text-xs text-slate-400">{row.type}</p></td><td className="px-5 py-3 text-right tabular-nums">{formatCurrency(row.startingBalance)}</td><td className="px-5 py-3 text-right tabular-nums text-emerald-600">{formatCurrency(row.income)}</td><td className="px-5 py-3 text-right tabular-nums text-red-600">{formatCurrency(row.expenses)}</td><td className="px-5 py-3 text-right tabular-nums">{formatCurrency(row.transfers)}</td><td className="px-5 py-3 text-right tabular-nums font-semibold">{formatCurrency(row.endingBalance)}</td></tr>)}</tbody>
                           </table>

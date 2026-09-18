@@ -268,7 +268,7 @@ function MoreSheet({ open, groups, onClose }: { open: boolean; groups: NavGroup[
   return (
     <div className="fixed inset-0 z-50 md:hidden">
       <button type="button" className="absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]" onClick={onClose} aria-label="Chiudi altro" />
-      <div className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-[2rem] border border-[#e5e7f0] bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-2xl">
+      <div className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto overflow-x-hidden rounded-t-[2rem] border border-[#e5e7f0] bg-white p-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] min-[360px]:p-4 min-[360px]:pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-2xl">
         <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200" />
         <div className="sticky top-0 z-10 mb-4 flex items-center justify-between bg-white px-1 py-1">
           <div>
@@ -281,7 +281,7 @@ function MoreSheet({ open, groups, onClose }: { open: boolean; groups: NavGroup[
           {groups.map((group) => (
             <section key={group.key}>
               <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">{group.label}</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
                 {group.items.map((item) => {
                   const isActive = itemIsActive(pathname, item)
                   return (
@@ -344,12 +344,12 @@ export function AppLayoutClient({ children, canAccessPrivateFinance, canAccessPr
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#f8f9fc] text-slate-950">
+    <div className="min-h-screen overflow-x-clip bg-[#f8f9fc] text-slate-950">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-[#e5e7f0] bg-white md:block">
         <SidebarContent displayName={displayName} email={user?.email} onSignOut={handleSignOut} onSearchOpen={() => setCommandOpen(true)} groups={navGroups} />
       </aside>
 
-      <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-[#e5e7f0] bg-white/90 px-4 backdrop-blur md:hidden">
+      <header className="fixed inset-x-0 top-0 z-40 flex h-16 min-w-0 items-center justify-between border-b border-[#e5e7f0] bg-white/90 px-3 backdrop-blur min-[360px]:px-4 md:hidden">
         <Logo compact />
         <div className="flex items-center gap-1">
           <GlobalSearchTrigger compact onClick={() => setCommandOpen(true)} />
@@ -368,24 +368,24 @@ export function AppLayoutClient({ children, canAccessPrivateFinance, canAccessPr
         </aside>
       </div>
 
-      <div className="min-h-screen pt-16 md:ml-64 md:pt-0">
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 pb-24 sm:px-6 md:px-8 md:py-8 md:pb-8">{children}</main>
+      <div className="min-h-screen min-w-0 pt-16 md:ml-64 md:pt-0">
+        <main className="mx-auto w-full min-w-0 max-w-7xl px-3 py-5 pb-24 min-[360px]:px-4 min-[360px]:py-6 sm:px-6 md:px-8 md:py-8 md:pb-8">{children}</main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e7f0] bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_30px_rgba(15,23,42,0.06)] backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 overflow-x-hidden border-t border-[#e5e7f0] bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_30px_rgba(15,23,42,0.06)] backdrop-blur min-[360px]:px-2 md:hidden">
         <div className="grid h-16 grid-cols-5">
           {bottomNavItems.map((item) => {
             const isActive = itemIsActive(pathname, item)
             return (
               <Link key={item.path} href={item.path} className={cn('flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-semibold transition-colors', isActive ? 'text-indigo-600' : 'text-slate-400')}>
                 <item.icon className="h-5 w-5" />
-                <span className="w-full truncate text-center">{item.label}</span>
+                <span className="hidden w-full truncate text-center min-[340px]:block">{item.label}</span>
               </Link>
             )
           })}
           <button type="button" className={cn('flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[11px] font-semibold transition-colors', isMoreActive || moreOpen ? 'text-indigo-600' : 'text-slate-400')} onClick={() => setMoreOpen(true)} aria-label="Apri altro">
             <MoreHorizontal className="h-5 w-5" />
-            <span className="w-full truncate text-center">Altro</span>
+            <span className="hidden w-full truncate text-center min-[340px]:block">Altro</span>
           </button>
         </div>
       </nav>
