@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: production-health
@@ -26,3 +27,15 @@ jobs:
           echo "$response"
           echo "$response" | grep -q '"ok":true'
           echo "$response" | grep -q '"database":"ok"'
+
+      - name: Open alert issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          title="Aurora production health failed"
+          existing="$(gh issue list --state open --search "$title in:title" --json number --jq 'length')"
+          if [ "$existing" = "0" ]; then
+            gh issue create --title "$title" --body "Il controllo orario di produzione è fallito. Verificare il workflow **Production health** e /api/health. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
