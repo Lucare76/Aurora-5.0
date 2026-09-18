@@ -49,3 +49,22 @@ describe('Poste patrimonio import', () => {
     })
   })
 })
+
+
+describe('Poste manual mappings', () => {
+  it('maps Poste Progetti Futuri to Postaprevidenza Valore Fondo', async () => {
+    const { manualPosteProduct } = await import('@/lib/integrations/poste')
+    expect(manualPosteProduct('poste-progetti-futuri')).toMatchObject({
+      name: 'Poste Progetti Futuri',
+      accountName: 'Postaprevidenza Valore Fondo',
+    })
+  })
+
+  it('maps Postaprevidenza Valore to Polizze Vita', async () => {
+    const { manualPosteProduct } = await import('@/lib/integrations/poste')
+    expect(manualPosteProduct('postaprevidenza-valore')).toMatchObject({
+      name: 'Postaprevidenza Valore',
+      accountName: 'Polizze Vita',
+    })
+  })
+})
