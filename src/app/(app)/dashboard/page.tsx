@@ -8,6 +8,7 @@ import {
   CalendarClock,
   CheckCircle2,
   HeartPulse,
+  Landmark,
   RefreshCw,
   ShieldCheck,
   Sparkles,
@@ -76,15 +77,29 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<string | null>(null)
+  const [patrimonioSummary, setPatrimonioSummary] = useState<{ externalValue: number; investedAmount: number; gainLoss: number } | null>(null)
 
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true)
     else setLoading(true)
     try {
-      const response = await fetch('/api/dashboard/personal-overview', { cache: 'no-store' })
+      const [response, patrimonioResponse] = await Promise.all([
+        fetch('/api/dashboard/personal-overview', { cache: 'no-store' }),
+        fetch('/api/patrimonio', { cache: 'no-store' }).catch(() => null),
+      ])
       if (!response.ok) throw new Error('PERSONAL_OVERVIEW_UNAVAILABLE')
       const body = await response.json() as PersonalOverviewPayload
       setData(body)
+      if (patrimonioResponse?.ok) {
+        const patrimonioBody = await patrimonioResponse.json() as { summary?: { externalValue?: number; investedAmount?: number; gainLoss?: number } }
+        setPatrimonioSummary({
+          externalValue: Number(patrimonioBody.summary?.externalValue ?? 0),
+          investedAmount: Number(patrimonioBody.summary?.investedAmount ?? 0),
+          gainLoss: Number(patrimonioBody.summary?.gainLoss ?? 0),
+        })
+      } else {
+        setPatrimonioSummary(null)
+      }
       setLastRefresh(new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }))
       if (silent) toast.success('Dashboard aggiornata.')
     } catch (error) {
@@ -142,6 +157,38 @@ export default function DashboardPage() {
         <section aria-label="Panoramica finanziaria">
           <FinancialOverview data={data} />
         </section>
+
+        {patrimonioSummary && (
+          <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-white shadow-sm">
+            <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white">
+                  <Landmark className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-indigo-700">Patrimonio finanziario consolidato</p>
+                  <p className="mt-1 text-3xl font-bold tabular-nums text-slate-950">
+                    {formatMoney(data.financial.netWorth + patrimonioSummary.externalValue)}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {formatMoney(data.financial.netWorth)} già in Aurora + {formatMoney(patrimonioSummary.externalValue)} investimenti esterni.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="rounded-2xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-slate-200">
+                  <p className="text-xs text-slate-500">Risultato investimenti</p>
+                  <p className={`mt-1 font-bold tabular-nums ${patrimonioSummary.gainLoss >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {patrimonioSummary.gainLoss >= 0 ? '+' : '−'}{formatMoney(Math.abs(patrimonioSummary.gainLoss))}
+                  </p>
+                </div>
+                <Link href="/patrimonio" className={buttonVariants({ variant: 'outline', size: 'sm', className: 'bg-white' })}>
+                  Apri patrimonio
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-6" aria-labelledby="attention-title">
           <div className="flex items-start justify-between gap-3">

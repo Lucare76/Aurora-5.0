@@ -16,6 +16,7 @@ import {
   FlaskConical,
   HandCoins,
   History,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -82,6 +83,7 @@ function buildAllGroups(financialAssistantEnabled: boolean): NavGroup[] {
       items: [
         { path: '/transactions', label: 'Movimenti', icon: ArrowLeftRight },
         { path: '/accounts', label: 'Conti', icon: Wallet },
+        { path: '/patrimonio', label: 'Patrimonio', icon: Landmark },
         { path: '/categories', label: 'Categorie', icon: Tag },
         { path: '/budgets', label: 'Budget', icon: Target },
         { path: '/goals', label: 'Obiettivi', icon: PiggyBank },
