@@ -82,8 +82,14 @@ export async function POST() {
       const existingAmount = existingInvested.get(holding.externalKey)
       const investedAmount = holding.investedAmount != null
         ? Math.max(0, holding.investedAmount)
-        : (existingAmount ?? 0)
+        : (existingAmount ?? Math.max(0, holding.currentValue))
       const plan = planByKey.get(holding.externalKey)
+      const notes = [
+        holding.investedAmount == null && existingAmount == null ? 'Capitale versato inizializzato al valore attuale: verifica una volta il dato.' : null,
+        plan?.amount != null
+          ? `PAC Scalable: ${plan.amount} ${holding.currency || 'EUR'}${plan.nextExecutionDate ? ` · prossima esecuzione ${plan.nextExecutionDate}` : ''}`
+          : null,
+      ].filter(Boolean).join(' · ') || null
 
       return {
         user_id: user.id,
@@ -97,9 +103,7 @@ export async function POST() {
         source_type: 'SCALABLE',
         external_key: holding.externalKey,
         include_in_net_worth: true,
-        notes: plan?.amount != null
-          ? `PAC Scalable: ${plan.amount} ${holding.currency || 'EUR'}${plan.nextExecutionDate ? ` · prossima esecuzione ${plan.nextExecutionDate}` : ''}`
-          : null,
+        notes,
         observed_at: new Date().toISOString(),
       }
     })
