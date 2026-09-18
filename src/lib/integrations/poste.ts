@@ -20,13 +20,13 @@ export const POSTE_MANUAL_PRODUCTS = [
   {
     key: 'poste-progetti-futuri',
     name: 'Poste Progetti Futuri',
-    accountName: 'Polizze Vita',
+    accountName: 'Postaprevidenza Valore Fondo',
     assetType: 'investment' as const,
   },
   {
     key: 'postaprevidenza-valore',
     name: 'Postaprevidenza Valore',
-    accountName: 'Postaprevidenza Valore Fondo',
+    accountName: 'Polizze Vita',
     assetType: 'pension' as const,
   },
   {
