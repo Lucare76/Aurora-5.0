@@ -77,7 +77,14 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<string | null>(null)
-  const [patrimonioSummary, setPatrimonioSummary] = useState<{ externalValue: number; investedAmount: number; gainLoss: number } | null>(null)
+  const [patrimonioSummary, setPatrimonioSummary] = useState<{
+    externalValue: number
+    investedAmount: number
+    gainLoss: number
+    netWorthAdjustment: number
+    historyBaseline7d: number | null
+    historyBaseline30d: number | null
+  } | null>(null)
 
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true)
@@ -91,11 +98,23 @@ export default function DashboardPage() {
       const body = await response.json() as PersonalOverviewPayload
       setData(body)
       if (patrimonioResponse?.ok) {
-        const patrimonioBody = await patrimonioResponse.json() as { summary?: { externalValue?: number; investedAmount?: number; gainLoss?: number } }
+        const patrimonioBody = await patrimonioResponse.json() as {
+          summary?: {
+            externalValue?: number
+            investedAmount?: number
+            gainLoss?: number
+            netWorthAdjustment?: number
+            historyBaseline7d?: number | null
+            historyBaseline30d?: number | null
+          }
+        }
         setPatrimonioSummary({
           externalValue: Number(patrimonioBody.summary?.externalValue ?? 0),
           investedAmount: Number(patrimonioBody.summary?.investedAmount ?? 0),
           gainLoss: Number(patrimonioBody.summary?.gainLoss ?? 0),
+          netWorthAdjustment: Number(patrimonioBody.summary?.netWorthAdjustment ?? patrimonioBody.summary?.externalValue ?? 0),
+          historyBaseline7d: patrimonioBody.summary?.historyBaseline7d == null ? null : Number(patrimonioBody.summary.historyBaseline7d),
+          historyBaseline30d: patrimonioBody.summary?.historyBaseline30d == null ? null : Number(patrimonioBody.summary.historyBaseline30d),
         })
       } else {
         setPatrimonioSummary(null)
@@ -168,18 +187,34 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-sm font-semibold text-indigo-700">Patrimonio finanziario consolidato</p>
                   <p className="mt-1 text-3xl font-bold tabular-nums text-slate-950">
-                    {formatMoney(data.financial.netWorth + patrimonioSummary.externalValue)}
+                    {formatMoney(data.financial.netWorth + patrimonioSummary.netWorthAdjustment)}
                   </p>
                   <p className="mt-1 text-sm text-slate-500">
-                    {formatMoney(data.financial.netWorth)} già in Aurora + {formatMoney(patrimonioSummary.externalValue)} investimenti esterni.
+                    {formatMoney(data.financial.netWorth)} già in Aurora {patrimonioSummary.netWorthAdjustment >= 0 ? '+' : '−'} {formatMoney(Math.abs(patrimonioSummary.netWorthAdjustment))} di adeguamento ai valori di mercato.
                   </p>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium">
+                    {patrimonioSummary.historyBaseline7d == null ? (
+                      <span className="text-slate-400">7 giorni: storico in raccolta</span>
+                    ) : (
+                      <span className={(data.financial.netWorth + patrimonioSummary.netWorthAdjustment - patrimonioSummary.historyBaseline7d) >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                        {(data.financial.netWorth + patrimonioSummary.netWorthAdjustment - patrimonioSummary.historyBaseline7d) >= 0 ? '+' : '−'}{formatMoney(Math.abs(data.financial.netWorth + patrimonioSummary.netWorthAdjustment - patrimonioSummary.historyBaseline7d))} vs 7 giorni
+                      </span>
+                    )}
+                    {patrimonioSummary.historyBaseline30d == null ? (
+                      <span className="text-slate-400">30 giorni: storico in raccolta</span>
+                    ) : (
+                      <span className={(data.financial.netWorth + patrimonioSummary.netWorthAdjustment - patrimonioSummary.historyBaseline30d) >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                        {(data.financial.netWorth + patrimonioSummary.netWorthAdjustment - patrimonioSummary.historyBaseline30d) >= 0 ? '+' : '−'}{formatMoney(Math.abs(data.financial.netWorth + patrimonioSummary.netWorthAdjustment - patrimonioSummary.historyBaseline30d))} vs 30 giorni
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <div className="rounded-2xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-slate-200">
-                  <p className="text-xs text-slate-500">Risultato investimenti</p>
-                  <p className={`mt-1 font-bold tabular-nums ${patrimonioSummary.gainLoss >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {patrimonioSummary.gainLoss >= 0 ? '+' : '−'}{formatMoney(Math.abs(patrimonioSummary.gainLoss))}
+                  <p className="text-xs text-slate-500">Adeguamento mercato</p>
+                  <p className={`mt-1 font-bold tabular-nums ${patrimonioSummary.netWorthAdjustment >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {patrimonioSummary.netWorthAdjustment >= 0 ? '+' : '−'}{formatMoney(Math.abs(patrimonioSummary.netWorthAdjustment))}
                   </p>
                 </div>
                 <Link href="/patrimonio" className={buttonVariants({ variant: 'outline', size: 'sm', className: 'bg-white' })}>
