@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { StatusBadge, type StatusTone } from '@/components/ui/status-badge'
+import { PageLoadingState } from '@/components/shared/PageState'
 import {
   DEADLINE_CATEGORIES,
   DEADLINE_CATEGORY_LABELS,
@@ -209,7 +210,7 @@ export function DeadlinesPageClient() {
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? <p className="text-sm text-slate-500">Caricamento scadenze...</p> : null}
+          {loading ? <PageLoadingState label="Caricamento scadenze…" rows={3} /> : null}
           {!loading && visible.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-[#d8dceb] bg-[#f8f9fc] p-8 text-center">
               <CalendarClock className="mx-auto h-10 w-10 text-indigo-500" />
