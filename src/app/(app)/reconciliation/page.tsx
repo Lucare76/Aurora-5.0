@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/shared/EmptyState'
+import { PageLoadingState } from '@/components/shared/PageState'
 import { useAccounts } from '@/hooks/use-accounts'
 import { createClient } from '@/lib/supabase/client'
 import { cn, formatCurrency } from '@/lib/utils'
@@ -206,7 +207,7 @@ export default function ReconciliationPage() {
         </CardHeader>
         <CardContent>
           {historyLoading ? (
-            <p className="text-sm text-slate-500">Caricamento...</p>
+            <PageLoadingState label="Caricamento storico riconciliazioni…" rows={3} />
           ) : history.length === 0 ? (
             <EmptyState icon={History} title="Nessuna riconciliazione" description="Non è ancora stata registrata nessuna riconciliazione per questo conto." />
           ) : (
