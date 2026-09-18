@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { GoalLinkedSourcesCard } from '@/components/goals/goal-linked-sources-card'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import type { GoalDetail } from '@/lib/goals/service'
 
@@ -199,6 +200,15 @@ export default function GoalDetailPage() {
           <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-5"><p className="text-sm text-slate-500">Accumulato</p><p className="mt-2 text-2xl font-bold tabular-nums text-indigo-600">{formatCurrency(goal.current_amount)}</p></CardContent></Card>
           <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-5"><p className="text-sm text-slate-500">Residuo</p><p className="mt-2 text-2xl font-bold tabular-nums text-slate-950">{formatCurrency(goal.remainingAmount)}</p></CardContent></Card>
         </section>
+
+        <GoalLinkedSourcesCard
+          goalId={goal.id}
+          sources={detail.linkedSources}
+          manualCurrentAmount={goal.manualCurrentAmount ?? goal.current_amount}
+          linkedSourceAmount={goal.linkedSourceAmount ?? 0}
+          linkedMonthlyPlanAmount={goal.linkedMonthlyPlanAmount ?? 0}
+          onRefresh={fetchDetail}
+        />
 
         <section className="grid gap-4 lg:grid-cols-2">
           <Card className="border-[#e5e7f0] bg-white shadow-sm">

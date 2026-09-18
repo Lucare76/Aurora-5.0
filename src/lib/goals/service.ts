@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { GoalContribution, SavingsGoal, SavingsGoalStatus } from '@/types/database'
+import { loadGoalLinkedAggregates } from '@/lib/goals/linked-sources'
+import type { GoalLinkedAggregate, GoalLinkedSource } from '@/lib/goals/linked-sources'
 
 export type IntelligentGoalStatus =
   | 'COMPLETED'
@@ -90,6 +92,9 @@ export type GoalInsight = {
 export type GoalProgress = SavingsGoal & {
   remainingAmount: number
   completionPercentage: number
+  manualCurrentAmount?: number
+  linkedSourceAmount?: number
+  linkedMonthlyPlanAmount?: number
   intelligentStatus?: IntelligentGoalStatus
   forecast?: GoalForecast
   pace?: GoalPace
@@ -119,6 +124,7 @@ export type GoalSummary = {
 export type GoalDetail = {
   goal: GoalProgress
   contributions: GoalContribution[]
+  linkedSources: GoalLinkedSource[]
   contributionCount: number
   summary: GoalSummary
   forecast: GoalForecast
@@ -525,13 +531,36 @@ export function buildGoalInsights(
   return insights.sort((a, b) => insightRank(a) - insightRank(b)).slice(0, maxCount)
 }
 
-function enrichGoal(goalInput: SavingsGoal, contributions: GoalContribution[], now = new Date(), includeHistory = false): GoalProgress {
-  const goal = normalizeGoal(goalInput)
+export function applyLinkedAggregateToGoal(goalInput: SavingsGoal, linked?: GoalLinkedAggregate): SavingsGoal {
+  if (!linked || linked.totalValue <= 0) return goalInput
+  const effectiveCurrent = round2(Number(goalInput.current_amount) + linked.totalValue)
+  const status: SavingsGoalStatus = goalInput.archived || goalInput.status === 'ARCHIVED'
+    ? 'ARCHIVED'
+    : effectiveCurrent >= Number(goalInput.target_amount)
+      ? 'COMPLETED'
+      : goalInput.status === 'COMPLETED'
+        ? 'COMPLETED'
+        : 'ACTIVE'
+  return { ...goalInput, current_amount: effectiveCurrent, status }
+}
+
+function enrichGoal(
+  goalInput: SavingsGoal,
+  contributions: GoalContribution[],
+  now = new Date(),
+  includeHistory = false,
+  linked?: GoalLinkedAggregate,
+): GoalProgress {
+  const manualCurrentAmount = round2(Number(goalInput.current_amount))
+  const goal = normalizeGoal(applyLinkedAggregateToGoal(goalInput, linked))
   const forecast = buildGoalForecast(goal, contributions, now)
   const pace = buildGoalPace(goal, contributions, now)
   const insights = buildGoalInsights(goal, contributions, now, 1)
   return {
     ...goal,
+    manualCurrentAmount,
+    linkedSourceAmount: round2(linked?.totalValue ?? 0),
+    linkedMonthlyPlanAmount: round2(linked?.monthlyPlanAmount ?? 0),
     forecast,
     pace,
     intelligentStatus: pace.intelligentStatus,
@@ -604,7 +633,10 @@ export async function listGoals(supabase: SupabaseClient): Promise<GoalProgress[
 
   if (contributionError) throw contributionError
   const byGoal = groupContributionsByGoal((contributionData ?? []) as GoalContribution[])
-  return goals.map((goal) => enrichGoal(goal, byGoal.get(goal.id) ?? [])).sort(sortGoals)
+  const linkedByGoal = await loadGoalLinkedAggregates(supabase, goals.map((goal) => goal.id))
+  return goals
+    .map((goal) => enrichGoal(goal, byGoal.get(goal.id) ?? [], new Date(), false, linkedByGoal.get(goal.id)))
+    .sort(sortGoals)
 }
 
 export async function createGoal(supabase: SupabaseClient, input: CreateGoalInput): Promise<{ id: string }> {
@@ -731,7 +763,10 @@ export async function getGoalDetail(supabase: SupabaseClient, goalId: string): P
   if (allContributionError) throw allContributionError
   if (!goal) return null
 
-  const normalizedGoal = normalizeGoal(goal as SavingsGoal)
+  const rawGoal = goal as SavingsGoal
+  const linkedByGoal = await loadGoalLinkedAggregates(supabase, [goalId])
+  const linked = linkedByGoal.get(goalId)
+  const normalizedGoal = normalizeGoal(applyLinkedAggregateToGoal(rawGoal, linked))
   const allRows = ((allContributions ?? []) as GoalContribution[]).map(normalizeContribution)
   const forecast = buildGoalForecast(normalizedGoal, allRows)
   const pace = buildGoalPace(normalizedGoal, allRows)
@@ -739,6 +774,9 @@ export async function getGoalDetail(supabase: SupabaseClient, goalId: string): P
   const insights = buildGoalInsights(normalizedGoal, allRows)
   const enrichedGoal: GoalProgress = {
     ...normalizedGoal,
+    manualCurrentAmount: round2(Number(rawGoal.current_amount)),
+    linkedSourceAmount: round2(linked?.totalValue ?? 0),
+    linkedMonthlyPlanAmount: round2(linked?.monthlyPlanAmount ?? 0),
     forecast,
     pace,
     intelligentStatus: pace.intelligentStatus,
@@ -750,6 +788,7 @@ export async function getGoalDetail(supabase: SupabaseClient, goalId: string): P
   return {
     goal: enrichedGoal,
     contributions: ((contributions ?? []) as GoalContribution[]).map(normalizeContribution),
+    linkedSources: linked?.sources ?? [],
     contributionCount: count ?? (contributions?.length ?? 0),
     summary: buildGoalsIntelligenceSummary([normalizedGoal], allRows),
     forecast,
@@ -766,5 +805,10 @@ export async function getGoalsSummary(supabase: SupabaseClient): Promise<GoalSum
     .neq('status', 'ARCHIVED')
 
   if (error) throw error
-  return buildGoalsIntelligenceSummary((data ?? []) as SavingsGoal[], [])
+  const goals = (data ?? []) as SavingsGoal[]
+  const linkedByGoal = await loadGoalLinkedAggregates(supabase, goals.map((goal) => goal.id))
+  return buildGoalsIntelligenceSummary(
+    goals.map((goal) => applyLinkedAggregateToGoal(goal, linkedByGoal.get(goal.id))),
+    [],
+  )
 }
