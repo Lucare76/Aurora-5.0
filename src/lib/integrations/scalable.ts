@@ -519,6 +519,34 @@ function holdingFromRow(row: Record<string, unknown>, portfolioId: string): Scal
   }
 }
 
+function summarizeShape(value: unknown, depth = 0): unknown {
+  if (depth >= 4) {
+    if (Array.isArray(value)) return { type: 'array', length: value.length }
+    if (value && typeof value === 'object') return { type: 'object', keys: Object.keys(value as Record<string, unknown>).slice(0, 20) }
+    return typeof value
+  }
+
+  if (Array.isArray(value)) {
+    return {
+      type: 'array',
+      length: value.length,
+      sample: value.length > 0 ? summarizeShape(value[0], depth + 1) : null,
+    }
+  }
+
+  if (value && typeof value === 'object') {
+    const row = value as Record<string, unknown>
+    const entries = Object.entries(row).slice(0, 20)
+    return {
+      type: 'object',
+      keys: entries.map(([key]) => key),
+      fields: Object.fromEntries(entries.map(([key, child]) => [key, summarizeShape(child, depth + 1)])),
+    }
+  }
+
+  return { type: value === null ? 'null' : typeof value }
+}
+
 export async function readScalablePortfolio(accessToken: string) {
   const session = await openScalableMcpSession(accessToken)
   const portfolioResult = await callScalableTool(session, 'list_accessible_portfolios')
@@ -533,10 +561,17 @@ export async function readScalablePortfolio(accessToken: string) {
 
   const holdings: ScalableHolding[] = []
   const savingsPlans: ScalableSavingsPlan[] = []
+  const diagnostics: Array<{ portfolioId: string; holdingsShape: unknown; holdingsObjectCount: number }> = []
 
   for (const portfolioId of portfolioIds) {
     const holdingResult = await callScalableTool(session, 'get_portfolio_holdings', portfolioId)
-    const holdingRows = collectObjects(structuredToolData(holdingResult))
+    const normalizedHoldings = structuredToolData(holdingResult)
+    const holdingRows = collectObjects(normalizedHoldings)
+    diagnostics.push({
+      portfolioId,
+      holdingsShape: summarizeShape(normalizedHoldings),
+      holdingsObjectCount: holdingRows.length,
+    })
     const seen = new Set<string>()
     for (const row of holdingRows) {
       const holding = holdingFromRow(row, portfolioId)
@@ -568,5 +603,6 @@ export async function readScalablePortfolio(accessToken: string) {
     holdings,
     savingsPlans,
     availableTools: session.tools.map((tool) => tool.name),
+    diagnostics,
   }
 }

@@ -134,16 +134,19 @@ export async function POST() {
       if (staleError) throw staleError
     }
 
+    const zeroHoldings = portfolio.holdings.length === 0
+
     await supabase
       .from('scalable_connections')
       .update({
         last_synced_at: new Date().toISOString(),
-        last_error: null,
+        last_error: zeroHoldings ? 'NO_HOLDINGS_PARSED' : null,
         metadata: {
           portfolio_ids: portfolio.portfolioIds,
           available_tools: portfolio.availableTools,
           holdings_count: portfolio.holdings.length,
           savings_plans_count: portfolio.savingsPlans.length,
+          diagnostics: zeroHoldings ? portfolio.diagnostics : undefined,
         },
       })
       .eq('user_id', user.id)
@@ -153,6 +156,7 @@ export async function POST() {
       holdings: portfolio.holdings.length,
       savingsPlans: portfolio.savingsPlans.length,
       portfolioIds: portfolio.portfolioIds,
+      diagnostics: zeroHoldings ? portfolio.diagnostics : undefined,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'UNKNOWN_ERROR'
