@@ -92,6 +92,9 @@ export type GoalInsight = {
 export type GoalProgress = SavingsGoal & {
   remainingAmount: number
   completionPercentage: number
+  manualCurrentAmount?: number
+  linkedSourceAmount?: number
+  linkedMonthlyPlanAmount?: number
   intelligentStatus?: IntelligentGoalStatus
   forecast?: GoalForecast
   pace?: GoalPace
@@ -121,6 +124,7 @@ export type GoalSummary = {
 export type GoalDetail = {
   goal: GoalProgress
   contributions: GoalContribution[]
+  linkedSources: GoalLinkedSource[]
   contributionCount: number
   summary: GoalSummary
   forecast: GoalForecast
