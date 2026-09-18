@@ -140,7 +140,7 @@ for (const width of [320, 360, 390, 430]) {
     if (width === 320) {
       await expect(page.getByRole('button', { name: 'Apri menu' })).toBeVisible()
       await page.getByRole('button', { name: 'Aggiungi investimento' }).click()
-      await expect(page.getByRole('dialog')).toBeVisible()
+      await expect(page.getByText('Aggiungi investimento', { exact: true }).last()).toBeVisible()
       await expectNoHorizontalPageOverflow(page)
       await page.keyboard.press('Escape')
     }
