@@ -469,9 +469,13 @@ function holdingFromRow(row: Record<string, unknown>, portfolioId: string): Scal
   const isin = stringFromNested(row, ['isin', 'ISIN'])
   if (!isin) return null
 
-  const quantity = numberFromNested(row, ['quantity', 'shares', 'units'])
+  const quantity = numberFromNested(row, [
+    'quantity', 'shares', 'units',
+    'position.filled', 'filled',
+  ])
   const unitPrice = numberFromNested(row, [
     'lastPrice', 'last_price', 'price', 'currentPrice', 'current_price', 'quote', 'latestPrice', 'latest_price',
+    'currentQuote.midPrice', 'midPrice', 'mid_price',
   ])
 
   let currentValue = numberFromNested(row, [
@@ -502,7 +506,8 @@ function holdingFromRow(row: Record<string, unknown>, portfolioId: string): Scal
     'title', 'security.name', 'instrument.name',
   ]) ?? isin
   const currency = stringFromNested(row, [
-    'currency', 'currencyCode', 'currency_code', 'marketValue.currency', 'currentValue.currency',
+    'currency', 'currencyCode', 'currency_code',
+    'marketValue.currency', 'currentValue.currency', 'currentQuote.currency',
   ]) ?? 'EUR'
 
   return {
