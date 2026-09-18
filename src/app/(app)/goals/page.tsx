@@ -197,7 +197,7 @@ function GoalCard({
         <div className="mt-4 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
           <div className="rounded-xl bg-slate-50 px-3 py-2">
             <span className="font-medium text-slate-700">Previsione: </span>
-            {goal.estimatedCompletionDate ? formatDate(goal.estimatedCompletionDate) : 'servono altri versamenti'}
+            {goal.estimatedCompletionDate ? formatDate(goal.estimatedCompletionDate) : 'servono altri aggiornamenti'}
           </div>
           <div className="rounded-xl bg-slate-50 px-3 py-2">
             <span className="font-medium text-slate-700">Quota/mese: </span>
@@ -407,7 +407,7 @@ export default function GoalsPage() {
             <EmptyState
               icon={PiggyBank}
               title={goals.length === 0 ? 'Nessun obiettivo di risparmio' : 'Nessun obiettivo in questa sezione'}
-              description={goals.length === 0 ? 'Crea un traguardo, registra i versamenti e segui quanto manca per raggiungerlo.' : 'Cambia sezione oppure crea un nuovo obiettivo.'}
+              description={goals.length === 0 ? 'Crea un traguardo, imposta il valore attuale e confrontalo con il target.' : 'Cambia sezione oppure crea un nuovo obiettivo.'}
               action={<Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> Crea obiettivo</Button>}
             />
           </div>
@@ -509,7 +509,7 @@ export default function GoalsPage() {
       <Dialog open={Boolean(deleting)} onOpenChange={(open) => { if (!open) setDeleting(null) }}>
         <DialogContent className="max-w-sm border-[#e5e7f0] bg-white text-slate-950">
           <DialogHeader><DialogTitle>Elimina obiettivo</DialogTitle></DialogHeader>
-          <p className="mt-2 text-sm text-slate-600">Eliminerai anche lo storico dei versamenti. Questa azione non può essere annullata.</p>
+          <p className="mt-2 text-sm text-slate-600">Eliminerai anche lo storico degli aggiornamenti manuali. Questa azione non può essere annullata.</p>
           <div className="mt-6 flex gap-3"><Button variant="outline" className="flex-1" onClick={() => setDeleting(null)}>Annulla</Button><Button variant="destructive" className="flex-1" onClick={confirmDelete}>Elimina</Button></div>
         </DialogContent>
       </Dialog>
