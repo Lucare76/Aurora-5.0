@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const migration = readFileSync('supabase/migrations/00047_financial_month_closures.sql', 'utf8')
+const migration = readFileSync('supabase/migrations/00046_financial_month_closures.sql', 'utf8')
 
 describe('financial month closures migration', () => {
   it('keeps one protected closure per user and month', () => {
@@ -9,6 +9,7 @@ describe('financial month closures migration', () => {
     expect(migration).toContain('enable row level security')
     expect(migration).toContain('to authenticated')
     expect(migration).toContain('(select auth.uid()) = user_id')
+    expect(migration.match(/drop policy if exists/g)).toHaveLength(3)
     expect(migration).toContain('grant select, insert, update on public.financial_month_closures to authenticated')
   })
 })
