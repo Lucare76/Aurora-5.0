@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const migration = readFileSync('supabase/migrations/00047_financial_month_closures.sql', 'utf8')
+const migration = readFileSync('supabase/migrations/00046_financial_month_closures.sql', 'utf8')
 
 describe('financial month closures migration', () => {
   it('keeps one protected closure per user and month', () => {
