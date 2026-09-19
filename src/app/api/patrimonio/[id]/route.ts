@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { recordConsolidatedPatrimonioSnapshot } from '@/lib/patrimonio/record-consolidated-snapshot'
 
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
@@ -66,6 +67,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       linked_account_balance: linkedAccountBalance,
       observed_at: updated.observed_at,
     })
+    await recordConsolidatedPatrimonioSnapshot(supabase, user, String(updated.observed_at))
   }
 
   return NextResponse.json({ ok: true })
