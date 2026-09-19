@@ -35,16 +35,19 @@ alter table public.financial_month_closures enable row level security;
 
 create policy "Users can view own financial month closures"
   on public.financial_month_closures for select
-  using (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id);
 
 create policy "Users can insert own financial month closures"
   on public.financial_month_closures for insert
-  with check (auth.uid() = user_id);
+  to authenticated
+  with check ((select auth.uid()) = user_id);
 
 create policy "Users can update own financial month closures"
   on public.financial_month_closures for update
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
 
 revoke all on public.financial_month_closures from public;
 grant select, insert, update on public.financial_month_closures to authenticated;
