@@ -424,9 +424,9 @@ Le ricorrenze sono previsioni: devi registrare il movimento manualmente quando a
 
 ---
 
-## 28. Permettermelo?
+## 28. Posso permettermelo?
 
-La sezione **Permettermelo?** (accessibile dal menu laterale) consente di simulare la sostenibilità di un acquisto in base ai propri dati finanziari registrati in Aurora.
+La sezione **Posso permettermelo?** (accessibile dal menu laterale) consente di simulare la sostenibilità di un acquisto in base ai propri dati finanziari registrati in Aurora.
 
 ### Come funziona
 
@@ -461,7 +461,7 @@ La valutazione si basa esclusivamente sui dati registrati in Aurora (transazioni
 
 ## 29. Valutazione auto — "Posso permettermi questa auto?"
 
-La modalità **Auto** della sezione "Permettermelo?" consente di analizzare in dettaglio il costo totale di possesso (TCO) di un'automobile.
+La modalità **Auto** della sezione "Posso permettermelo?" consente di analizzare in dettaglio il costo totale di possesso (TCO) di un'automobile.
 
 ### Come funziona
 
@@ -502,7 +502,7 @@ Le informazioni mostrate in Aurora hanno finalità organizzative e informative e
 
 ## 31. Valutazione casa — "Posso permettermi questa casa?"
 
-La modalità **Casa** della sezione "Permettermelo?" valuta un acquisto immobiliare senza modificare saldi, movimenti, prestiti o snapshot.
+La modalità **Casa** della sezione "Posso permettermelo?" valuta un acquisto immobiliare senza modificare saldi, movimenti, prestiti o snapshot.
 
 ### Cosa inserire
 
@@ -534,7 +534,7 @@ Aurora non recupera tassi, valori immobiliari, imposte o agevolazioni online. No
 
 ## 32. Valutazione vacanza — "Posso permettermi questa vacanza?"
 
-La modalità **Vacanza** della sezione "Permettermelo?" valuta l'impatto finanziario di un viaggio usando solo costi inseriti manualmente.
+La modalità **Vacanza** della sezione "Posso permettermelo?" valuta l'impatto finanziario di un viaggio usando solo costi inseriti manualmente.
 
 ### Cosa inserire
 
@@ -564,7 +564,7 @@ Aurora non suggerisce destinazioni, non recupera prezzi online, non usa motori d
 
 ## 33. Confronta le tue decisioni
 
-La pagina **Confronta scenari** (raggiungibile dalla sezione "Permettermelo?") permette di confrontare fino a 4 ipotesi di acquisto — generico, auto, casa o vacanza, anche di domini diversi tra loro — in base al loro impatto finanziario.
+La pagina **Confronta scenari** (raggiungibile dalla sezione "Posso permettermelo?") permette di confrontare fino a 4 ipotesi di acquisto — generico, auto, casa o vacanza, anche di domini diversi tra loro — in base al loro impatto finanziario.
 
 ### Cosa inserire
 

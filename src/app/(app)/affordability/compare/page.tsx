@@ -83,7 +83,7 @@ export default function CompareAffordabilityPage() {
           </p>
           <Link href="/affordability" className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:underline">
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            Torna a &quot;Permettermelo?&quot;
+            Torna a &quot;Posso permettermelo?&quot;
           </Link>
         </div>
       </div>

@@ -341,7 +341,7 @@ export default function AffordabilityPage() {
             <ShoppingCart className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Permettermelo?</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Posso permettermelo?</h1>
             <p className="mt-1 text-sm text-slate-500">
               Simula un acquisto e valuta il suo impatto sulle tue finanze senza modificare i dati reali.
             </p>

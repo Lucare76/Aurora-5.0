@@ -98,7 +98,7 @@ function buildAllGroups(financialAssistantEnabled: boolean): NavGroup[] {
         { path: '/financial-journal', label: 'Bilancio mensile', icon: BookCheck },
         { path: '/financial-health', label: 'Salute finanziaria', icon: Activity },
         { path: '/scenarios', label: 'Scenari', icon: FlaskConical },
-        { path: '/affordability', label: 'Permettermelo?', icon: ShoppingCart },
+        { path: '/affordability', label: 'Posso permettermelo?', icon: ShoppingCart },
       ],
     },
     {
