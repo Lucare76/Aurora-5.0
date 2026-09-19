@@ -247,7 +247,7 @@ Configurati in `next.config.ts` nella sezione `headers()`.
 
 ---
 
-## 20. Posso permettermelo? (Affordability)
+## 20. Permettermelo? (Affordability)
 
 - [ ] La pagina `/affordability` è accessibile agli utenti autenticati
 - [ ] Il form accetta modalità immediata e rateale
