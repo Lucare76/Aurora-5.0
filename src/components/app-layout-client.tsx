@@ -9,6 +9,7 @@ import {
   BadgeEuro,
   BarChart3,
   Bell,
+  BookCheck,
   BriefcaseBusiness,
   Cake,
   CalendarClock,
@@ -94,6 +95,7 @@ function buildAllGroups(financialAssistantEnabled: boolean): NavGroup[] {
       label: 'Analisi e decisioni',
       items: [
         { path: '/reports', label: 'Report', icon: BarChart3 },
+        { path: '/financial-journal', label: 'Bilancio mensile', icon: BookCheck },
         { path: '/financial-health', label: 'Salute finanziaria', icon: Activity },
         { path: '/scenarios', label: 'Scenari', icon: FlaskConical },
         { path: '/affordability', label: 'Permettermelo?', icon: ShoppingCart },
