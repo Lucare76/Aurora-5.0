@@ -103,6 +103,22 @@ export async function GET() {
   const externalValue = included.reduce((sum, asset) => sum + Number(asset.current_value || 0), 0)
   const investedAmount = included.reduce((sum, asset) => sum + Number(asset.invested_amount || 0), 0)
   const netWorthAdjustment = included.reduce((sum, asset) => sum + Number(asset.net_worth_contribution || 0), 0)
+  const compositionMap = new Map<string, number>()
+  for (const asset of included) {
+    const provider = String(asset.provider ?? '').toLocaleLowerCase('it-IT')
+    const label = asset.asset_type === 'pension'
+      ? 'Previdenza'
+      : asset.asset_type === 'cash'
+        ? 'Liquidità'
+        : provider.includes('poste')
+          ? 'Poste e Buoni'
+          : provider.includes('scalable')
+            ? 'ETF e investimenti'
+            : asset.asset_type === 'investment'
+              ? 'Altri investimenti'
+              : 'Altre attività'
+    compositionMap.set(label, (compositionMap.get(label) ?? 0) + Number(asset.current_value || 0))
+  }
   const patrimonioSnapshots = (patrimonioSnapshotsRes.data ?? []).map((row) => ({
     consolidated_value: row.consolidated_value,
     observed_at: String(row.observed_at),
@@ -116,6 +132,11 @@ export async function GET() {
       gainLoss: externalValue - investedAmount,
       netWorthAdjustment,
       includedAssets: included.length,
+      totalReturn: externalValue - investedAmount,
+      totalReturnPercentage: investedAmount > 0 ? ((externalValue - investedAmount) / investedAmount) * 100 : null,
+      composition: [...compositionMap.entries()]
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value),
       historyBaseline7d: historyBaseline(patrimonioSnapshots, 7),
       historyBaseline30d: historyBaseline(patrimonioSnapshots, 30),
       historyBaseline90d: historyBaseline(patrimonioSnapshots, 90),
