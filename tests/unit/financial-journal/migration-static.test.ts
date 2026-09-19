@@ -9,6 +9,7 @@ describe('financial month closures migration', () => {
     expect(migration).toContain('enable row level security')
     expect(migration).toContain('to authenticated')
     expect(migration).toContain('(select auth.uid()) = user_id')
+    expect(migration.match(/drop policy if exists/g)).toHaveLength(3)
     expect(migration).toContain('grant select, insert, update on public.financial_month_closures to authenticated')
   })
 })

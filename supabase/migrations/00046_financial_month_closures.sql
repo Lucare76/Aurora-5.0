@@ -33,16 +33,22 @@ for each row execute function public.set_updated_at();
 
 alter table public.financial_month_closures enable row level security;
 
+drop policy if exists "Users can view own financial month closures"
+  on public.financial_month_closures;
 create policy "Users can view own financial month closures"
   on public.financial_month_closures for select
   to authenticated
   using ((select auth.uid()) = user_id);
 
+drop policy if exists "Users can insert own financial month closures"
+  on public.financial_month_closures;
 create policy "Users can insert own financial month closures"
   on public.financial_month_closures for insert
   to authenticated
   with check ((select auth.uid()) = user_id);
 
+drop policy if exists "Users can update own financial month closures"
+  on public.financial_month_closures;
 create policy "Users can update own financial month closures"
   on public.financial_month_closures for update
   to authenticated
