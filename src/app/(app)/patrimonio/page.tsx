@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BarChart3, CheckCircle2, Landmark, Link2, Pencil, Plus, RefreshCw, Trash2, TrendingDown, TrendingUp, Unlink, Upload, Wallet } from 'lucide-react'
-import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts'
+import { BarChart3, CheckCircle2, Clock3, Landmark, Link2, Pencil, Plus, RefreshCw, Save, Trash2, TrendingDown, TrendingUp, Unlink, Upload, Wallet } from 'lucide-react'
+import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -53,6 +53,9 @@ type AssetPayload = {
     historyBaseline30d: number | null
     historyBaseline90d: number | null
     history: HistoryPoint[]
+    totalReturn: number
+    totalReturnPercentage: number | null
+    composition: Array<{ name: string; value: number }>
   }
 }
 
@@ -108,6 +111,7 @@ const emptyForm: AssetForm = {
 }
 
 const money = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
+const compositionColors = ['#4f46e5', '#0891b2', '#d97706', '#059669', '#7c3aed']
 
 function formatMoney(value: number) {
   return money.format(Number.isFinite(value) ? value : 0)
@@ -221,6 +225,9 @@ export default function PatrimonioPage() {
   const [posteCurrentValue, setPosteCurrentValue] = useState('')
   const [savingPosteManual, setSavingPosteManual] = useState(false)
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>(30)
+  const [quickUpdateOpen, setQuickUpdateOpen] = useState(false)
+  const [quickValues, setQuickValues] = useState<Record<string, { currentValue: string; investedAmount: string }>>({})
+  const [quickSaving, setQuickSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -434,6 +441,51 @@ export default function PatrimonioPage() {
     () => (assetsPayload?.data ?? []).filter((asset) => asset.include_in_net_worth),
     [assetsPayload],
   )
+  const manuallyUpdatedAssets = useMemo(
+    () => (assetsPayload?.data ?? []).filter((asset) => asset.source_type === 'MANUAL' || asset.source_type === 'SCREENSHOT'),
+    [assetsPayload],
+  )
+  const staleAssets = manuallyUpdatedAssets.filter((asset) => Date.now() - new Date(asset.observed_at).getTime() >= 7 * 86_400_000)
+
+  const openQuickUpdate = () => {
+    setQuickValues(Object.fromEntries(manuallyUpdatedAssets.map((asset) => [asset.id, {
+      currentValue: String(Number(asset.current_value)),
+      investedAmount: String(Number(asset.invested_amount)),
+    }])))
+    setQuickUpdateOpen(true)
+  }
+
+  const saveQuickUpdate = async () => {
+    const observedAt = new Date().toISOString()
+    const updates = manuallyUpdatedAssets.map((asset) => {
+      const values = quickValues[asset.id]
+      const currentValue = Number(values?.currentValue.replace(',', '.'))
+      const investedAmountValue = Number(values?.investedAmount.replace(',', '.'))
+      return { asset, currentValue, investedAmountValue }
+    })
+    if (updates.some(({ currentValue, investedAmountValue }) => !Number.isFinite(currentValue) || currentValue < 0 || !Number.isFinite(investedAmountValue) || investedAmountValue < 0)) {
+      toast.error('Controlla i valori inseriti prima di salvare.')
+      return
+    }
+    setQuickSaving(true)
+    try {
+      for (const { asset, currentValue, investedAmountValue } of updates) {
+        const response = await fetch(`/api/patrimonio/${asset.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentValue, investedAmount: investedAmountValue, observedAt }),
+        })
+        if (!response.ok) throw new Error('QUICK_UPDATE_FAILED')
+      }
+      toast.success(`${updates.length} investimenti aggiornati con una nuova fotografia del patrimonio.`)
+      setQuickUpdateOpen(false)
+      await load()
+    } catch {
+      toast.error('Aggiornamento interrotto. Ricarica i dati e riprova.')
+    } finally {
+      setQuickSaving(false)
+    }
+  }
 
   const openCreate = () => {
     setEditing(null)
@@ -515,10 +567,10 @@ export default function PatrimonioPage() {
             Consolida i valori di mercato con i Conti Aurora già esistenti, aggiungendo solo la differenza per evitare doppi conteggi.
           </p>
         </div>
-        <Button onClick={openCreate} className="h-11 w-full gap-2 sm:w-auto">
-          <Plus className="h-4 w-4" />
-          Aggiungi investimento
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          {manuallyUpdatedAssets.length > 0 && <Button variant="outline" onClick={openQuickUpdate} className="h-11 w-full gap-2 sm:w-auto"><Clock3 className="h-4 w-4" />Aggiorna tutto{staleAssets.length > 0 ? ` · ${staleAssets.length}` : ''}</Button>}
+          <Button onClick={openCreate} className="h-11 w-full gap-2 sm:w-auto"><Plus className="h-4 w-4" />Aggiungi investimento</Button>
+        </div>
       </header>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -600,6 +652,28 @@ export default function PatrimonioPage() {
           ) : <p className="mt-3 text-center text-xs text-slate-400">Servono almeno due rilevazioni per calcolare variazione, minimo e massimo.</p>}
         </CardContent>
       </Card>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <Card className="border-slate-200 bg-white shadow-sm">
+          <CardHeader><CardTitle className="text-lg">Da cosa nasce il risultato</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-indigo-50 p-4"><p className="text-xs font-semibold text-indigo-700">Capitale versato</p><p className="mt-2 text-xl font-bold tabular-nums text-slate-950">{formatMoney(investedAmount)}</p></div>
+              <div className={`rounded-2xl p-4 ${(assetsPayload?.summary.totalReturn ?? 0) >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}><p className="text-xs font-semibold text-slate-600">Rendimento maturato</p><p className={`mt-2 text-xl font-bold tabular-nums ${(assetsPayload?.summary.totalReturn ?? 0) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{(assetsPayload?.summary.totalReturn ?? 0) >= 0 ? '+' : '−'}{formatMoney(Math.abs(assetsPayload?.summary.totalReturn ?? 0))}</p><p className="mt-1 text-xs text-slate-500">{assetsPayload?.summary.totalReturnPercentage == null ? 'Percentuale non disponibile' : `${assetsPayload.summary.totalReturnPercentage >= 0 ? '+' : ''}${assetsPayload.summary.totalReturnPercentage.toFixed(2)}% sul capitale`}</p></div>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-slate-500">I trasferimenti tra conti e portafogli non sono rendimento: modificano dove si trova il capitale, non il totale versato.</p>
+          </CardContent>
+        </Card>
+        <Card className="border-slate-200 bg-white shadow-sm">
+          <CardHeader><CardTitle className="text-lg">Composizione investimenti</CardTitle></CardHeader>
+          <CardContent>
+            {(assetsPayload?.summary.composition ?? []).length === 0 ? <p className="py-10 text-center text-sm text-slate-400">Composizione disponibile dopo il primo investimento.</p> : <div className="grid items-center gap-3 min-[420px]:grid-cols-[150px_1fr]">
+              <div className="h-36"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={assetsPayload?.summary.composition ?? []} dataKey="value" nameKey="name" innerRadius={38} outerRadius={62} paddingAngle={3}>{(assetsPayload?.summary.composition ?? []).map((item, index) => <Cell key={item.name} fill={compositionColors[index % compositionColors.length]} />)}</Pie><Tooltip formatter={(value) => formatMoney(Number(value))} /></PieChart></ResponsiveContainer></div>
+              <div className="space-y-2">{(assetsPayload?.summary.composition ?? []).map((item, index) => <div key={item.name} className="flex items-center justify-between gap-3 text-sm"><span className="flex items-center gap-2 text-slate-600"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: compositionColors[index % compositionColors.length] }} />{item.name}</span><span className="font-bold tabular-nums text-slate-900">{externalValue > 0 ? `${((item.value / externalValue) * 100).toFixed(1)}%` : '0%'}</span></div>)}</div>
+            </div>}
+          </CardContent>
+        </Card>
+      </section>
 
       <Card className="border-amber-200 bg-amber-50/70 shadow-sm">
         <CardContent className="flex items-start gap-3 p-4">
@@ -915,6 +989,23 @@ export default function PatrimonioPage() {
               {configuringScalable ? 'Verifico e collego…' : 'Salva e collega Scalable'}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={quickUpdateOpen} onOpenChange={setQuickUpdateOpen}>
+        <DialogContent className="max-h-[92vh] w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader><DialogTitle>Aggiorna tutto in 2 minuti</DialogTitle></DialogHeader>
+          <p className="text-sm text-slate-500">Aggiorna i valori manuali. Scalable e Poste restano gestiti dalle loro sincronizzazioni dedicate.</p>
+          <div className="space-y-3">
+            {manuallyUpdatedAssets.map((asset) => {
+              const days = Math.max(0, Math.floor((Date.now() - new Date(asset.observed_at).getTime()) / 86_400_000))
+              return <div key={asset.id} className="rounded-2xl border border-slate-200 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-semibold text-slate-950">{asset.name}</p><p className="text-xs text-slate-500">Ultimo aggiornamento {days === 0 ? 'oggi' : `${days} giorni fa`}</p></div><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${days < 7 ? 'bg-emerald-50 text-emerald-700' : days < 14 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'}`}>{days < 7 ? 'Aggiornato' : days < 14 ? 'Da aggiornare' : 'Dato vecchio'}</span></div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2"><div><Label>Capitale versato</Label><Input className="mt-1" inputMode="decimal" value={quickValues[asset.id]?.investedAmount ?? ''} onChange={(event) => setQuickValues((current) => ({ ...current, [asset.id]: { ...current[asset.id], investedAmount: event.target.value } }))} /></div><div><Label>Valore attuale</Label><Input className="mt-1" inputMode="decimal" value={quickValues[asset.id]?.currentValue ?? ''} onChange={(event) => setQuickValues((current) => ({ ...current, [asset.id]: { ...current[asset.id], currentValue: event.target.value } }))} /></div></div>
+              </div>
+            })}
+          </div>
+          <Button onClick={saveQuickUpdate} disabled={quickSaving} className="h-11 w-full gap-2"><Save className="h-4 w-4" />{quickSaving ? 'Salvataggio…' : 'Salva tutti gli aggiornamenti'}</Button>
         </DialogContent>
       </Dialog>
 
