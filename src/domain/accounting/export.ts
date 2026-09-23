@@ -11,6 +11,7 @@ export type ExportTransactionRow = {
   contoDestinazione: string
   importo: string
   transferKind: AppTransaction['transferReferenceKind']
+  neutro: string
 }
 
 export function buildTransactionExportRows(
@@ -48,6 +49,7 @@ export function buildTransactionExportRows(
           : '',
         importo: transaction.amount.toFixed(2),
         transferKind: transaction.transferReferenceKind,
+        neutro: transaction.isNeutral ? 'Sì' : 'No',
       }
     })
 }
@@ -62,6 +64,7 @@ export function buildTransactionsCsv(rows: ExportTransactionRow[]): string {
     'Conto destinazione',
     'Importo (EUR)',
     'Transfer kind',
+    'Neutro',
   ]
 
   return [header, ...rows.map((row) => [
@@ -73,6 +76,7 @@ export function buildTransactionsCsv(rows: ExportTransactionRow[]): string {
     row.contoDestinazione,
     row.importo,
     row.transferKind,
+    row.neutro,
   ])]
     .map((row) => row.map(csvCell).join(','))
     .join('\n')
