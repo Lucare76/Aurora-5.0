@@ -61,7 +61,7 @@ describe('transaction export', () => {
   it('builds a complete CSV with header and all rows', () => {
     const csv = buildTransactionsCsv(rows)
     expect(csv.split('\n')).toHaveLength(rows.length + 1)
-    expect(csv.split('\n')[0]).toBe('Data,Tipo,Descrizione,Categoria,Conto,Conto destinazione,Importo (EUR),Transfer kind')
+    expect(csv.split('\n')[0]).toBe('Data,Tipo,Descrizione,Categoria,Conto,Conto destinazione,Importo (EUR),Transfer kind,Neutro')
   })
 
   it('escapes CSV cells with quotes and commas', () => {
