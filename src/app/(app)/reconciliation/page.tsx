@@ -180,7 +180,7 @@ export default function ReconciliationPage() {
 
           {selectedAccount && ['investment', 'savings'].includes(selectedAccount.type) && (
             <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-3 text-xs leading-relaxed text-indigo-800">
-              Se questo conto è collegato a una voce Poste nel Patrimonio, il valore reale inserito qui aggiorna anche il valore patrimoniale e il suo storico. Il saldo contabile del conto e la liquidità disponibile non vengono modificati.
+              Se questo conto è collegato 1:1 a una sola voce nel Patrimonio, il valore reale inserito qui aggiorna anche il valore patrimoniale e il suo storico. Il saldo contabile del conto e la liquidità disponibile non vengono modificati.
             </div>
           )}
 
@@ -197,7 +197,7 @@ export default function ReconciliationPage() {
                   <li>Controlla i giroconti e le importazioni recenti dall&apos;estratto conto.</li>
                   <li>Verifica i movimenti marcati come neutri (partite di giro).</li>
                   {selectedAccount && ['investment', 'savings'].includes(selectedAccount.type) && (
-                    <li>Per buoni e investimenti, la differenza può essere rendimento maturato: se la voce Poste è collegata al Patrimonio, il valore reale verrà aggiornato lì senza creare un&apos;entrata.</li>
+                    <li>Per buoni e investimenti, la differenza può essere rendimento maturato: se il conto è collegato 1:1 a una sola voce del Patrimonio, il valore reale verrà aggiornato lì senza creare un&apos;entrata.</li>
                   )}
                 </ul>
               )}
