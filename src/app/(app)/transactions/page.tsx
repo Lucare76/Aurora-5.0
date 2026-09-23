@@ -246,6 +246,7 @@ export default function TransactionsPage() {
   const [accountFilter, setAccountFilter] = useState(() => getInitialAccountFilter())
   const [createOpen, setCreateOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<TransactionWithPeer | null>(null)
+  const [reimbursedAmount, setReimbursedAmount] = useState('')
   const [deletingTransaction, setDeletingTransaction] = useState<TransactionWithPeer | null>(null)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -475,6 +476,7 @@ export default function TransactionsPage() {
 
   const openEdit = async (transaction: TransactionWithPeer) => {
     setOpenMenuId(null)
+    setReimbursedAmount('')
     let destinationId = transaction.destination_account_id ?? ''
 
     if (transaction.app?.destinationAccountId) {
@@ -533,6 +535,33 @@ export default function TransactionsPage() {
       await refetchAccounts()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Errore durante la modifica')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const splitReimbursement = async () => {
+    if (!editingTransaction) return
+    const amount = parseTransactionAmount(reimbursedAmount)
+    if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) !== amount * 100
+      || amount >= Number(editingTransaction.amount)) {
+      toast.error('Inserisci il rimborso con due decimali, inferiore alla spesa')
+      return
+    }
+    try {
+      setBusy(true)
+      const response = await fetch('/api/transactions/split-reimbursement', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction_id: editingTransaction.id, reimbursed_amount: amount }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error ?? 'Impossibile dividere la spesa')
+      toast.success('Spesa divisa: quota rimborsata neutra e quota personale')
+      setEditingTransaction(null)
+      await fetchTransactions()
+      await refetchAccounts()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Errore nel rimborso')
     } finally {
       setBusy(false)
     }
@@ -1228,6 +1257,18 @@ export default function TransactionsPage() {
             <DialogTitle>Modifica movimento</DialogTitle>
           </DialogHeader>
           {renderTransactionForm(editForm, 'Salva modifiche', onEdit, watchedEditType, watchedEditAccount, editCategoryTree)}
+          {editingTransaction?.type === 'expense' && !editingTransaction.is_neutral
+            && editingTransaction.app?.transferReferenceKind === 'none' && (
+              <div className="mt-4 space-y-2 rounded-xl border border-indigo-200 p-3">
+                <Label htmlFor="reimbursed-amount">Rimborso parziale di questa spesa (€)</Label>
+                <div className="flex gap-2">
+                  <Input id="reimbursed-amount" inputMode="decimal" placeholder="Es. 334,90" value={reimbursedAmount}
+                    onChange={(event) => setReimbursedAmount(event.target.value)} />
+                  <Button type="button" variant="outline" disabled={busy} onClick={splitReimbursement}>Dividi spesa</Button>
+                </div>
+                <p className="text-xs text-slate-500">La quota rimborsata diventa neutra; il resto è spesa personale. Il totale della vacanza e il saldo restano invariati. Registra il rimborso effettivo come giroconto.</p>
+              </div>
+            )}
         </DialogContent>
       </Dialog>
 
