@@ -23,10 +23,66 @@ export type CreateReconciliationInput = {
 }
 
 /**
+ * A Poste asset is intentionally linked 1:1 to the Aurora account that stores
+ * its accounting principal. When the user reconciles that account with the
+ * real Poste value, mirror the real value into Patrimonio while leaving
+ * accounts.balance untouched.
+ *
+ * We deliberately restrict this to a single POSTE asset. Investment providers
+ * such as Scalable may have multiple holdings linked to the same account, so a
+ * blanket linked_account_id update would incorrectly assign the full account
+ * value to every holding.
+ */
+async function syncLinkedPosteAssetFromReconciliation(
+  supabase: ReconciliationSupabase,
+  userId: string,
+  input: CreateReconciliationInput,
+  linkedAccountBalance: number,
+) {
+  const { data: asset, error: assetError } = await supabase
+    .from('external_assets')
+    .select('id,current_value')
+    .eq('user_id', userId)
+    .eq('linked_account_id', input.accountId)
+    .eq('source_type', 'POSTE')
+    .maybeSingle()
+
+  if (assetError || !asset) return
+
+  const currentValue = Number(asset.current_value ?? 0)
+  if (calculateReconciliationDifference(input.bankBalance, currentValue) === 0) return
+
+  const observedAt = `${input.statementDate}T12:00:00.000Z`
+  const { error: updateError } = await supabase
+    .from('external_assets')
+    .update({
+      current_value: input.bankBalance,
+      observed_at: observedAt,
+    })
+    .eq('id', asset.id)
+    .eq('user_id', userId)
+
+  if (updateError) return
+
+  await supabase.from('external_asset_snapshots').insert({
+    user_id: userId,
+    asset_id: asset.id,
+    current_value: input.bankBalance,
+    linked_account_balance: linkedAccountBalance,
+    observed_at: observedAt,
+  })
+}
+
+/**
  * Snapshots the current accounts.balance and compares it to the bank statement
  * balance the user typed in. This never writes to accounts.balance — the
  * reconciliation is a record of the comparison, not a correction (FASE 2/D:
  * "NON correggere automaticamente il saldo").
+ *
+ * For a 1:1 Poste asset linked to this account, the real reconciled value is
+ * also mirrored to external_assets.current_value and its immutable snapshot
+ * history. That makes Patrimonio reflect accrued interest/value changes
+ * without creating income, transactions, or spendable liquidity.
  */
 export async function createReconciliation(
   supabase: ReconciliationSupabase,
@@ -67,6 +123,8 @@ export async function createReconciliation(
   if (error || !data) {
     throw new ReconciliationError('CREATE_FAILED', 'Impossibile salvare la riconciliazione.')
   }
+
+  await syncLinkedPosteAssetFromReconciliation(supabase, userId, input, appBalanceSnapshot)
 
   return data as AccountReconciliation
 }
