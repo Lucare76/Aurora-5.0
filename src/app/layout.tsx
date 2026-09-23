@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     default: 'Aurora — Gestione finanziaria personale',
   },
   description: 'Aurora è uno strumento personale per monitorare entrate, uscite, budget e patrimonio. I dati sono inseriti manualmente e restano sul tuo account.',
-  icons: { icon: '/favicon.svg', apple: '/icon-192.png' },
+  icons: { icon: '/favicon.svg', apple: '/favicon.svg' },
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
