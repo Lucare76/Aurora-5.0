@@ -146,11 +146,22 @@ function periodHistory(history: HistoryPoint[] | undefined, days: HistoryPeriod,
   if (baseline) points.unshift(baseline)
 
   const last = points.at(-1)
-  if (!last || new Date(last.observedAt).toDateString() !== new Date().toDateString()) {
-    points.push({ value: currentValue, observedAt: new Date().toISOString() })
-  } else {
-    last.value = currentValue
+  if (!last) {
+    return points
   }
+
+  const currentDiffersFromLast = Math.abs(last.value - currentValue) >= 0.005
+  const lastIsToday = new Date(last.observedAt).toDateString() === new Date().toDateString()
+
+  if (lastIsToday) {
+    last.value = currentValue
+  } else if (currentDiffersFromLast) {
+    // Add a synthetic "now" point only when the live value really differs
+    // from the last stored snapshot. With a single unchanged snapshot, adding
+    // another identical point would falsely present "0.00%" as measured history.
+    points.push({ value: currentValue, observedAt: new Date().toISOString() })
+  }
+
   return points
 }
 
