@@ -43,11 +43,6 @@ function todayIso(): string {
   return new Date().toLocaleDateString('en-CA')
 }
 
-function getInitialAccountId(): string {
-  if (typeof window === 'undefined') return ''
-  return new URLSearchParams(window.location.search).get('account') ?? ''
-}
-
 function statusBadge(status: AccountReconciliation['status']) {
   switch (status) {
     case 'reconciled': return { label: 'Riconciliato', tone: 'bg-emerald-50 text-emerald-700' }
@@ -61,7 +56,8 @@ export default function ReconciliationPage() {
   const supabase = createClient()
   const { accounts, loading: accountsLoading } = useAccounts()
 
-  const [accountId, setAccountId] = useState<string>(getInitialAccountId)
+  const [accountId, setAccountId] = useState<string>('')
+  const [initialAccountResolved, setInitialAccountResolved] = useState(false)
   const [statementDate, setStatementDate] = useState<string>(todayIso())
   const [bankBalanceInput, setBankBalanceInput] = useState<string>('')
   const [history, setHistory] = useState<AccountReconciliation[]>([])
@@ -72,8 +68,16 @@ export default function ReconciliationPage() {
   const selectedAccount = useMemo(() => accounts.find((a) => a.id === accountId) ?? null, [accounts, accountId])
 
   useEffect(() => {
-    if (!accountId && activeAccounts.length > 0) setAccountId(activeAccounts[0].id)
-  }, [accountId, activeAccounts])
+    if (initialAccountResolved || activeAccounts.length === 0) return
+
+    const requestedAccountId = new URLSearchParams(window.location.search).get('account')
+    const requestedAccount = requestedAccountId
+      ? activeAccounts.find((account) => account.id === requestedAccountId)
+      : null
+
+    setAccountId(requestedAccount?.id ?? activeAccounts[0].id)
+    setInitialAccountResolved(true)
+  }, [activeAccounts, initialAccountResolved])
 
   useEffect(() => {
     if (!accountId) { setHistory([]); return }
