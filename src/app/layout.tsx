@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { PwaRegistration } from '@/components/pwa-registration'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
     default: 'Aurora — Gestione finanziaria personale',
   },
   description: 'Aurora è uno strumento personale per monitorare entrate, uscite, budget e patrimonio. I dati sono inseriti manualmente e restano sul tuo account.',
-  icons: { icon: '/favicon.svg' },
+  icons: { icon: '/favicon.svg', apple: '/icon-192.png' },
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -34,6 +35,7 @@ export default function RootLayout({
           {children}
         </AuthProvider>
         <Toaster />
+        <PwaRegistration />
       </body>
     </html>
   )

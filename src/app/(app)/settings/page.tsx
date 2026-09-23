@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { StatusBadge, type StatusTone } from '@/components/ui/status-badge'
+import { PwaInstallCard } from '@/components/pwa-install-card'
 import { buildTransactionExportRows, buildTransactionsCsv } from '@/domain/accounting/export'
 import { adaptTransactionRows } from '@/domain/accounting/transaction-adapter'
 import { createClient } from '@/lib/supabase/client'
@@ -463,14 +464,28 @@ export default function SettingsPage() {
       return
     }
     try {
-      const [txRes, catRes, accRes] = await Promise.all([
-        db.from('transactions').select(TRANSACTION_SELECT).eq('user_id', user.id).order('date', { ascending: false }).order('created_at', { ascending: false }),
+      const [catRes, accRes] = await Promise.all([
         db.from('categories').select('id,name').eq('user_id', user.id),
         db.from('accounts').select('id,name,user_id').eq('user_id', user.id),
       ])
-      if (txRes.error) throw txRes.error
+      if (catRes.error) throw catRes.error
+      if (accRes.error) throw accRes.error
 
-      const transactions = (txRes.data ?? []) as Transaction[]
+      const transactions: Transaction[] = []
+      const pageSize = 500
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await db.from('transactions')
+          .select(TRANSACTION_SELECT)
+          .eq('user_id', user.id)
+          .order('date', { ascending: false })
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(offset, offset + pageSize - 1)
+        if (error) throw error
+        transactions.push(...((data ?? []) as Transaction[]))
+        if ((data?.length ?? 0) < pageSize) break
+      }
+
       const accounts = (accRes.data ?? []) as Pick<Account, 'id' | 'name' | 'user_id'>[]
       const categories = (catRes.data ?? []) as Pick<Category, 'id' | 'name'>[]
       const appTransactions = adaptTransactionRows(transactions, {
@@ -808,6 +823,10 @@ export default function SettingsPage() {
               </Button>
             </div>
           </div>
+        </SectionCard>
+
+        <SectionCard title="App sul dispositivo" description="Installa Aurora sul telefono o sul computer." icon={Download}>
+          <PwaInstallCard />
         </SectionCard>
 
         <SectionCard title="Dati" description="Esporta le transazioni in formato CSV." icon={Download}>
