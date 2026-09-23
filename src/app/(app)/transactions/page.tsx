@@ -581,6 +581,13 @@ export default function TransactionsPage() {
     return list
   }, [monthTransactions, searchQuery, categoryFilters, categoryById, amountMin, amountMax])
 
+  const neutralExpenses = useMemo(
+    () => filteredTransactions
+      .filter((transaction) => transaction.type === 'expense' && transaction.is_neutral === true && transaction.app?.transferReferenceKind === 'none')
+      .reduce((total, transaction) => Math.round((total + Number(transaction.amount)) * 100) / 100, 0),
+    [filteredTransactions],
+  )
+
   const activeFilterCount = useMemo(() => {
     let n = 0
     if (searchQuery.trim()) n++
@@ -760,7 +767,7 @@ export default function TransactionsPage() {
           <span>
             <span className="font-medium text-slate-900">Movimento neutro / partita di giro</span>
             <br />
-            <span className="text-xs text-slate-500">Modifica il saldo del conto ma non viene conteggiato come spesa o entrata personale.</span>
+            <span className="text-xs text-slate-500">Modifica il saldo reale del conto, senza entrare nelle spese o entrate personali. Per una vacanza anticipata da te e rimborsata da Aurora, registra la spesa come neutra, con categoria e descrizione della vacanza. Registra poi il rimborso come giroconto dal conto Aurora al tuo conto: la spesa rimane visibile, ma non si somma alle tue uscite.</span>
           </span>
         </label>
       )}
@@ -1074,6 +1081,13 @@ export default function TransactionsPage() {
             </CardContent>
           </Card>
         </section>
+
+        {neutralExpenses > 0 && (
+          <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900">
+            <p className="font-semibold">Spese anticipate e neutre nei risultati: {formatCurrency(neutralExpenses)}</p>
+            <p className="mt-1 text-indigo-700">Cerca il nome della vacanza per vederne il totale nel periodo selezionato. Queste spese modificano il saldo del conto ma sono escluse dalle “Uscite mese”; il giroconto di rimborso non è una nuova entrata.</p>
+          </div>
+        )}
 
         {loading ? (
           <TransactionSkeleton />
