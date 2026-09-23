@@ -57,7 +57,7 @@ type AiUsageResponse = {
   pricingNote: string
 }
 
-const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,created_at,updated_at'
+const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,is_neutral,created_at,updated_at'
 const MAX_BACKUP_DRY_RUN_BYTES = 10 * 1024 * 1024
 const RESTORE_CONFIRMATION_PHRASE = 'RIPRISTINA AURORA'
 const REAL_RESTORE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BACKUP_RESTORE_REAL === 'true'
@@ -289,6 +289,9 @@ export default function SettingsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [busy, setBusy] = useState(false)
+  const [exportFrom, setExportFrom] = useState('')
+  const [exportTo, setExportTo] = useState('')
+  const [exportBusy, setExportBusy] = useState(false)
   const [backupFile, setBackupFile] = useState<File | null>(null)
   const [dryRunReport, setDryRunReport] = useState<DryRunReport | null>(null)
   const [restorePreparation, setRestorePreparation] = useState<RestorePreparation | null>(null)
@@ -463,6 +466,11 @@ export default function SettingsPage() {
       toast.error('Sessione scaduta. Accedi di nuovo.')
       return
     }
+    if (exportFrom && exportTo && exportFrom > exportTo) {
+      toast.error('La data iniziale deve precedere quella finale')
+      return
+    }
+    setExportBusy(true)
     try {
       const [catRes, accRes] = await Promise.all([
         db.from('categories').select('id,name').eq('user_id', user.id),
@@ -474,9 +482,12 @@ export default function SettingsPage() {
       const transactions: Transaction[] = []
       const pageSize = 500
       for (let offset = 0; ; offset += pageSize) {
-        const { data, error } = await db.from('transactions')
+        let query = db.from('transactions')
           .select(TRANSACTION_SELECT)
           .eq('user_id', user.id)
+        if (exportFrom) query = query.gte('date', exportFrom)
+        if (exportTo) query = query.lte('date', exportTo)
+        const { data, error } = await query
           .order('date', { ascending: false })
           .order('created_at', { ascending: false })
           .order('id', { ascending: false })
@@ -498,12 +509,14 @@ export default function SettingsPage() {
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `aurora-transazioni-${new Date().toLocaleDateString('en-CA')}.csv`
+      link.download = `aurora-transazioni-${exportFrom || 'inizio'}-${exportTo || 'oggi'}.csv`
       link.click()
       URL.revokeObjectURL(url)
       toast.success('CSV esportato')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Errore durante l\'esportazione')
+    } finally {
+      setExportBusy(false)
     }
   }
 
@@ -830,9 +843,13 @@ export default function SettingsPage() {
         </SectionCard>
 
         <SectionCard title="Dati" description="Esporta le transazioni in formato CSV." icon={Download}>
-          <Button variant="outline" className="gap-2" onClick={exportTransactions}>
+          <div className="mb-3 grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1"><Label htmlFor="export-from">Da (facoltativo)</Label><Input id="export-from" type="date" value={exportFrom} onChange={(event) => setExportFrom(event.target.value)} /></div>
+            <div className="space-y-1"><Label htmlFor="export-to">A (facoltativo)</Label><Input id="export-to" type="date" value={exportTo} onChange={(event) => setExportTo(event.target.value)} /></div>
+          </div>
+          <Button variant="outline" className="gap-2" onClick={exportTransactions} disabled={exportBusy}>
             <Download className="h-4 w-4" />
-            Esporta transazioni CSV
+            {exportBusy ? 'Esportazione…' : 'Esporta transazioni CSV'}
           </Button>
         </SectionCard>
 
