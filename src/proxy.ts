@@ -9,6 +9,15 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  const isPublicPwaAsset =
+    request.nextUrl.pathname === '/sw.js'
+    || request.nextUrl.pathname === '/offline.html'
+    || request.nextUrl.pathname === '/manifest.json'
+
+  if (isPublicPwaAsset) {
+    return NextResponse.next()
+  }
+
   return await updateSession(request)
 }
 
