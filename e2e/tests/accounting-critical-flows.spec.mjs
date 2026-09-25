@@ -351,7 +351,7 @@ test('riconciliazione -> Patrimonio: RPC atomica e snapshot consolidato vengono 
   await accountSelect.selectOption(ACCOUNT_MAIN)
   await expect(page.getByText(/Se questo conto è collegato 1:1/)).toBeVisible()
 
-  await page.getByLabel('Saldo da estratto banca').fill('1120')
+  await page.locator('input[inputmode="decimal"]').fill('1120')
   await page.getByRole('button', { name: 'Salva riconciliazione' }).click()
 
   await expect(page.getByText('Riconciliazione salvata: differenza rilevata')).toBeVisible()
