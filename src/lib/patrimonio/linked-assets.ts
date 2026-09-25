@@ -20,8 +20,8 @@ export type AssetSnapshotLike = {
 }
 
 const SCALABLE_ACCOUNT_RULES = [
-  { needle: 'ishares core msci world', accountName: 'Aurora Piano di Accumulo' },
-  { needle: 'vanguard ftse all-world', accountName: 'Scalable' },
+  { needle: 'ishares core msci world', accountNames: ['iShares Core MSCI World', 'Aurora Piano di Accumulo'] },
+  { needle: 'vanguard ftse all-world', accountNames: ['Vanguard FTSE All-World', 'Scalable'] },
 ] as const
 
 function normalize(value: string | null | undefined) {
@@ -36,8 +36,23 @@ export function resolveScalableLinkedAccount(
   const rule = SCALABLE_ACCOUNT_RULES.find((candidate) => normalizedHolding.includes(candidate.needle))
   if (!rule) return null
 
-  const target = normalize(rule.accountName)
-  return accounts.find((account) => normalize(account.name) === target) ?? null
+  for (const accountName of rule.accountNames) {
+    const account = accounts.find((candidate) => normalize(candidate.name) === normalize(accountName))
+    if (account) return account
+  }
+  return null
+}
+
+export function resolveAssetLinkedAccount(
+  asset: { name: string; source_type: string; linked_account_id?: string | null },
+  accounts: LinkedAccount[],
+): LinkedAccount | null {
+  if (asset.linked_account_id) {
+    return accounts.find((account) => account.id === String(asset.linked_account_id)) ?? null
+  }
+  return asset.source_type === 'SCALABLE'
+    ? resolveScalableLinkedAccount(asset.name, accounts)
+    : null
 }
 
 export function assetNetWorthContribution(
@@ -69,5 +84,5 @@ export function historicalChange(
 
 export function formatLinkedAccountRule(holdingName: string) {
   const normalizedHolding = normalize(holdingName)
-  return SCALABLE_ACCOUNT_RULES.find((candidate) => normalizedHolding.includes(candidate.needle))?.accountName ?? null
+  return SCALABLE_ACCOUNT_RULES.find((candidate) => normalizedHolding.includes(candidate.needle))?.accountNames[0] ?? null
 }

@@ -1,6 +1,6 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { buildPersonalOverviewPayload } from '@/lib/dashboard/personal-overview'
-import { assetNetWorthContribution, resolveScalableLinkedAccount } from '@/lib/patrimonio/linked-assets'
+import { assetNetWorthContribution, resolveAssetLinkedAccount, resolveScalableLinkedAccount } from '@/lib/patrimonio/linked-assets'
 import {
   decryptSecret,
   encryptSecret,
@@ -191,20 +191,19 @@ export async function syncScalableForUser(
 
   const { data: allAssets, error: allAssetsError } = await supabase
     .from('external_assets')
-    .select('id,name,current_value,include_in_net_worth,linked_account_id')
+    .select('id,name,source_type,current_value,include_in_net_worth,linked_account_id')
     .eq('user_id', user.id)
   if (allAssetsError) throw allAssetsError
 
   const netWorthAdjustment = (allAssets ?? []).reduce((sum, asset) => {
-    const linkedId = asset.linked_account_id ? String(asset.linked_account_id) : null
-    const linkedBalance = linkedId ? accountById.get(linkedId)?.balance ?? null : null
+    const linked = resolveAssetLinkedAccount(asset, accounts)
     return sum + assetNetWorthContribution({
       id: String(asset.id),
       name: String(asset.name),
       current_value: asset.current_value,
       include_in_net_worth: Boolean(asset.include_in_net_worth),
-      linked_account_id: linkedId,
-    }, linkedBalance)
+      linked_account_id: linked?.id ?? asset.linked_account_id,
+    }, linked?.balance ?? null)
   }, 0)
 
   const overview = await buildPersonalOverviewPayload(supabase, user)

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { assetNetWorthContribution, historicalChange } from '@/lib/patrimonio/linked-assets'
+import { assetNetWorthContribution, historicalChange, resolveAssetLinkedAccount } from '@/lib/patrimonio/linked-assets'
 
 const assetSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -59,12 +59,9 @@ export async function GET() {
   if (assetsRes.error) return NextResponse.json({ error: 'ASSETS_READ_FAILED' }, { status: 500 })
   if (accountsRes.error) return NextResponse.json({ error: 'ACCOUNTS_READ_FAILED' }, { status: 500 })
 
-  const accounts = new Map(
-    (accountsRes.data ?? []).map((account) => [
-      String(account.id),
-      { name: String(account.name), balance: Number(account.balance ?? 0) },
-    ]),
-  )
+  const accounts = (accountsRes.data ?? []).map((account) => ({
+    id: String(account.id), name: String(account.name), balance: Number(account.balance ?? 0),
+  }))
 
   const snapshotsByAsset = new Map<string, Array<{ asset_id: string; current_value: number | string; observed_at: string }>>()
   for (const snapshot of snapshotsRes.data ?? []) {
@@ -79,14 +76,15 @@ export async function GET() {
   }
 
   const assets = (assetsRes.data ?? []).map((asset) => {
-    const linked = asset.linked_account_id ? accounts.get(String(asset.linked_account_id)) ?? null : null
+    const linked = resolveAssetLinkedAccount(asset, accounts)
     const current = Number(asset.current_value || 0)
     const snapshots = snapshotsByAsset.get(String(asset.id)) ?? []
     return {
       ...asset,
+      linked_account_id: linked?.id ?? asset.linked_account_id,
       linked_account_name: linked?.name ?? null,
       linked_account_balance: linked?.balance ?? null,
-      net_worth_contribution: assetNetWorthContribution(asset, linked?.balance ?? null),
+      net_worth_contribution: assetNetWorthContribution({ ...asset, linked_account_id: linked?.id ?? asset.linked_account_id }, linked?.balance ?? null),
       change_7d: historicalChange(current, snapshots, 7),
       change_30d: historicalChange(current, snapshots, 30),
       change_90d: historicalChange(current, snapshots, 90),
