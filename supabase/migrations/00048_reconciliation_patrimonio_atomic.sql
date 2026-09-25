@@ -85,7 +85,7 @@ begin
     from public.account_reconciliations
    where id = v_reconciliation.id;
 
-  select count(*), min(id)
+  select count(*), (array_agg(id order by id))[1]
     into v_asset_count, v_asset_id
     from (
       select id
