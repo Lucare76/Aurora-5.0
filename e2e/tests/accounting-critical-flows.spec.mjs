@@ -361,6 +361,12 @@ test('riconciliazione -> Patrimonio: RPC atomica e snapshot consolidato vengono 
     p_source_type: 'manual',
   })
   expect(snapshotBody).toEqual({ observedAt: '2026-09-25T12:00:00.000Z' })
-  await expect(page.getByText(/Banca 1\.120,00/)).toBeVisible()
-  await expect(page.getByText(/Aurora 1\.000,00/)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Storico riconciliazioni' })).toBeVisible()
+  await expect(page.getByText('Nessuna riconciliazione')).toHaveCount(0)
+  expect(state.reconciliations).toHaveLength(1)
+  expect(state.reconciliations[0]).toMatchObject({
+    bank_balance: 1120,
+    app_balance_snapshot: 1000,
+    difference: 120,
+  })
 })
