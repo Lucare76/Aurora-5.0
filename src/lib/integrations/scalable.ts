@@ -266,17 +266,17 @@ export async function openScalableMcpSession(accessToken: string): Promise<McpSe
   return { accessToken, sessionId: toolsResponse.sessionId ?? init.sessionId, tools }
 }
 
-function toolArgs(session: McpSession, toolName: string, portfolioId?: string) {
+function toolArgs(session: McpSession, toolName: string, portfolioId?: string, extraArgs: Record<string, unknown> = {}) {
   const tool = session.tools.find((item) => item.name === toolName)
   if (!tool) throw new Error(`SCALABLE_TOOL_NOT_AVAILABLE:${toolName}`)
   const properties = tool.inputSchema?.properties ?? {}
-  if (!portfolioId) return {}
+  if (!portfolioId) return extraArgs
   const portfolioKey = Object.keys(properties).find((key) => key.toLowerCase().replaceAll('_', '').includes('portfolioid'))
     ?? Object.keys(properties).find((key) => key.toLowerCase().includes('portfolio'))
-  return portfolioKey ? { [portfolioKey]: portfolioId } : { portfolio_id: portfolioId }
+  return portfolioKey ? { ...extraArgs, [portfolioKey]: portfolioId } : { ...extraArgs, portfolio_id: portfolioId }
 }
 
-export async function callScalableTool(session: McpSession, toolName: string, portfolioId?: string) {
+export async function callScalableTool(session: McpSession, toolName: string, portfolioId?: string, extraArgs: Record<string, unknown> = {}) {
   const result = await mcpRequest({
     accessToken: session.accessToken,
     sessionId: session.sessionId,
@@ -284,7 +284,7 @@ export async function callScalableTool(session: McpSession, toolName: string, po
     method: 'tools/call',
     requestParams: {
       name: toolName,
-      arguments: toolArgs(session, toolName, portfolioId),
+      arguments: toolArgs(session, toolName, portfolioId, extraArgs),
     },
   })
   session.sessionId = result.sessionId
@@ -524,6 +524,37 @@ function holdingFromRow(row: Record<string, unknown>, portfolioId: string): Scal
   }
 }
 
+// Only infer cost when the transaction history is complete and every settled
+// transaction is a purchase of the currently held units. Sells and partial
+// history need lot accounting and must not be guessed from the current value.
+export function investedAmountFromTransactions(
+  result: unknown,
+  isin: string,
+  heldQuantity: number | null,
+): number | null {
+  if (heldQuantity == null || heldQuantity <= 0 || !result || typeof result !== 'object') return null
+  const body = result as Record<string, unknown>
+  if (body.error || !body.page || typeof body.page !== 'object') return null
+  if ((body.page as Record<string, unknown>).nextCursor != null) return null
+  if (!Array.isArray(body.transactions) || body.transactions.length === 0) return null
+
+  let spent = 0
+  let boughtQuantity = 0
+  for (const item of body.transactions) {
+    if (!item || typeof item !== 'object') return null
+    const transaction = item as Record<string, unknown>
+    const security = transaction.security as Record<string, unknown> | null
+    if (transaction.isCancellation !== false || transaction.status !== 'SETTLED'
+      || transaction.kind !== 'security' || !security || security.isin !== isin || security.side !== 'BUY') return null
+    const amount = asNumber(security.amount)
+    const quantity = asNumber(security.quantity)
+    if (amount == null || amount >= 0 || quantity == null || quantity <= 0) return null
+    spent += -amount
+    boughtQuantity += quantity
+  }
+  return Math.abs(boughtQuantity - heldQuantity) < 0.00001 ? Math.round(spent * 100) / 100 : null
+}
+
 function summarizeShape(value: unknown, depth = 0): unknown {
   if (depth >= 4) {
     if (Array.isArray(value)) return { type: 'array', length: value.length }
@@ -599,6 +630,23 @@ export async function readScalablePortfolio(accessToken: string) {
           nextExecutionDate: stringValue(row, ['nextExecutionDate', 'next_execution_date', 'nextDate', 'next_date']),
           raw: row,
         })
+      }
+    }
+  }
+
+  if (session.tools.some((tool) => tool.name === 'list_portfolio_transactions')) {
+    for (const holding of holdings) {
+      if (holding.investedAmount != null) continue
+      try {
+        const transactionResult = await callScalableTool(
+          session, 'list_portfolio_transactions', holding.portfolioId,
+          { isin: holding.isin, pageSize: 100 },
+        )
+        holding.investedAmount = investedAmountFromTransactions(
+          structuredToolData(transactionResult), holding.isin, holding.quantity,
+        )
+      } catch {
+        // Incomplete transaction access does not prevent the valuation sync.
       }
     }
   }
