@@ -1,25 +1,30 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-import { buildPersonalOverviewPayload } from '@/lib/dashboard/personal-overview'
 import { assetNetWorthContribution, resolveAssetLinkedAccount } from '@/lib/patrimonio/linked-assets'
+import { personalNetWorthFromAccounts } from '@/lib/patrimonio/personal-net-worth'
 
 export async function recordConsolidatedPatrimonioSnapshot(
   supabase: SupabaseClient,
   user: User,
   observedAt = new Date().toISOString(),
 ) {
-  const [accountsRes, assetsRes] = await Promise.all([
+  const [accountsRes, assetsRes, linksRes] = await Promise.all([
     supabase
       .from('accounts')
-      .select('id,name,balance')
+      .select('id,name,balance,is_active')
       .eq('user_id', user.id),
     supabase
       .from('external_assets')
       .select('id,name,source_type,current_value,include_in_net_worth,linked_account_id')
       .eq('user_id', user.id),
+    supabase
+      .from('account_purpose_links')
+      .select('account_id,purpose')
+      .eq('user_id', user.id),
   ])
 
   if (accountsRes.error) throw accountsRes.error
   if (assetsRes.error) throw assetsRes.error
+  if (linksRes.error) throw linksRes.error
 
   const accounts = (accountsRes.data ?? []).map((account) => ({
     id: String(account.id), name: String(account.name), balance: Number(account.balance ?? 0),
@@ -36,8 +41,7 @@ export async function recordConsolidatedPatrimonioSnapshot(
     }, linked?.balance ?? null)
   }, 0)
 
-  const overview = await buildPersonalOverviewPayload(supabase, user)
-  const baseNetWorth = Number(overview.financial.netWorth ?? 0)
+  const baseNetWorth = personalNetWorthFromAccounts(accountsRes.data ?? [], linksRes.data ?? [])
   const consolidatedValue = baseNetWorth + netWorthAdjustment
 
   const { error } = await supabase.from('patrimonio_snapshots').insert({
