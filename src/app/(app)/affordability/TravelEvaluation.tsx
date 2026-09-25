@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { AlertCircle, AlertTriangle, ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Info, Loader2, Plane, RefreshCw, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import type { AffordabilityClassification, Severity } from '@/lib/affordability/types'
 import type { TravelAffordabilityResult } from '@/lib/affordability/travel/types'
 import { LODGING_TYPE_LABELS, MEAL_MODE_LABELS, TRANSPORT_MODE_LABELS } from '@/lib/affordability/travel/constants'
@@ -256,7 +256,7 @@ function ResultSection({ result }: { result: TravelAffordabilityResult }) {
         <div className="space-y-2">
           {m.payments.map((payment) => (
             <div key={`${payment.label}-${payment.date}`} className="flex justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
-              <span className="text-slate-600">{payment.label} · {payment.date}</span>
+              <span className="text-slate-600">{payment.label} · {formatDate(payment.date)}</span>
               <span className="font-medium text-slate-900">{fmt(payment.amount, result.currency)}</span>
             </div>
           ))}
