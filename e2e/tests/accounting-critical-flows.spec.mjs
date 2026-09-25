@@ -44,6 +44,48 @@ function category() {
   }
 }
 
+function base64Url(value) {
+  return Buffer.from(value).toString('base64url')
+}
+
+async function seedSupabaseSession(page) {
+  const now = Math.floor(Date.now() / 1000)
+  const accessToken = [
+    base64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' })),
+    base64Url(JSON.stringify({ sub: TEST_USER_ID, aud: 'authenticated', role: 'authenticated', exp: now + 3600 })),
+    'e2e-signature',
+  ].join('.')
+
+  const user = {
+    id: TEST_USER_ID,
+    aud: 'authenticated',
+    role: 'authenticated',
+    email: 'e2e@aurora.local',
+    app_metadata: {},
+    user_metadata: {},
+    created_at: '2026-09-25T06:00:00.000Z',
+  }
+
+  const session = {
+    access_token: accessToken,
+    token_type: 'bearer',
+    expires_in: 3600,
+    expires_at: now + 3600,
+    refresh_token: 'e2e-refresh-token',
+    user,
+  }
+
+  await page.context().addCookies([{
+    name: 'sb-127-auth-token',
+    value: `base64-${base64Url(JSON.stringify(session))}`,
+    domain: '127.0.0.1',
+    path: '/',
+    httpOnly: false,
+    secure: false,
+    sameSite: 'Lax',
+  }])
+}
+
 async function installSupabaseMocks(page, state) {
   await page.route('**/auth/v1/user**', async (route) => {
     await route.fulfill({
@@ -171,6 +213,7 @@ test('movimento -> saldo: una spesa passa dalla UI, aggiorna il saldo e viene ri
     transactions: [],
     accountsReads: 0,
   }
+  await seedSupabaseSession(page)
   await installSupabaseMocks(page, state)
 
   let postedBody = null
@@ -230,6 +273,7 @@ test('giroconto: la UI invia sorgente/destinazione e ricarica entrambi i saldi s
     transactions: [],
     accountsReads: 0,
   }
+  await seedSupabaseSession(page)
   await installSupabaseMocks(page, state)
 
   let postedBody = null
@@ -291,6 +335,7 @@ test('riconciliazione -> Patrimonio: RPC atomica e snapshot consolidato vengono 
     accountsReads: 0,
     reconciliationRpcBody: null,
   }
+  await seedSupabaseSession(page)
   await installSupabaseMocks(page, state)
 
   let snapshotBody = null
