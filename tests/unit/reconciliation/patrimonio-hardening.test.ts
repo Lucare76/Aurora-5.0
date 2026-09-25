@@ -24,7 +24,7 @@ describe('reconciliation patrimonio hardening', () => {
   it('syncs only an exactly-one linked asset and skips multi-holding accounts', () => {
     expect(migration).toContain('limit 2')
     expect(migration).toContain('if v_asset_count = 1 then')
-    expect(migration).toContain("v_patrimonio_sync := 'skipped'")
+    expect(migration).toContain("v_patrimonio_sync text := 'skipped'")
   })
 
   it('records consolidated patrimonio history after an actual 1:1 value update', () => {
