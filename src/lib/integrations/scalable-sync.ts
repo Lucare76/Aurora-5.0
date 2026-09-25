@@ -1,6 +1,6 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-import { buildPersonalOverviewPayload } from '@/lib/dashboard/personal-overview'
 import { assetNetWorthContribution, resolveAssetLinkedAccount, resolveScalableLinkedAccount } from '@/lib/patrimonio/linked-assets'
+import { personalNetWorthFromAccounts } from '@/lib/patrimonio/personal-net-worth'
 import {
   decryptSecret,
   encryptSecret,
@@ -66,7 +66,7 @@ export async function syncScalableForUser(
 
   const portfolio = await readScalablePortfolio(accessToken)
 
-  const [existingRes, accountsRes] = await Promise.all([
+  const [existingRes, accountsRes, linksRes] = await Promise.all([
     supabase
       .from('external_assets')
       .select('external_key,invested_amount')
@@ -74,12 +74,17 @@ export async function syncScalableForUser(
       .eq('source_type', 'SCALABLE'),
     supabase
       .from('accounts')
-      .select('id,name,balance')
+      .select('id,name,balance,is_active')
+      .eq('user_id', user.id),
+    supabase
+      .from('account_purpose_links')
+      .select('account_id,purpose')
       .eq('user_id', user.id),
   ])
 
   if (existingRes.error) throw existingRes.error
   if (accountsRes.error) throw accountsRes.error
+  if (linksRes.error) throw linksRes.error
 
   const existingRows = existingRes.data ?? []
   const accounts = (accountsRes.data ?? []).map((account) => ({
@@ -206,8 +211,7 @@ export async function syncScalableForUser(
     }, linked?.balance ?? null)
   }, 0)
 
-  const overview = await buildPersonalOverviewPayload(supabase, user)
-  const baseNetWorth = Number(overview.financial.netWorth ?? 0)
+  const baseNetWorth = personalNetWorthFromAccounts(accountsRes.data ?? [], linksRes.data ?? [])
   const { error: patrimonioSnapshotError } = await supabase.from('patrimonio_snapshots').insert({
     user_id: user.id,
     base_net_worth: baseNetWorth,
