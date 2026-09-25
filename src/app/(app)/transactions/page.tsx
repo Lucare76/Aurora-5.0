@@ -44,7 +44,7 @@ import { useCategories } from '@/hooks/use-categories'
 import type { CategoryTreeNode } from '@/hooks/use-categories'
 import { createClient } from '@/lib/supabase/client'
 import { buildTransactionPayload, parseTransactionAmount } from '@/lib/transactions/form-contract'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import type { Account, Category, Transaction, TransactionType } from '@/types/database'
 
 const BORDER = '#e5e7f0'
@@ -1353,7 +1353,7 @@ export default function TransactionsPage() {
                     <tbody>
                       {importRows.map((row, i) => (
                         <tr key={i} className={cn('border-b border-[#e5e7f0] last:border-0', !row.valid && 'bg-red-50/50')}>
-                          <td className="px-3 py-2 tabular-nums text-slate-700">{row.date}</td>
+                          <td className="px-3 py-2 tabular-nums text-slate-700">{formatDate(row.date)}</td>
                           <td className="px-3 py-2">
                             <span className={cn('rounded-full px-2 py-0.5 font-medium', row.type === 'income' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700')}>
                               {row.type === 'income' ? 'Entrata' : 'Uscita'}

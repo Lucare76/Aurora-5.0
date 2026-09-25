@@ -22,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
 import { createClient } from '@/lib/supabase/client'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import { suggestCompatibleCategoryId } from '@/lib/categorize'
 import { isCategoryCompatibleWithTransactionType } from '@/domain/accounting/category-compatibility'
 import type { Account, Category } from '@/types/database'
@@ -754,7 +754,7 @@ export default function ImportEstratti() {
                     <div key={pair.id} className="flex items-center justify-between gap-4 rounded-lg border border-indigo-100 bg-indigo-50/40 px-3 py-2 text-xs">
                       <div className="min-w-0">
                         <p className="truncate font-medium text-slate-900">{pair.bancRow.description}</p>
-                        <p className="text-slate-400">BP {pair.bancRow.date} · Amex {pair.amexRow.date}</p>
+                        <p className="text-slate-400">BP {formatDate(pair.bancRow.date)} · Amex {formatDate(pair.amexRow.date)}</p>
                       </div>
                       <span className="shrink-0 font-semibold tabular-nums text-indigo-700">{formatCurrency(pair.bancRow.amount)}</span>
                     </div>
@@ -838,7 +838,7 @@ export default function ImportEstratti() {
                               </td>
 
                               {/* data */}
-                              <td className="whitespace-nowrap px-2 py-1.5 tabular-nums text-slate-500">{row.date}</td>
+                              <td className="whitespace-nowrap px-2 py-1.5 tabular-nums text-slate-500">{formatDate(row.date)}</td>
 
                               {/* descrizione — input modificabile */}
                               <td className="px-2 py-1.5">

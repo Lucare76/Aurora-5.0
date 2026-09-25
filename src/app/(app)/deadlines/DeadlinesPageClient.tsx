@@ -27,6 +27,7 @@ import {
   type DeadlinePriority,
   type DeadlineRecurrence,
 } from '@/lib/deadlines'
+import { formatDate } from '@/lib/utils'
 import type { PersonalDeadline } from '@/types/database'
 
 type Filter = 'all' | 'overdue' | 'today' | 'next30' | 'completed'
@@ -191,7 +192,7 @@ export function DeadlinesPageClient() {
         <Metric label="Scadute" value={stats.overdue} tone="critical" />
         <Metric label="Oggi" value={stats.today} tone="warning" />
         <Metric label="Prossimi 30 giorni" value={stats.next30Days} tone="info" />
-        <Metric label="Totale attive" value={stats.activeTotal} tone="success" />
+        <Metric label="Programmate" value={stats.activeTotal} tone="success" />
       </div>
 
       <Card className="border-[#e5e7f0] bg-white shadow-sm">
@@ -269,7 +270,7 @@ function DeadlineRow({ deadline, onEdit, onComplete, onDelete }: { deadline: Per
           {deadline.priority === 'HIGH' ? <StatusBadge tone="warning" label="Alta priorità" /> : null}
         </div>
         <p className="mt-1 text-xs text-slate-500">
-          {DEADLINE_CATEGORY_LABELS[deadline.category]} · {deadline.due_date} · {days >= 0 ? `${days} giorni mancanti` : `${Math.abs(days)} giorni fa`} · {DEADLINE_RECURRENCE_LABELS[deadline.recurrence]}
+          {DEADLINE_CATEGORY_LABELS[deadline.category]} · {formatDate(deadline.due_date)} · {days >= 0 ? `${days} giorni mancanti` : `${Math.abs(days)} giorni fa`} · {DEADLINE_RECURRENCE_LABELS[deadline.recurrence]}
         </p>
         {deadline.description ? <p className="mt-1 text-sm text-slate-600">{deadline.description}</p> : null}
       </div>

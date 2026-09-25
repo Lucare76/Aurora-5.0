@@ -22,6 +22,7 @@ import {
   usageTone,
   vacationUsagePercentage,
 } from '@/lib/leave/calculations'
+import { formatDate } from '@/lib/utils'
 import type { LeaveEntry, LeaveEntryType, LeaveSettings } from '@/types/database'
 
 type FormState = {
@@ -340,7 +341,7 @@ function HistoryList({ title, entries, onEdit, onDelete }: { title: string; entr
         {entries.length === 0 ? <InlineEmptyState icon={CalendarDays} title="Nessuna voce registrata" description="Le ferie e i permessi 104 del periodo selezionato compariranno qui." /> : entries.map((entry) => (
           <div key={entry.id} className="flex items-center gap-3 rounded-2xl border border-[#e5e7f0] p-3">
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-slate-950">{entry.type === 'VACATION' ? `${entry.start_date} - ${entry.end_date}` : entry.start_date}</p>
+              <p className="font-semibold text-slate-950">{entry.type === 'VACATION' ? `${formatDate(entry.start_date)} - ${formatDate(entry.end_date)}` : formatDate(entry.start_date)}</p>
               <p className="text-xs text-slate-500">{entry.type === 'VACATION' ? `${entry.days} giorni` : `${entry.hours} ore · ${entry.start_time ?? '--'}-${entry.end_time ?? '--'}`} {entry.note ? `· ${entry.note}` : ''}</p>
             </div>
             <Button variant="ghost" size="icon" onClick={() => onEdit(entry)} aria-label="Modifica"><Edit2 className="h-4 w-4" /></Button>
