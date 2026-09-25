@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { AccountReconciliation, ReconciliationSourceType } from '@/types/database'
-import { calculateReconciliationDifference, deriveReconciliationStatus, latestReconciliationByAccount } from '@/domain/accounting/reconciliation'
+import { latestReconciliationByAccount } from '@/domain/accounting/reconciliation'
 
 type ReconciliationSupabase = SupabaseClient
 
@@ -22,109 +22,63 @@ export type CreateReconciliationInput = {
   sourceReference?: string | null
 }
 
-/**
- * If exactly one Patrimonio asset is linked to the reconciled account, treat
- * that relationship as 1:1 and mirror the real reconciled value into the asset
- * while leaving accounts.balance untouched.
- *
- * If zero or multiple assets are linked, do nothing: providers such as Scalable
- * can legitimately have several holdings linked to the same Aurora account and
- * the full reconciled balance must never be copied into each holding.
- */
-async function syncOneToOneLinkedAssetFromReconciliation(
-  supabase: ReconciliationSupabase,
-  userId: string,
-  input: CreateReconciliationInput,
-  linkedAccountBalance: number,
-) {
-  const { data: assets, error: assetsError } = await supabase
-    .from('external_assets')
-    .select('id,current_value')
-    .eq('user_id', userId)
-    .eq('linked_account_id', input.accountId)
-    .limit(2)
+export type ReconciliationPatrimonioSync = 'updated' | 'unchanged' | 'skipped'
 
-  if (assetsError || !assets || assets.length !== 1) return
-
-  const asset = assets[0]
-  const currentValue = Number(asset.current_value ?? 0)
-  if (calculateReconciliationDifference(input.bankBalance, currentValue) === 0) return
-
-  const observedAt = `${input.statementDate}T12:00:00.000Z`
-  const { error: updateError } = await supabase
-    .from('external_assets')
-    .update({
-      current_value: input.bankBalance,
-      observed_at: observedAt,
-    })
-    .eq('id', asset.id)
-    .eq('user_id', userId)
-
-  if (updateError) return
-
-  await supabase.from('external_asset_snapshots').insert({
-    user_id: userId,
-    asset_id: asset.id,
-    current_value: input.bankBalance,
-    linked_account_balance: linkedAccountBalance,
-    observed_at: observedAt,
-  })
+export type CreateReconciliationResult = {
+  reconciliation: AccountReconciliation
+  patrimonioSync: ReconciliationPatrimonioSync
+  observedAt: string | null
 }
 
 /**
- * Snapshots the current accounts.balance and compares it to the bank statement
- * balance the user typed in. This never writes to accounts.balance — the
- * reconciliation is a record of the comparison, not a correction (FASE 2/D:
- * "NON correggere automaticamente il saldo").
+ * Creates the reconciliation through a single database RPC.
  *
- * When exactly one Patrimonio asset is linked to this account, the real
- * reconciled value is also mirrored to external_assets.current_value and its
- * immutable snapshot history. This covers 1:1 Poste, Moneyfarm/manual and
- * similar assets without creating income, transactions, or spendable liquidity.
+ * The RPC atomically:
+ * - snapshots accounts.balance without changing it;
+ * - inserts account_reconciliations;
+ * - if exactly one external asset is linked 1:1, updates its real value;
+ * - inserts the immutable external asset snapshot.
+ *
+ * Zero or multiple linked assets are intentionally skipped so a provider with
+ * several holdings (for example Scalable) never receives the whole account
+ * value on every holding.
  */
 export async function createReconciliation(
   supabase: ReconciliationSupabase,
-  userId: string,
+  _userId: string,
   input: CreateReconciliationInput,
-): Promise<AccountReconciliation> {
-  const { data: account, error: accountError } = await supabase
-    .from('accounts')
-    .select('id,balance')
-    .eq('id', input.accountId)
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  if (accountError || !account) {
-    throw new ReconciliationError('ACCOUNT_NOT_FOUND', 'Conto non trovato o non di proprietà dell’utente.')
-  }
-
-  const appBalanceSnapshot = Number((account as { balance: number }).balance)
-  const difference = calculateReconciliationDifference(input.bankBalance, appBalanceSnapshot)
-  const status = deriveReconciliationStatus(difference)
-
-  const { data, error } = await supabase
-    .from('account_reconciliations')
-    .insert({
-      user_id: userId,
-      account_id: input.accountId,
-      statement_date: input.statementDate,
-      bank_balance: input.bankBalance,
-      app_balance_snapshot: appBalanceSnapshot,
-      status,
-      source_type: input.sourceType ?? 'manual',
-      source_reference: input.sourceReference ?? null,
-      reconciled_at: status === 'reconciled' ? new Date().toISOString() : null,
-    })
-    .select('*')
-    .single()
+): Promise<CreateReconciliationResult> {
+  const { data, error } = await supabase.rpc('create_reconciliation_atomic', {
+    p_account_id: input.accountId,
+    p_statement_date: input.statementDate,
+    p_bank_balance: input.bankBalance,
+    p_source_type: input.sourceType ?? 'manual',
+    p_source_reference: input.sourceReference ?? null,
+  })
 
   if (error || !data) {
+    const message = error?.message?.toLowerCase() ?? ''
+    if (message.includes('account not found') || message.includes('not owned')) {
+      throw new ReconciliationError('ACCOUNT_NOT_FOUND', 'Conto non trovato o non di proprietà dell’utente.')
+    }
     throw new ReconciliationError('CREATE_FAILED', 'Impossibile salvare la riconciliazione.')
   }
 
-  await syncOneToOneLinkedAssetFromReconciliation(supabase, userId, input, appBalanceSnapshot)
+  const payload = data as {
+    reconciliation?: AccountReconciliation
+    patrimonio_sync?: ReconciliationPatrimonioSync
+    observed_at?: string | null
+  }
 
-  return data as AccountReconciliation
+  if (!payload.reconciliation) {
+    throw new ReconciliationError('CREATE_FAILED', 'Risposta non valida durante la riconciliazione.')
+  }
+
+  return {
+    reconciliation: payload.reconciliation,
+    patrimonioSync: payload.patrimonio_sync ?? 'skipped',
+    observedAt: payload.observed_at ?? null,
+  }
 }
 
 export async function listReconciliationHistory(
@@ -146,13 +100,6 @@ export async function listReconciliationHistory(
   return (data ?? []) as AccountReconciliation[]
 }
 
-/**
- * The "current" reconciliation for a conto is the one with the latest
- * statement_date, tied only by created_at — never insertion order alone
- * (see compareReconciliationRecency). Ordering the query this way, rather
- * than by created_at, is what makes a retroactively-inserted older statement
- * correctly rank below an already-on-file newer one.
- */
 export async function getLatestReconciliation(
   supabase: ReconciliationSupabase,
   userId: string,

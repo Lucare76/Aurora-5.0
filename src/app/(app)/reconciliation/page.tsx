@@ -112,11 +112,23 @@ export default function ReconciliationPage() {
       setSaving(true)
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Sessione scaduta. Accedi di nuovo.')
-      const reconciliation = await createReconciliation(supabase, user.id, {
+      const result = await createReconciliation(supabase, user.id, {
         accountId: selectedAccount.id,
         statementDate,
         bankBalance: parsedBankBalance,
       })
+      const reconciliation = result.reconciliation
+
+      let consolidatedSnapshotOk = true
+      if (result.patrimonioSync === 'updated' && result.observedAt) {
+        const snapshotResponse = await fetch('/api/patrimonio/snapshot', {
+          method: 'POST',
+          cache: 'no-store',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ observedAt: result.observedAt }),
+        })
+        consolidatedSnapshotOk = snapshotResponse.ok
+      }
       // Re-fetch rather than optimistically reordering client-side: a
       // retroactive statement_date does not make the new row "current", and
       // only the server (via listReconciliationHistory's statement_date-first
@@ -124,7 +136,11 @@ export default function ReconciliationPage() {
       const rows = await listReconciliationHistory(supabase, user.id, selectedAccount.id)
       setHistory(rows)
       setBankBalanceInput('')
-      toast.success(reconciliation.status === 'reconciled' ? 'Conto riconciliato' : 'Riconciliazione salvata: differenza rilevata')
+      if (!consolidatedSnapshotOk) {
+        toast.warning('Riconciliazione salvata e Patrimonio aggiornato, ma lo storico consolidato non è stato registrato.')
+      } else {
+        toast.success(reconciliation.status === 'reconciled' ? 'Conto riconciliato' : 'Riconciliazione salvata: differenza rilevata')
+      }
     } catch (error) {
       toast.error(error instanceof ReconciliationError ? error.message : 'Errore durante il salvataggio della riconciliazione')
     } finally {
