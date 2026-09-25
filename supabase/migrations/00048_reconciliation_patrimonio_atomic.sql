@@ -107,7 +107,7 @@ begin
     if round(p_bank_balance - coalesce(v_asset_value, 0), 2) = 0 then
       v_patrimonio_sync := 'unchanged';
     else
-      v_observed_at := (p_statement_date::timestamp + time '12:00:00') at time zone 'UTC';
+      v_observed_at := (p_statement_date::timestamp + interval '12 hours') at time zone 'UTC';
 
       update public.external_assets
          set current_value = round(p_bank_balance, 2),
