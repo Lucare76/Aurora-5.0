@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Resend } from 'resend'
+import { formatDate } from '@/lib/utils'
 
 function escapeHtml(str: string): string {
   return str
@@ -122,7 +123,7 @@ export async function GET(request: NextRequest) {
                 <strong>${formatAmount(Number(r.amount))}</strong> per
                 <strong>${escapeHtml(r.description)}</strong>.
               </p>
-              <p style="color:#94a3b8;font-size:13px;margin:0">Prossima scadenza: ${nextDue}</p>
+              <p style="color:#94a3b8;font-size:13px;margin:0">Prossima scadenza: ${formatDate(nextDue)}</p>
             </div>`,
         })
       }
@@ -240,7 +241,7 @@ export async function GET(request: NextRequest) {
               <strong>${escapeHtml(r.description)}</strong> di <strong>${formatAmount(Number(r.amount))}</strong>
               è previsto <strong>${label}</strong>.
             </p>
-            <p style="color:#94a3b8;font-size:13px;margin:0">Scadenza: ${r.next_due_date}</p>
+            <p style="color:#94a3b8;font-size:13px;margin:0">Scadenza: ${formatDate(r.next_due_date)}</p>
           </div>`,
       })
 
