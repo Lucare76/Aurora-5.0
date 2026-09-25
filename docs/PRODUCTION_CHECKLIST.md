@@ -4,6 +4,20 @@ Questo documento elenca i controlli da effettuare prima di un deploy in produzio
 
 ---
 
+## Stato verificato — 25 settembre 2026
+
+Questa sezione fotografa ciò che è già stato verificato nella baseline corrente. Le sezioni dettagliate sotto restano come checklist completa di rilascio.
+
+- [x] Migration `00048_reconciliation_patrimonio_atomic.sql` applicata nell'ambiente Supabase di produzione.
+- [x] Riconciliazione resa atomica per salvataggio riconciliazione + sync Patrimonio 1:1 + snapshot singolo asset.
+- [x] Snapshot consolidato Patrimonio richiesto dopo una riconciliazione che aggiorna il valore reale; eventuale errore è visibile all'utente.
+- [x] Protezione contro doppio conteggio per asset Patrimonio collegati a conti Aurora.
+- [x] PWA installabile: manifest/service worker/offline asset esclusi dal middleware auth.
+- [x] Date utente uniformate al formato italiano `gg/mm/aaaa` nelle viste che esponevano ancora ISO grezzo.
+- [x] Scadenze: etichetta riepilogo chiarita da "Totale attive" a "Programmate".
+- [x] E2E browser aggiunti per i tre flussi contabili critici: movimento -> saldo, giroconto, riconciliazione -> Patrimonio.
+- [ ] Eseguire periodicamente un restore backup completo su ambiente Supabase isolato e documentarne l'esito.
+
 ## Assistente finanziario Aurora 6.0
 
 - [ ] Lasciare `FINANCIAL_ASSISTANT_ENABLED=false` finché la UI chat e i controlli di produzione non sono approvati
