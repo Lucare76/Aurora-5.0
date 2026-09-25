@@ -45,28 +45,27 @@ function category() {
 }
 
 async function installSupabaseMocks(page, state) {
-  await page.route('http://127.0.0.1:54329/**', async (route) => {
+  await page.route('**/auth/v1/user**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: TEST_USER_ID,
+        aud: 'authenticated',
+        role: 'authenticated',
+        email: 'e2e@aurora.local',
+        app_metadata: {},
+        user_metadata: {},
+        created_at: '2026-09-25T06:00:00.000Z',
+      }),
+    })
+  })
+
+  await page.route('**/rest/v1/**', async (route) => {
     const url = new URL(route.request().url())
     const path = url.pathname
 
-    if (path === '/auth/v1/user') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: TEST_USER_ID,
-          aud: 'authenticated',
-          role: 'authenticated',
-          email: 'e2e@aurora.local',
-          app_metadata: {},
-          user_metadata: {},
-          created_at: '2026-09-25T06:00:00.000Z',
-        }),
-      })
-      return
-    }
-
-    if (path === '/rest/v1/accounts') {
+    if (path.endsWith('/rest/v1/accounts')) {
       state.accountsReads += 1
       await route.fulfill({
         status: 200,
@@ -77,12 +76,12 @@ async function installSupabaseMocks(page, state) {
       return
     }
 
-    if (path === '/rest/v1/account_purpose_links') {
+    if (path.endsWith('/rest/v1/account_purpose_links')) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
       return
     }
 
-    if (path === '/rest/v1/categories') {
+    if (path.endsWith('/rest/v1/categories')) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -91,7 +90,7 @@ async function installSupabaseMocks(page, state) {
       return
     }
 
-    if (path === '/rest/v1/transactions') {
+    if (path.endsWith('/rest/v1/transactions')) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -100,7 +99,7 @@ async function installSupabaseMocks(page, state) {
       return
     }
 
-    if (path === '/rest/v1/account_reconciliations') {
+    if (path.endsWith('/rest/v1/account_reconciliations')) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -109,7 +108,7 @@ async function installSupabaseMocks(page, state) {
       return
     }
 
-    if (path === '/rest/v1/rpc/create_reconciliation_atomic') {
+    if (path.endsWith('/rest/v1/rpc/create_reconciliation_atomic')) {
       const body = route.request().postDataJSON()
       state.reconciliationRpcBody = body
       const reconciliation = {
