@@ -192,7 +192,7 @@ export function DeadlinesPageClient() {
         <Metric label="Scadute" value={stats.overdue} tone="critical" />
         <Metric label="Oggi" value={stats.today} tone="warning" />
         <Metric label="Prossimi 30 giorni" value={stats.next30Days} tone="info" />
-        <Metric label="Totale attive" value={stats.activeTotal} tone="success" />
+        <Metric label="Programmate" value={stats.activeTotal} tone="success" />
       </div>
 
       <Card className="border-[#e5e7f0] bg-white shadow-sm">
