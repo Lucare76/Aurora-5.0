@@ -1,6 +1,6 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { buildPersonalOverviewPayload } from '@/lib/dashboard/personal-overview'
-import { assetNetWorthContribution } from '@/lib/patrimonio/linked-assets'
+import { assetNetWorthContribution, resolveAssetLinkedAccount } from '@/lib/patrimonio/linked-assets'
 
 export async function recordConsolidatedPatrimonioSnapshot(
   supabase: SupabaseClient,
@@ -10,31 +10,30 @@ export async function recordConsolidatedPatrimonioSnapshot(
   const [accountsRes, assetsRes] = await Promise.all([
     supabase
       .from('accounts')
-      .select('id,balance')
+      .select('id,name,balance')
       .eq('user_id', user.id),
     supabase
       .from('external_assets')
-      .select('id,name,current_value,include_in_net_worth,linked_account_id')
+      .select('id,name,source_type,current_value,include_in_net_worth,linked_account_id')
       .eq('user_id', user.id),
   ])
 
   if (accountsRes.error) throw accountsRes.error
   if (assetsRes.error) throw assetsRes.error
 
-  const balanceById = new Map(
-    (accountsRes.data ?? []).map((account) => [String(account.id), Number(account.balance ?? 0)]),
-  )
+  const accounts = (accountsRes.data ?? []).map((account) => ({
+    id: String(account.id), name: String(account.name), balance: Number(account.balance ?? 0),
+  }))
 
   const netWorthAdjustment = (assetsRes.data ?? []).reduce((sum, asset) => {
-    const linkedId = asset.linked_account_id ? String(asset.linked_account_id) : null
-    const linkedBalance = linkedId ? balanceById.get(linkedId) ?? null : null
+    const linked = resolveAssetLinkedAccount(asset, accounts)
     return sum + assetNetWorthContribution({
       id: String(asset.id),
       name: String(asset.name),
       current_value: asset.current_value,
       include_in_net_worth: Boolean(asset.include_in_net_worth),
-      linked_account_id: linkedId,
-    }, linkedBalance)
+      linked_account_id: linked?.id ?? asset.linked_account_id,
+    }, linked?.balance ?? null)
   }, 0)
 
   const overview = await buildPersonalOverviewPayload(supabase, user)
