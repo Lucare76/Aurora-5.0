@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
 import { createClient } from '@/lib/supabase/server'
 import { ADI_CATEGORIES } from '@/lib/dependent-finance/constants'
-import { buildAdiSummary, canRegisterAdiDebit } from '@/lib/dependent-finance/calculations'
+import { buildAdiPeriodSummary, buildAdiSummary, canRegisterAdiDebit } from '@/lib/dependent-finance/calculations'
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   const date = new Date(`${value}T00:00:00.000Z`)
@@ -93,6 +93,7 @@ export async function GET(request: Request) {
         entries: filtered,
         allEntries: entries,
         summary: buildAdiSummary(entries),
+        periodSummary: month ? buildAdiPeriodSummary(entries, month) : buildAdiSummary(entries),
         filteredSummary: buildAdiSummary(filtered),
       },
     })
