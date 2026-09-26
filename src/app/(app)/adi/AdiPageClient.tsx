@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, BadgeEuro, Loader2, Pencil, Plus, Save, WalletCards, X } from 'lucide-react'
+import { AlertCircle, BadgeEuro, ChevronLeft, ChevronRight, Loader2, Pencil, Plus, Save, WalletCards, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InlineEmptyState, PageLoadingState } from '@/components/shared/PageState'
 import { ADI_CATEGORY_LABELS, ADI_CATEGORIES } from '@/lib/dependent-finance/constants'
@@ -25,6 +25,17 @@ type Payload = {
 const today = new Date().toLocaleDateString('en-CA')
 const currentPeriod = today.slice(0, 7)
 
+function shiftPeriod(period: string, offset: number) {
+  const [year, month] = period.split('-').map(Number)
+  const next = new Date(year, month - 1 + offset, 1)
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`
+}
+
+function periodLabel(period: string) {
+  const [year, month] = period.split('-').map(Number)
+  return new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
+}
+
 function MetricCard({ label, value, tone = 'slate' }: { label: string; value: string; tone?: 'slate' | 'green' | 'red' | 'indigo' }) {
   const colors = {
     slate: 'text-slate-950 bg-white border-[#e5e7f0]',
@@ -45,7 +56,7 @@ export function AdiPageClient() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [month, setMonth] = useState('')
+  const [month, setMonth] = useState(currentPeriod)
   const [category, setCategory] = useState('')
   const [credit, setCredit] = useState({ amount: '', date: today, referencePeriod: currentPeriod, description: `ADI ${new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}`, note: '' })
   const [debit, setDebit] = useState({ amount: '', date: today, adiCategory: 'SUPERMERCATO' as AdiCategory, description: '', note: '', transactionId: '' })
@@ -275,8 +286,15 @@ export function AdiPageClient() {
         <div className="flex flex-col gap-3 border-b border-[#e5e7f0] p-5 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-semibold text-slate-950">Movimenti ADI</h2>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <label className="sr-only" htmlFor="adi-month">Periodo</label>
-            <input id="adi-month" type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="h-10 rounded-xl border border-[#e5e7f0] px-3 text-sm" />
+            <div className="flex items-center rounded-xl border border-[#e5e7f0] bg-white p-1">
+              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMonth((value) => shiftPeriod(value, -1))} aria-label="Mese precedente">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="min-w-32 px-2 text-center text-sm font-semibold capitalize text-slate-800" aria-live="polite">{periodLabel(month)}</span>
+              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMonth((value) => shiftPeriod(value, 1))} aria-label="Mese successivo">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
             <label className="sr-only" htmlFor="adi-category">Categoria</label>
             <select id="adi-category" value={category} onChange={(e) => setCategory(e.target.value)} className="h-10 rounded-xl border border-[#e5e7f0] px-3 text-sm">
               <option value="">Tutte le categorie</option>
