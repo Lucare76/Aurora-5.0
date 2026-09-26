@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildAdiPeriodSummary,
   buildAdiSummary,
   buildAuroraScopeSummary,
   canRegisterAdiDebit,
@@ -221,6 +222,30 @@ describe('dependent finance calculations', () => {
     expect(canRegisterAdiDebit(100, 100)).toBe(true)
     expect(canRegisterAdiDebit(100, 100.01)).toBe(false)
     expect(canRegisterAdiDebit(100, 0)).toBe(false)
+  })
+
+  it('mostra il mese scelto con saldo riportato e categorie del solo mese', () => {
+    const entries = [
+      adi({ entry_type: 'credit', amount: 300, date: '2026-08-10' }),
+      adi({ entry_type: 'debit', adi_category: 'BENZINA', amount: 50, date: '2026-08-11' }),
+      adi({ entry_type: 'credit', amount: 100, date: '2026-09-10', reference_period: '2026-08' }),
+      adi({ entry_type: 'debit', adi_category: 'SUPERMERCATO', amount: 70, date: '2026-09-11' }),
+      adi({ entry_type: 'debit', adi_category: 'FARMACIA', amount: 30, date: '2026-10-01' }),
+    ]
+
+    expect(buildAdiPeriodSummary(entries, '2026-09')).toMatchObject({
+      received: 100,
+      spent: 70,
+      balance: 280,
+      utilizationRate: 20,
+      byCategory: { BENZINA: 0, SUPERMERCATO: 70, FARMACIA: 0 },
+    })
+    expect(buildAdiPeriodSummary(entries, '2026-10')).toMatchObject({
+      received: 0,
+      spent: 30,
+      balance: 250,
+      utilizationRate: 10.71,
+    })
   })
 })
 

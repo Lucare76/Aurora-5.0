@@ -20,6 +20,7 @@ type Payload = {
     monthlyTrend: Array<{ month: string; received: number; spent: number; balance: number }>
   }
   filteredSummary: Payload['summary']
+  periodSummary: Payload['summary']
 }
 
 const today = new Date().toLocaleDateString('en-CA')
@@ -165,11 +166,22 @@ export function AdiPageClient() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-950">Gestione ADI</h1>
-        <p className="mt-1 max-w-3xl text-sm text-slate-500">
-          Gestisci accrediti ADI e sole spese ammesse. Una spesa personale non riduce l’ADI se non viene contrassegnata esplicitamente come pagata con ADI.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-950">Gestione ADI</h1>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">
+            Gestisci accrediti ADI e sole spese ammesse. Una spesa personale non riduce l’ADI se non viene contrassegnata esplicitamente come pagata con ADI.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center self-start rounded-xl border border-[#e5e7f0] bg-white p-1 shadow-sm" aria-label="Mese statistiche e movimenti ADI">
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMonth((value) => shiftPeriod(value, -1))} aria-label="Mese precedente">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="min-w-32 px-2 text-center text-sm font-semibold capitalize text-slate-800" aria-live="polite">{periodLabel(month)}</span>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMonth((value) => shiftPeriod(value, 1))} aria-label="Mese successivo">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -179,18 +191,20 @@ export function AdiPageClient() {
         </div>
       )}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="ADI ricevuto" value={formatCurrency(summary?.received ?? 0)} tone="green" />
-        <MetricCard label="ADI speso" value={formatCurrency(summary?.spent ?? 0)} tone="red" />
-        <MetricCard label="Residuo ADI" value={formatCurrency(summary?.balance ?? 0)} tone="indigo" />
-        <MetricCard label="Utilizzo ADI" value={`${summary?.utilizationRate ?? 0}%`} />
+      <section aria-label={`Statistiche ADI di ${periodLabel(month)}`} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="ADI ricevuto nel mese" value={loading ? '…' : formatCurrency(data?.periodSummary.received ?? 0)} tone="green" />
+        <MetricCard label="ADI speso nel mese" value={loading ? '…' : formatCurrency(data?.periodSummary.spent ?? 0)} tone="red" />
+        <MetricCard label="Residuo ADI a fine mese" value={loading ? '…' : formatCurrency(data?.periodSummary.balance ?? 0)} tone="indigo" />
+        <MetricCard label="Utilizzo ADI nel mese" value={loading ? '…' : `${data?.periodSummary.utilizationRate ?? 0}%`} />
       </section>
+
+      <p className="-mt-4 text-xs text-slate-500">Il residuo include gli importi riportati dai mesi precedenti. L’utilizzo confronta le spese del mese con il saldo disponibile nel mese.</p>
 
       <section className="grid gap-3 md:grid-cols-3">
         {ADI_CATEGORIES.map((key) => (
           <div key={key} className="rounded-2xl border border-[#e5e7f0] bg-white p-4 shadow-sm">
             <p className="text-sm font-semibold text-slate-950">{ADI_CATEGORY_LABELS[key]}</p>
-            <p className="mt-1 text-xl font-bold tabular-nums text-red-600">-{formatCurrency(summary?.byCategory[key] ?? 0)}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums text-red-600">{loading ? '…' : `-${formatCurrency(data?.periodSummary.byCategory[key] ?? 0)}`}</p>
           </div>
         ))}
       </section>
@@ -286,15 +300,6 @@ export function AdiPageClient() {
         <div className="flex flex-col gap-3 border-b border-[#e5e7f0] p-5 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-semibold text-slate-950">Movimenti ADI</h2>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <div className="flex items-center rounded-xl border border-[#e5e7f0] bg-white p-1">
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMonth((value) => shiftPeriod(value, -1))} aria-label="Mese precedente">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="min-w-32 px-2 text-center text-sm font-semibold capitalize text-slate-800" aria-live="polite">{periodLabel(month)}</span>
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setMonth((value) => shiftPeriod(value, 1))} aria-label="Mese successivo">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
             <label className="sr-only" htmlFor="adi-category">Categoria</label>
             <select id="adi-category" value={category} onChange={(e) => setCategory(e.target.value)} className="h-10 rounded-xl border border-[#e5e7f0] px-3 text-sm">
               <option value="">Tutte le categorie</option>
