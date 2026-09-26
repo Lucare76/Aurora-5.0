@@ -392,6 +392,21 @@ export function buildAdiSummary(entries: Pick<AdiEntry, 'entry_type' | 'adi_cate
   }
 }
 
+export function buildAdiPeriodSummary(
+  entries: Pick<AdiEntry, 'entry_type' | 'adi_category' | 'amount' | 'date' | 'reference_period'>[],
+  month: string,
+) {
+  const period = buildAdiSummary(entries.filter((entry) => entry.date.slice(0, 7) === month))
+  const openingBalance = buildAdiSummary(entries.filter((entry) => entry.date.slice(0, 7) < month)).balance
+  const available = round2(openingBalance + period.received)
+
+  return {
+    ...period,
+    balance: round2(available - period.spent),
+    utilizationRate: available > 0 ? round2((period.spent / available) * 100) : 0,
+  }
+}
+
 export function canRegisterAdiDebit(currentBalance: number, debitAmount: number): boolean {
   return debitAmount > 0 && round2(currentBalance - debitAmount) >= 0
 }
