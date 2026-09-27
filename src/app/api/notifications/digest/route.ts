@@ -40,6 +40,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   automation_failure:         'Automazione fallita',
   automation_conflict:        'Conflitto automazione',
   possible_duplicate:         'Possibile duplicato',
+  timeline_reminder:          'Promemoria Timeline',
 }
 
 function json(body: unknown, status: number) {
