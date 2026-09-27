@@ -19,6 +19,7 @@ const base = {
   category: 'VEHICLE',
   priority: 'NORMAL',
   recurrence: 'NONE',
+  recurrence_interval: 1,
   reminder_days_before: 7,
   completed_at: null,
   created_at: '2026-08-01T00:00:00.000Z',
