@@ -625,7 +625,7 @@ export default function PatrimonioPage() {
 
       <Card className="border-slate-200 bg-white shadow-sm">
         <CardContent className="p-5">
-          <h2 className="text-base font-bold text-slate-950">Stato aggiornamenti patrimonio</h2>
+          <h2 className="text-base font-bold text-slate-950">Stato degli aggiornamenti</h2>
           <p className="mt-1 text-xs text-slate-500">Controlla quando sono stati rilevati i valori. Poste e gli altri valori manuali richiedono un aggiornamento da parte tua.</p>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             {sources.map((source) => {
