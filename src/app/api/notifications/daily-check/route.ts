@@ -4,6 +4,7 @@ import { Resend } from 'resend'
 import { formatDate } from '@/lib/utils'
 import { dateAfterDays, localDate, reminderKey, reminderStage, TIMELINE_REMINDER_DAYS } from '@/lib/timeline/reminders'
 import { canAccessPrivateHr } from '@/lib/access/private-finance-access'
+import { DEADLINE_EMAIL_STAGES, deadlineEmailStage } from '@/lib/deadlines/email-reminders'
 
 function escapeHtml(str: string): string {
   return str
@@ -137,6 +138,57 @@ export async function GET(request: NextRequest) {
   today.setHours(0, 0, 0, 0)
   const todayStr = today.toISOString().split('T')[0]
   const results = { birthdays: 0, auto_created: 0, recurring: 0, timeline: timelineResults, errors: timelineResults.errors }
+
+  // ---- SCADENZE PRIVATE: one email per deadline, due date and lead time ----
+  let deadlineEmails = 0
+  try {
+    const dueDates = DEADLINE_EMAIL_STAGES.map((days) => dateAfterDays(timelineToday, days))
+    const { data: deadlines, error } = await supabase.from('personal_deadlines')
+      .select('id,user_id,due_date,reminder_days_before')
+      .eq('status', 'ACTIVE')
+      .in('due_date', dueDates)
+    if (error) throw error
+
+    for (const deadline of deadlines ?? []) {
+      const days = deadlineEmailStage(deadline.due_date, timelineToday, deadline.reminder_days_before)
+      if (days === null) continue
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(deadline.user_id)
+      const email = userData?.user?.email
+      if (userError || !email || !canAccessPrivateHr(email)) continue
+
+      // Claim before sending so overlapping cron invocations cannot send twice.
+      const { data: claim, error: claimError } = await supabase
+        .from('deadline_email_reminder_log')
+        .insert({ deadline_id: deadline.id, user_id: deadline.user_id,
+          due_date: deadline.due_date, days_before: days })
+        .select('id').single()
+      if (claimError?.code === '23505') continue
+      if (claimError || !claim) {
+        results.errors.push(`Deadline claim ${deadline.id}: ${claimError?.message ?? 'missing claim'}`)
+        continue
+      }
+
+      const label = days === 0 ? 'oggi' : days === 1 ? 'domani' : `tra ${days} giorni`
+      const { error: sendError } = await resend.emails.send({
+        from: 'Aurora <onboarding@resend.dev>',
+        to: email,
+        subject: `Promemoria Aurora: scadenza ${label}`,
+        html: `<p>Hai una scadenza ${label} (${formatDate(deadline.due_date)}).</p><p>Apri Aurora nella sezione Scadenze per i dettagli.</p>`,
+      })
+      if (sendError) {
+        // Release the claim on a known failure so the job can be retried.
+        await supabase.from('deadline_email_reminder_log').delete().eq('id', claim.id)
+        results.errors.push(`Deadline email ${deadline.id}: ${sendError.message}`)
+        continue
+      }
+      const { error: logError } = await supabase.from('deadline_email_reminder_log')
+        .update({ sent_at: new Date().toISOString() }).eq('id', claim.id)
+      if (logError) results.errors.push(`Deadline log ${deadline.id}: ${logError.message}`)
+      deadlineEmails++
+    }
+  } catch (err) {
+    results.errors.push(`Deadlines: ${err instanceof Error ? err.message : String(err)}`)
+  }
 
   // ---- AUTO-CREATE TRANSAZIONI RICORRENTI ----
   try {
@@ -332,7 +384,7 @@ export async function GET(request: NextRequest) {
 
   const hasErrors = results.errors.length > 0
   return NextResponse.json(
-    { success: !hasErrors, ...results },
+    { success: !hasErrors, deadline_emails: deadlineEmails, ...results },
     { status: hasErrors ? 207 : 200 },
   )
 }
