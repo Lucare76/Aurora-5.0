@@ -95,6 +95,7 @@ export const DEFAULT_TYPE_CONFIGS: NotificationTypeConfigMap = {
   automation_failure:         DEFAULT_AUTOMATION_CONFIG,
   automation_conflict:        DEFAULT_AUTOMATION_CONFIG,
   possible_duplicate:         DEFAULT_DUPLICATE_CONFIG,
+  timeline_reminder:          {},
 }
 
 // ── Resolution functions ─────────────────────────────────────────────────────
@@ -149,6 +150,7 @@ export function resolvePreferences(
     'upcoming_loan_payment', 'overdue_loan_payment', 'loan_due_soon',
     'goal_behind_schedule', 'automation_failure', 'automation_conflict',
     'possible_duplicate',
+    'timeline_reminder',
   ]
 
   const rowMap = new Map(preferenceRows.map((r) => [r.notification_type, r]))
