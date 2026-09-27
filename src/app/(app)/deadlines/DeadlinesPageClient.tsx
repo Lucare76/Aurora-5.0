@@ -29,6 +29,7 @@ import {
 } from '@/lib/deadlines'
 import { formatDate } from '@/lib/utils'
 import type { PersonalDeadline } from '@/types/database'
+import { nextRenewalDate } from '@/lib/deadlines/renewal'
 
 type Filter = 'all' | 'overdue' | 'today' | 'next30' | 'completed'
 type FormState = {
@@ -39,6 +40,7 @@ type FormState = {
   due_date: string
   priority: DeadlinePriority
   recurrence: DeadlineRecurrence
+  recurrence_interval: string
   reminder_days_before: string
 }
 
@@ -50,6 +52,7 @@ const emptyForm: FormState = {
   due_date: today,
   priority: 'NORMAL',
   recurrence: 'NONE',
+  recurrence_interval: '1',
   reminder_days_before: '7',
 }
 
@@ -121,6 +124,7 @@ export function DeadlinesPageClient() {
       due_date: deadline.due_date,
       priority: deadline.priority,
       recurrence: deadline.recurrence,
+      recurrence_interval: String(deadline.recurrence_interval),
       reminder_days_before: String(deadline.reminder_days_before),
     })
     setFormOpen(true)
@@ -134,6 +138,7 @@ export function DeadlinesPageClient() {
       due_date: form.due_date,
       priority: form.priority,
       recurrence: form.recurrence,
+      recurrence_interval: form.recurrence === 'NONE' ? 1 : Number(form.recurrence_interval),
       reminder_days_before: Number(form.reminder_days_before),
     }
     const response = await fetch(form.id ? `/api/deadlines/${form.id}` : '/api/deadlines', {
@@ -162,6 +167,21 @@ export function DeadlinesPageClient() {
       return
     }
     toast.success(status === 'COMPLETED' ? 'Scadenza completata' : 'Scadenza riaperta')
+    await loadDeadlines()
+  }
+
+  async function renewDeadline(deadline: PersonalDeadline) {
+    const nextDate = nextRenewalDate(deadline.due_date, deadline.recurrence, deadline.recurrence_interval)
+    const response = await fetch(`/api/deadlines/${deadline.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ due_date: nextDate }),
+    })
+    if (!response.ok) {
+      toast.error('Rinnovo non registrato')
+      return
+    }
+    toast.success(`Nuova scadenza: ${formatDate(nextDate)}`)
     await loadDeadlines()
   }
 
@@ -221,7 +241,7 @@ export function DeadlinesPageClient() {
             </div>
           ) : null}
           <div className="space-y-2">
-            {visible.map((deadline) => <DeadlineRow key={deadline.id} deadline={deadline} onEdit={openEdit} onComplete={patchStatus} onDelete={setDeleteTarget} />)}
+            {visible.map((deadline) => <DeadlineRow key={deadline.id} deadline={deadline} onEdit={openEdit} onComplete={patchStatus} onRenew={renewDeadline} onDelete={setDeleteTarget} />)}
           </div>
         </CardContent>
       </Card>
@@ -234,8 +254,8 @@ export function DeadlinesPageClient() {
             <Field label="Data *"><Input type="date" value={form.due_date} onChange={(event) => setForm((f) => ({ ...f, due_date: event.target.value }))} /></Field>
             <Field label="Categoria"><Select value={form.category} onChange={(value) => setForm((f) => ({ ...f, category: value as DeadlineCategory }))}>{DEADLINE_CATEGORIES.map((category) => <option key={category} value={category}>{DEADLINE_CATEGORY_LABELS[category]}</option>)}</Select></Field>
             <Field label="Priorità"><Select value={form.priority} onChange={(value) => setForm((f) => ({ ...f, priority: value as DeadlinePriority }))}>{Object.entries(DEADLINE_PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></Field>
-            <Field label="Ricorrenza"><Select value={form.recurrence} onChange={(value) => setForm((f) => ({ ...f, recurrence: value as DeadlineRecurrence }))}>{Object.entries(DEADLINE_RECURRENCE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></Field>
-            <div><Field label="Promemoria email"><Select value={form.reminder_days_before} onChange={(value) => setForm((f) => ({ ...f, reminder_days_before: value }))}>{DEADLINE_REMINDER_OPTIONS.map((days) => <option key={days} value={days}>{days === 0 ? 'Il giorno stesso' : `Da ${days} giorni prima`}</option>)}</Select></Field><p className="mt-1 text-xs text-slate-500">Email a 30, 14, 7, 3, 1 giorni e il giorno stesso, entro l’anticipo scelto. Per i rinnovi annuali aggiorna la data dopo aver rinnovato.</p></div>
+            <div className="flex items-end gap-2"><div className="flex-1"><Field label="Ricorrenza"><Select value={form.recurrence} onChange={(value) => setForm((f) => ({ ...f, recurrence: value as DeadlineRecurrence }))}>{Object.entries(DEADLINE_RECURRENCE_LABELS).map(([value, label]) => <option key={value} value={value}>{value === 'MONTHLY' ? 'Ogni N mesi' : value === 'YEARLY' ? 'Ogni N anni' : label}</option>)}</Select></Field></div>{form.recurrence !== 'NONE' && <div className="w-24"><Field label="Ogni"><Input type="number" min={1} max={120} value={form.recurrence_interval} onChange={(event) => setForm((f) => ({ ...f, recurrence_interval: event.target.value }))} /></Field></div>}</div>
+            <div><Field label="Promemoria email"><Select value={form.reminder_days_before} onChange={(value) => setForm((f) => ({ ...f, reminder_days_before: value }))}>{DEADLINE_REMINDER_OPTIONS.map((days) => <option key={days} value={days}>{days === 0 ? 'Il giorno stesso' : `Da ${days} giorni prima`}</option>)}</Select></Field><p className="mt-1 text-xs text-slate-500">Email a 30, 14, 7, 3, 1 giorni e il giorno stesso, entro l’anticipo scelto. Dopo il rinnovo usa “Rinnovata” per calcolare la nuova data.</p></div>
             <div className="md:col-span-2"><Field label="Descrizione"><Input value={form.description} onChange={(event) => setForm((f) => ({ ...f, description: event.target.value }))} /></Field></div>
           </div>
           <div className="mt-5 flex justify-end gap-2"><Button variant="outline" onClick={() => setFormOpen(false)}>Annulla</Button><Button onClick={saveDeadline}>Salva scadenza</Button></div>
@@ -257,7 +277,7 @@ function Metric({ label, value, tone }: { label: string; value: number; tone: St
   return <Card className="border-[#e5e7f0] bg-white shadow-sm"><CardContent className="p-5"><StatusBadge tone={tone} label={label} /><p className="mt-4 text-3xl font-bold tabular-nums text-slate-950">{value}</p></CardContent></Card>
 }
 
-function DeadlineRow({ deadline, onEdit, onComplete, onDelete }: { deadline: PersonalDeadline; onEdit: (deadline: PersonalDeadline) => void; onComplete: (deadline: PersonalDeadline, status: 'ACTIVE' | 'COMPLETED') => void; onDelete: (deadline: PersonalDeadline) => void }) {
+function DeadlineRow({ deadline, onEdit, onComplete, onRenew, onDelete }: { deadline: PersonalDeadline; onEdit: (deadline: PersonalDeadline) => void; onComplete: (deadline: PersonalDeadline, status: 'ACTIVE' | 'COMPLETED') => void; onRenew: (deadline: PersonalDeadline) => void; onDelete: (deadline: PersonalDeadline) => void }) {
   const temporal = classifyDeadlineTemporalStatus(deadline, today)
   const tone: StatusTone = temporal === 'OVERDUE' ? 'critical' : temporal === 'TODAY' ? 'warning' : temporal === 'UPCOMING' ? 'info' : deadline.status === 'COMPLETED' ? 'success' : 'neutral'
   const days = daysUntilDeadline(deadline, today)
@@ -270,11 +290,12 @@ function DeadlineRow({ deadline, onEdit, onComplete, onDelete }: { deadline: Per
           {deadline.priority === 'HIGH' ? <StatusBadge tone="warning" label="Alta priorità" /> : null}
         </div>
         <p className="mt-1 text-xs text-slate-500">
-          {DEADLINE_CATEGORY_LABELS[deadline.category]} · {formatDate(deadline.due_date)} · {days >= 0 ? `${days} giorni mancanti` : `${Math.abs(days)} giorni fa`} · {DEADLINE_RECURRENCE_LABELS[deadline.recurrence]}
+          {DEADLINE_CATEGORY_LABELS[deadline.category]} · {formatDate(deadline.due_date)} · {days >= 0 ? `${days} giorni mancanti` : `${Math.abs(days)} giorni fa`} · {deadline.recurrence === 'NONE' ? 'Nessuna ricorrenza' : `Ogni ${deadline.recurrence_interval} ${deadline.recurrence === 'MONTHLY' ? (deadline.recurrence_interval === 1 ? 'mese' : 'mesi') : (deadline.recurrence_interval === 1 ? 'anno' : 'anni')}`}
         </p>
         {deadline.description ? <p className="mt-1 text-sm text-slate-600">{deadline.description}</p> : null}
       </div>
       <div className="flex flex-wrap gap-2">
+        {deadline.status === 'ACTIVE' && deadline.recurrence !== 'NONE' && <Button variant="outline" size="sm" className="gap-2" onClick={() => onRenew(deadline)}><RotateCcw className="h-4 w-4" />Rinnovata</Button>}
         {deadline.status === 'COMPLETED'
           ? <Button variant="outline" size="sm" className="gap-2" onClick={() => onComplete(deadline, 'ACTIVE')}><RotateCcw className="h-4 w-4" />Riapri</Button>
           : <Button variant="outline" size="sm" className="gap-2" onClick={() => onComplete(deadline, 'COMPLETED')}><CheckCircle2 className="h-4 w-4" />Completa</Button>}
