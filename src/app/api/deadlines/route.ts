@@ -5,7 +5,7 @@ import { deadlineInputSchema } from '@/lib/deadlines/schemas'
 
 export const dynamic = 'force-dynamic'
 
-const DEADLINE_SELECT = 'id,user_id,title,description,category,due_date,status,priority,recurrence,reminder_days_before,completed_at,created_at,updated_at'
+const DEADLINE_SELECT = 'id,user_id,title,description,category,due_date,status,priority,recurrence,recurrence_interval,reminder_days_before,completed_at,created_at,updated_at'
 
 function json(body: unknown, status: number) {
   return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
@@ -58,4 +58,3 @@ export async function POST(request: Request) {
   if (error) return json({ error: 'DEADLINE_SAVE_FAILED' }, 500)
   return json({ data }, 201)
 }
-
