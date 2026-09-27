@@ -101,6 +101,7 @@ export interface PersonalDeadline {
   status: DeadlineStatus
   priority: DeadlinePriority
   recurrence: DeadlineRecurrence
+  recurrence_interval: number
   reminder_days_before: number
   completed_at: string | null
   created_at: string
@@ -1345,6 +1346,7 @@ export type Database = {
           status?: DeadlineStatus
           priority?: DeadlinePriority
           recurrence?: DeadlineRecurrence
+          recurrence_interval?: number
           reminder_days_before?: number
           completed_at?: string | null
           created_at?: string
