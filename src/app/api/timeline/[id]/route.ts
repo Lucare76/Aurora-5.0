@@ -54,6 +54,11 @@ export async function PATCH(request: Request, { params }: Params) {
   if ('location' in patch) patch.location = emptyToNull(patch.location)
   if ('provider' in patch) patch.provider = emptyToNull(patch.provider)
 
+  const { data: previous } = parsed.data.event_date !== undefined
+    ? await supabase.from('personal_timeline_events').select('event_date')
+      .eq('id', id).eq('user_id', user.id).maybeSingle()
+    : { data: null }
+
   const { data, error } = await supabase
     .from('personal_timeline_events')
     .update(patch)
@@ -63,6 +68,11 @@ export async function PATCH(request: Request, { params }: Params) {
     .single()
 
   if (error) return json({ error: 'TIMELINE_UPDATE_FAILED' }, 500)
+  if (previous && previous.event_date !== data.event_date) {
+    await supabase.from('notifications').delete()
+      .eq('user_id', user.id).eq('type', 'timeline_reminder')
+      .like('dedupe_key', `timeline:${id}:%`)
+  }
   return json({ data }, 200)
 }
 
@@ -80,5 +90,8 @@ export async function DELETE(_request: Request, { params }: Params) {
     .eq('user_id', user.id)
 
   if (error) return json({ error: 'TIMELINE_DELETE_FAILED' }, 500)
+  await supabase.from('notifications').delete()
+    .eq('user_id', user.id).eq('type', 'timeline_reminder')
+    .like('dedupe_key', `timeline:${id}:%`)
   return json({ data: { ok: true } }, 200)
 }
