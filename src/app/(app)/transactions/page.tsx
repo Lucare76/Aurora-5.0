@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
+  Download,
   Pencil,
   Plus,
   Search,
@@ -44,6 +45,7 @@ import { useCategories } from '@/hooks/use-categories'
 import type { CategoryTreeNode } from '@/hooks/use-categories'
 import { createClient } from '@/lib/supabase/client'
 import { buildTransactionPayload, parseTransactionAmount } from '@/lib/transactions/form-contract'
+import { downloadTransactionsCsv } from '@/lib/transactions/export-client'
 import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import type { Account, Category, Transaction, TransactionType } from '@/types/database'
 
@@ -265,6 +267,7 @@ export default function TransactionsPage() {
   const [importAccount, setImportAccount] = useState('')
   const [importRows, setImportRows] = useState<ImportRow[]>([])
   const [importBusy, setImportBusy] = useState(false)
+  const [exportBusy, setExportBusy] = useState(false)
   const [importProgress, setImportProgress] = useState(0)
   const [automationSuggestion, setAutomationSuggestion] = useState<AutomationSuggestion | null>(null)
   const [automationIgnored, setAutomationIgnored] = useState(false)
@@ -904,6 +907,39 @@ export default function TransactionsPage() {
     setSelectedMonth((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1))
   }
 
+  const exportRange = useDateRange
+    ? { start: dateRangeFrom, end: dateRangeTo }
+    : getMonthRange(selectedMonth)
+
+  const exportCurrentPeriod = async () => {
+    if (!exportRange.start || !exportRange.end || exportRange.start > exportRange.end) {
+      toast.error('Controlla le date dell’intervallo prima di esportare.')
+      return
+    }
+    setExportBusy(true)
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser()
+      if (error || !user) throw new Error('Sessione scaduta. Accedi di nuovo.')
+      const count = await downloadTransactionsCsv({
+        userId: user.id,
+        from: exportRange.start,
+        to: exportRange.end,
+        accountId: accountFilter === 'all' ? undefined : accountFilter,
+        type: typeFilter === 'all' ? undefined : typeFilter,
+        search: searchQuery,
+        categoryIds: categoryFilters,
+        amountMin: amountMin === '' ? undefined : Number(amountMin),
+        amountMax: amountMax === '' ? undefined : Number(amountMax),
+        personalOnly: true,
+      })
+      toast.success(`${count} movimenti esportati in CSV.`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Esportazione non riuscita.')
+    } finally {
+      setExportBusy(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#f8f9fc] text-slate-950">
       <div className="mx-auto max-w-7xl space-y-7">
@@ -961,6 +997,10 @@ export default function TransactionsPage() {
             <Button variant="outline" onClick={() => { setImportOpen(true); setImportStep('upload'); setImportRows([]) }} className="h-11 gap-2">
               <Upload className="h-4 w-4" />
               Importa CSV
+            </Button>
+            <Button variant="outline" onClick={() => void exportCurrentPeriod()} disabled={exportBusy || loading} className="h-11 gap-2">
+              <Download className="h-4 w-4" />
+              {exportBusy ? 'Esporto…' : 'Esporta CSV'}
             </Button>
             <Button onClick={openCreateDialog} className="h-11 gap-2">
               <Plus className="h-4 w-4" />

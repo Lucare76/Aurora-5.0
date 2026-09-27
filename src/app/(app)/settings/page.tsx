@@ -15,12 +15,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { StatusBadge, type StatusTone } from '@/components/ui/status-badge'
 import { PwaInstallCard } from '@/components/pwa-install-card'
-import { buildTransactionExportRows, buildTransactionsCsv } from '@/domain/accounting/export'
-import { adaptTransactionRows } from '@/domain/accounting/transaction-adapter'
+import { downloadTransactionsCsv } from '@/lib/transactions/export-client'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
-import type { Account, Category, Transaction } from '@/types/database'
 
 const profileSchema = z.object({
   display_name: z.string().trim().min(1, 'Il nome è obbligatorio'),
@@ -57,7 +55,6 @@ type AiUsageResponse = {
   pricingNote: string
 }
 
-const TRANSACTION_SELECT = 'id,user_id,account_id,category_id,type,amount,description,notes,date,transfer_peer_id,recurring_id,receipt_url,receipt_data,is_neutral,created_at,updated_at'
 const MAX_BACKUP_DRY_RUN_BYTES = 10 * 1024 * 1024
 const RESTORE_CONFIRMATION_PHRASE = 'RIPRISTINA AURORA'
 const REAL_RESTORE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BACKUP_RESTORE_REAL === 'true'
@@ -472,46 +469,7 @@ export default function SettingsPage() {
     }
     setExportBusy(true)
     try {
-      const [catRes, accRes] = await Promise.all([
-        db.from('categories').select('id,name').eq('user_id', user.id),
-        db.from('accounts').select('id,name,user_id').eq('user_id', user.id),
-      ])
-      if (catRes.error) throw catRes.error
-      if (accRes.error) throw accRes.error
-
-      const transactions: Transaction[] = []
-      const pageSize = 500
-      for (let offset = 0; ; offset += pageSize) {
-        let query = db.from('transactions')
-          .select(TRANSACTION_SELECT)
-          .eq('user_id', user.id)
-        if (exportFrom) query = query.gte('date', exportFrom)
-        if (exportTo) query = query.lte('date', exportTo)
-        const { data, error } = await query
-          .order('date', { ascending: false })
-          .order('created_at', { ascending: false })
-          .order('id', { ascending: false })
-          .range(offset, offset + pageSize - 1)
-        if (error) throw error
-        transactions.push(...((data ?? []) as Transaction[]))
-        if ((data?.length ?? 0) < pageSize) break
-      }
-
-      const accounts = (accRes.data ?? []) as Pick<Account, 'id' | 'name' | 'user_id'>[]
-      const categories = (catRes.data ?? []) as Pick<Category, 'id' | 'name'>[]
-      const appTransactions = adaptTransactionRows(transactions, {
-        accounts: accounts as Account[],
-        peerTransactions: transactions,
-      })
-      const rows = buildTransactionExportRows(appTransactions, categories, accounts)
-      const csv = buildTransactionsCsv(rows)
-      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `aurora-transazioni-${exportFrom || 'inizio'}-${exportTo || 'oggi'}.csv`
-      link.click()
-      URL.revokeObjectURL(url)
+      await downloadTransactionsCsv({ userId: user.id, from: exportFrom, to: exportTo })
       toast.success('CSV esportato')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Errore durante l\'esportazione')
@@ -842,7 +800,7 @@ export default function SettingsPage() {
           <PwaInstallCard />
         </SectionCard>
 
-        <SectionCard title="Dati" description="Esporta le transazioni in formato CSV." icon={Download}>
+        <SectionCard title="Dati" description="Esporta i singoli movimenti nell'intervallo scelto, inclusi i giroconti." icon={Download}>
           <div className="mb-3 grid gap-3 sm:grid-cols-2">
             <div className="space-y-1"><Label htmlFor="export-from">Da (facoltativo)</Label><Input id="export-from" type="date" value={exportFrom} onChange={(event) => setExportFrom(event.target.value)} /></div>
             <div className="space-y-1"><Label htmlFor="export-to">A (facoltativo)</Label><Input id="export-to" type="date" value={exportTo} onChange={(event) => setExportTo(event.target.value)} /></div>
