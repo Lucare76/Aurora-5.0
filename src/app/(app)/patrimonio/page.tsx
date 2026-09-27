@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { PersonalOverviewPayload } from '@/lib/dashboard/personal-overview'
+import { sourceHealth } from '@/lib/patrimonio/source-health'
 
 type ExternalAsset = {
   id: string
@@ -568,6 +569,8 @@ export default function PatrimonioPage() {
     return <div className="h-64 animate-pulse rounded-3xl border border-slate-200 bg-white" />
   }
 
+  const sources = sourceHealth(assetsPayload?.data ?? [], Date.now())
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -619,6 +622,31 @@ export default function PatrimonioPage() {
           </CardContent>
         </Card>
       </section>
+
+      <Card className="border-slate-200 bg-white shadow-sm">
+        <CardContent className="p-5">
+          <h2 className="text-base font-bold text-slate-950">Stato aggiornamenti patrimonio</h2>
+          <p className="mt-1 text-xs text-slate-500">Controlla quando sono stati rilevati i valori. Poste e gli altri valori manuali richiedono un aggiornamento da parte tua.</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {sources.map((source) => {
+              const connectionIssue = source.key === 'SCALABLE' && (scalableStatus === null || !scalableStatus.connected || Boolean(scalableStatus.connection?.last_error))
+              const needsAttention = connectionIssue || source.overdue.length > 0
+              const syncDate = source.key === 'SCALABLE' ? scalableStatus?.connection?.last_synced_at : null
+              return (
+                <div key={source.key} className={`rounded-2xl border p-4 ${needsAttention ? 'border-amber-200 bg-amber-50/50' : 'border-slate-200 bg-slate-50/60'}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-950">{source.label}</p>
+                    <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${needsAttention ? 'bg-amber-100 text-amber-800' : 'bg-white text-slate-600'}`}>{needsAttention ? 'Da controllare' : `${source.count} posizioni`}</span>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-600">{source.count} posizioni · ultimo valore {source.latest ? new Date(source.latest).toLocaleString('it-IT') : 'non disponibile'}</p>
+                  {source.key === 'SCALABLE' && <p className="mt-1 text-xs text-slate-600">Ultima sincronizzazione: {syncDate ? new Date(syncDate).toLocaleString('it-IT') : 'mai registrata'}{scalableStatus === null ? ' · stato collegamento non disponibile' : !scalableStatus.connected ? ' · collegamento assente' : scalableStatus.connection?.last_error ? ' · ultimo tentativo non riuscito' : ''}</p>}
+                  {source.overdue.length > 0 && <p className="mt-2 text-xs font-medium text-amber-800">{source.overdue.length} valori da verificare (oltre {source.maxAgeDays} giorni): {source.overdue.map(({ asset }) => asset.name).join(', ')}</p>}
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="overflow-hidden border-indigo-200 bg-white shadow-sm">
         <CardContent className="p-4 min-[360px]:p-5">
