@@ -448,6 +448,7 @@ export type AuroraBackupPersonalDeadlineV1 = {
   status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
   priority: 'LOW' | 'NORMAL' | 'HIGH'
   recurrence: 'NONE' | 'MONTHLY' | 'YEARLY'
+  recurrence_interval?: number
   reminder_days_before: number
   completed_at?: string | null
   created_at?: string
