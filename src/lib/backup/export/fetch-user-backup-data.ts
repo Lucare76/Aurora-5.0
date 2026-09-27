@@ -84,7 +84,7 @@ export const BACKUP_LEAVE_SETTINGS_SELECT =
 export const BACKUP_LEAVE_ENTRY_SELECT =
   'id,user_id,type,start_date,end_date,days,hours,start_time,end_time,note,created_at,updated_at'
 export const BACKUP_PERSONAL_DEADLINE_SELECT =
-  'id,user_id,title,description,category,due_date,status,priority,recurrence,reminder_days_before,completed_at,created_at,updated_at'
+  'id,user_id,title,description,category,due_date,status,priority,recurrence,recurrence_interval,reminder_days_before,completed_at,created_at,updated_at'
 export const BACKUP_PERSONAL_TIMELINE_EVENT_SELECT =
   'id,user_id,event_date,end_date,title,description,category,subject,location,provider,tags,importance,created_at,updated_at'
 

@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ id: string }> }
 
-const DEADLINE_SELECT = 'id,user_id,title,description,category,due_date,status,priority,recurrence,reminder_days_before,completed_at,created_at,updated_at'
+const DEADLINE_SELECT = 'id,user_id,title,description,category,due_date,status,priority,recurrence,recurrence_interval,reminder_days_before,completed_at,created_at,updated_at'
 
 function json(body: unknown, status: number) {
   return NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
