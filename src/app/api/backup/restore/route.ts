@@ -207,6 +207,7 @@ async function restorePersonalDeadlines(
       status: item.status,
       priority: item.priority,
       recurrence: item.recurrence,
+      recurrence_interval: item.recurrence_interval ?? 1,
       reminder_days_before: item.reminder_days_before,
       completed_at: item.completed_at ?? null,
       created_at: item.created_at,
