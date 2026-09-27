@@ -12,6 +12,7 @@ const ALL_TYPES: NotificationType[] = [
   'upcoming_loan_payment', 'overdue_loan_payment', 'loan_due_soon',
   'goal_behind_schedule', 'automation_failure', 'automation_conflict',
   'possible_duplicate',
+  'timeline_reminder',
 ]
 
 function json(body: unknown, status: number) {

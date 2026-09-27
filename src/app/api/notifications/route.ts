@@ -14,6 +14,7 @@ const VALID_TYPES: NotificationType[] = [
   'upcoming_recurrence', 'upcoming_loan_payment', 'overdue_loan_payment',
   'loan_due_soon', 'goal_behind_schedule', 'automation_failure',
   'automation_conflict', 'possible_duplicate',
+  'timeline_reminder',
 ]
 
 const querySchema = z.object({

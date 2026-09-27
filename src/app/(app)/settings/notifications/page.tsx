@@ -59,6 +59,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   automation_failure:         'Automazione fallita',
   automation_conflict:        'Conflitto automazione',
   possible_duplicate:         'Possibile duplicato',
+  timeline_reminder:          'Promemoria Timeline',
 }
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
@@ -82,6 +83,7 @@ const ALL_TYPES: NotificationType[] = [
   'automation_failure',
   'automation_conflict',
   'possible_duplicate',
+  'timeline_reminder',
 ]
 
 // ── Helpers ────────────────────────────────────────────────────────────────

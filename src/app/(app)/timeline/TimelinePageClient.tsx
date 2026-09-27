@@ -214,6 +214,7 @@ export function TimelinePageClient() {
           <p className="text-sm font-semibold text-indigo-600">Modulo privato</p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">Timeline</h1>
           <p className="mt-2 max-w-3xl text-sm text-slate-500">Una cronologia ordinata degli eventi importanti personali e familiari.</p>
+          <p className="mt-1 text-sm text-slate-500">Per gli eventi futuri riceverai un promemoria nella campanella 14, 7 e 3 giorni prima.</p>
         </div>
         <Button className="gap-2" onClick={openCreate}><Plus className="h-4 w-4" />Nuovo evento</Button>
       </header>

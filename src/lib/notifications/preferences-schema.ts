@@ -56,6 +56,7 @@ export const TYPE_CONFIG_SCHEMAS: Record<NotificationType, z.ZodTypeAny> = {
   automation_failure:         automationConfigSchema,
   automation_conflict:        automationConfigSchema,
   possible_duplicate:         duplicateConfigSchema,
+  timeline_reminder:          z.object({}),
 }
 
 // ── Global settings schema ────────────────────────────────────────────────────
@@ -94,6 +95,7 @@ const NOTIFICATION_TYPES = [
   'upcoming_loan_payment', 'overdue_loan_payment', 'loan_due_soon',
   'goal_behind_schedule', 'automation_failure', 'automation_conflict',
   'possible_duplicate',
+  'timeline_reminder',
 ] as const
 
 export const createMuteSchema = z.object({

@@ -34,6 +34,7 @@ export const NOTIFICATION_META: Record<NotificationType, { isCondition: boolean;
   automation_failure:         { isCondition: false, label: 'Automazione fallita' },
   automation_conflict:        { isCondition: false, label: 'Conflitto automazione' },
   possible_duplicate:         { isCondition: false, label: 'Possibile duplicato' },
+  timeline_reminder:          { isCondition: false, label: 'Promemoria Timeline' },
 }
 
 // ── Severity CRITICAL threshold for projected balance ───────────────────────

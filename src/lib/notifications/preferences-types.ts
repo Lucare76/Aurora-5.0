@@ -93,6 +93,7 @@ export type NotificationTypeConfigMap = {
   automation_failure:         AutomationNotificationConfig
   automation_conflict:        AutomationNotificationConfig
   possible_duplicate:         DuplicateNotificationConfig
+  timeline_reminder:          Record<string, never>
 }
 
 // ── Resolved preferences ─────────────────────────────────────────────────────

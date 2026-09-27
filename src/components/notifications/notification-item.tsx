@@ -38,6 +38,7 @@ const TYPE_ICONS: Record<NotificationType, LucideIcon> = {
   automation_failure:         Zap,
   automation_conflict:        Zap,
   possible_duplicate:         AlertTriangle,
+  timeline_reminder:          AlarmClock,
 }
 
 const SEVERITY_COLORS = {

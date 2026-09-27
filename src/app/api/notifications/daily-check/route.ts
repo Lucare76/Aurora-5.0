@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Resend } from 'resend'
 import { formatDate } from '@/lib/utils'
+import { dateAfterDays, localDate, reminderKey, reminderStage, TIMELINE_REMINDER_DAYS } from '@/lib/timeline/reminders'
+import { canAccessPrivateHr } from '@/lib/access/private-finance-access'
 
 function escapeHtml(str: string): string {
   return str
@@ -40,11 +42,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const resendApiKey = process.env.RESEND_API_KEY
-  if (!resendApiKey) {
-    return NextResponse.json({ error: 'RESEND_API_KEY is not configured' }, { status: 503 })
-  }
-
   let supabase: ReturnType<typeof createAdminClient>
   try {
     // Runtime-only initialization: missing admin envs should fail this request,
@@ -56,12 +53,90 @@ export async function GET(request: NextRequest) {
       { status: 503 },
     )
   }
-  const resend = new Resend(resendApiKey)
+  const resendApiKey = process.env.RESEND_API_KEY
+  const resend = resendApiKey ? new Resend(resendApiKey) : null
+
+  // The private timeline always gets in-app reminders, even if email is unavailable.
+  const timelineResults = { created: 0, emailed: 0, errors: [] as string[] }
+  const timelineToday = localDate(new Date())
+  try {
+    const dates = TIMELINE_REMINDER_DAYS.map((days) => dateAfterDays(timelineToday, days))
+    const { data: events, error } = await supabase
+      .from('personal_timeline_events')
+      .select('id,user_id,event_date,title')
+      .in('event_date', dates)
+    if (error) throw error
+
+    const eligibleUsers = new Map<string, boolean>()
+
+    for (const event of events ?? []) {
+      const days = reminderStage(event.event_date, timelineToday)
+      if (!days) continue
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(event.user_id)
+      if (userError || !canAccessPrivateHr(userData?.user?.email)) continue
+      if (!eligibleUsers.has(event.user_id)) {
+        const [settings, preference] = await Promise.all([
+          supabase.from('notification_user_settings').select('notifications_enabled,show_info')
+            .eq('user_id', event.user_id).maybeSingle(),
+          supabase.from('notification_preferences').select('is_enabled')
+            .eq('user_id', event.user_id).eq('notification_type', 'timeline_reminder').maybeSingle(),
+        ])
+        if (settings.error || preference.error) {
+          timelineResults.errors.push(`Timeline preferences ${event.user_id}`)
+          continue
+        }
+        eligibleUsers.set(event.user_id,
+          settings.data?.notifications_enabled !== false && settings.data?.show_info !== false &&
+          preference.data?.is_enabled !== false)
+      }
+      if (!eligibleUsers.get(event.user_id)) continue
+
+      const key = reminderKey(event.id, event.event_date, days)
+      const { data: inserted, error: insertError } = await supabase.from('notifications')
+        .upsert({
+          user_id: event.user_id,
+          type: 'timeline_reminder',
+          severity: 'INFO',
+          title: `Timeline: evento tra ${days} giorni`,
+          message: `${event.title} · ${formatDate(event.event_date)}`,
+          dedupe_key: key,
+          source_url: '/timeline',
+          metadata: { event_id: event.id, event_date: event.event_date, days_before: days },
+        }, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true })
+        .select('id')
+      if (insertError) {
+        timelineResults.errors.push(`Timeline ${event.id}: ${insertError.message}`)
+        continue
+      }
+      if (!inserted?.length) continue
+      timelineResults.created++
+
+      // Never send private event details by email. An email failure leaves the
+      // in-app reminder intact; the unique key prevents duplicate alerts.
+      if (resend && userData.user.email) {
+        const { error: sendError } = await resend.emails.send({
+          from: 'Aurora <onboarding@resend.dev>',
+          to: userData.user.email,
+          subject: `Promemoria Timeline: evento tra ${days} giorni`,
+          html: `<p>Hai un evento nella Timeline tra ${days} giorni (${formatDate(event.event_date)}).</p><p>Apri Aurora per i dettagli.</p>`,
+        })
+        if (sendError) timelineResults.errors.push(`Timeline email ${event.id}: ${sendError.message}`)
+        else timelineResults.emailed++
+      }
+    }
+  } catch (error) {
+    timelineResults.errors.push(`Timeline: ${error instanceof Error ? error.message : String(error)}`)
+  }
+
+  if (!resend) {
+    return NextResponse.json({ success: timelineResults.errors.length === 0, timeline: timelineResults, emailConfigured: false },
+      { status: timelineResults.errors.length ? 207 : 200 })
+  }
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayStr = today.toISOString().split('T')[0]
-  const results = { birthdays: 0, auto_created: 0, recurring: 0, errors: [] as string[] }
+  const results = { birthdays: 0, auto_created: 0, recurring: 0, timeline: timelineResults, errors: timelineResults.errors }
 
   // ---- AUTO-CREATE TRANSAZIONI RICORRENTI ----
   try {
