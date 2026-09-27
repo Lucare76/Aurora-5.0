@@ -432,6 +432,7 @@ export const personalDeadlineBackupSchema = z.object({
   status: deadlineStatus,
   priority: deadlinePriority,
   recurrence: deadlineRecurrence,
+  recurrence_interval: z.number().int().min(1).max(120).optional(),
   reminder_days_before: z.number().int().min(0).max(365),
   completed_at: isoTimestamp.nullable().optional(),
   created_at: maybeTimestamp,
