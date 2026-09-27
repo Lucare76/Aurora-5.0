@@ -13,6 +13,7 @@ export const deadlineInputSchema = z.object({
   status: z.enum(DEADLINE_STATUSES).optional(),
   priority: z.enum(DEADLINE_PRIORITIES).default('NORMAL'),
   recurrence: z.enum(DEADLINE_RECURRENCES).default('NONE'),
+  recurrence_interval: z.number().int().min(1).max(120).default(1),
   reminder_days_before: reminder.default(7),
 }).strict()
 
