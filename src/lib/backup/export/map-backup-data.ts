@@ -558,6 +558,7 @@ export function mapPersonalDeadline(row: PersonalDeadline): AuroraBackupPersonal
     status: row.status,
     priority: row.priority,
     recurrence: row.recurrence,
+    recurrence_interval: row.recurrence_interval,
     reminder_days_before: row.reminder_days_before,
     completed_at: row.completed_at,
     created_at: row.created_at,
