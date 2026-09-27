@@ -17,6 +17,7 @@ export type NotificationType =
   | 'automation_failure'
   | 'automation_conflict'
   | 'possible_duplicate'
+  | 'timeline_reminder'
 
 export type NotificationSourceType =
   | 'account'
