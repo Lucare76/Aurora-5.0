@@ -207,7 +207,7 @@ export function NotificationItem({
           <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className={cn('truncate text-sm font-medium text-slate-900', !n.is_read && 'font-semibold')}>
+          <p className={cn('line-clamp-2 break-words text-sm font-medium text-slate-900', !n.is_read && 'font-semibold')}>
             {n.title}
           </p>
           <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{n.message}</p>
