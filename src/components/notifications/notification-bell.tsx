@@ -152,7 +152,7 @@ export function NotificationBell() {
         <div
           role="dialog"
           aria-label="Avvisi recenti"
-          className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-[#e5e7f0] bg-white shadow-xl shadow-slate-900/10"
+          className="fixed inset-x-2 top-16 z-[60] mt-2 w-auto overflow-hidden rounded-2xl border border-[#e5e7f0] bg-white shadow-xl shadow-slate-900/10 md:absolute md:inset-x-auto md:right-0 md:top-full md:w-60"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[#e5e7f0] px-4 py-3">
