@@ -472,6 +472,19 @@ export type AuroraBackupPersonalTimelineEventV1 = {
   updated_at?: string
 }
 
+export type AuroraBackupInstallmentPlanV1 = {
+  id: string
+  title: string
+  total_installments: number
+  created_at?: string
+}
+
+export type AuroraBackupInstallmentPaymentV1 = {
+  transaction_id: string
+  plan_id: string
+  installment_number: number
+}
+
 export type AuroraBackupDataV1 = {
   profile: AuroraBackupProfileV1
   accounts: AuroraBackupAccountV1[]
@@ -513,6 +526,8 @@ export type AuroraBackupDataV1 = {
   personalDeadlines?: AuroraBackupPersonalDeadlineV1[]
   // Optional: included from Sprint 36 onwards; private manual timeline, separate from finance
   personalTimelineEvents?: AuroraBackupPersonalTimelineEventV1[]
+  installmentPlans?: AuroraBackupInstallmentPlanV1[]
+  installmentPayments?: AuroraBackupInstallmentPaymentV1[]
 }
 
 export type AuroraBackupV1 = {
