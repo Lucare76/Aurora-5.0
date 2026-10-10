@@ -132,6 +132,10 @@ function mockSupabase(options: { user?: typeof user | null; writes?: unknown[]; 
           filters.push({ method: 'or', value })
           return builder
         }),
+        like: vi.fn((column: string, value: unknown) => {
+          filters.push({ method: 'like', column, value })
+          return builder
+        }),
         order: vi.fn(() => builder),
         range: vi.fn((from: number, to: number) => {
           ranges.push({ from, to })

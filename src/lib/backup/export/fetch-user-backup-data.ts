@@ -93,12 +93,17 @@ export type BackupAuthenticatedUser = {
   email?: string | null
 }
 
+type BackupInstallmentPlan = { id: string; title: string; total_installments: number; created_at: string }
+type BackupInstallmentPayment = { transaction_id: string; plan_id: string; installment_number: number }
+
 export type UserBackupData = {
   user: BackupAuthenticatedUser
   profile: Profile | null
   accounts: Account[]
   categories: Category[]
   transactions: Transaction[]
+  installmentPlans?: BackupInstallmentPlan[]
+  installmentPayments?: BackupInstallmentPayment[]
   budgets: Budget[]
   recurringRules: RecurringRule[]
   loans: Loan[]
@@ -202,6 +207,8 @@ export async function fetchUserBackupData(
     leaveEntries,
     personalDeadlines,
     personalTimelineEvents,
+    installmentPlans,
+    installmentPayments,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -368,12 +375,20 @@ export async function fetchUserBackupData(
       .eq('user_id', user.id)
       .order('event_date', { ascending: true })
       .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<PersonalTimelineEvent>>,
+    (supabase as unknown as SupabaseClient)
+      .from('installment_plans').select('id,title,total_installments,created_at')
+      .eq('user_id', user.id).order('created_at', { ascending: true }) as unknown as Promise<QueryResult<BackupInstallmentPlan>>,
+    (supabase as unknown as SupabaseClient)
+      .from('installment_payments').select('transaction_id,plan_id,installment_number')
+      .eq('user_id', user.id) as unknown as Promise<QueryResult<BackupInstallmentPayment>>,
   ])
 
   assertNoQueryError('profiles', profile.error)
   assertNoQueryError('accounts', accounts.error)
   assertNoQueryError('categories', categories.error)
   assertNoQueryError('transactions', transactions.error)
+  assertNoQueryError('installment_plans', installmentPlans.error)
+  assertNoQueryError('installment_payments', installmentPayments.error)
   assertNoQueryError('budgets', budgets.error)
   assertNoQueryError('recurring_rules', recurringRules.error)
   assertNoQueryError('loans', loans.error)
@@ -394,6 +409,8 @@ export async function fetchUserBackupData(
     accounts: accounts.data ?? [],
     categories: categories.data ?? [],
     transactions: transactions.data ?? [],
+    installmentPlans: installmentPlans.data ?? [],
+    installmentPayments: installmentPayments.data ?? [],
     budgets: budgets.data ?? [],
     recurringRules: recurringRules.data ?? [],
     loans: loans.data ?? [],
@@ -429,10 +446,16 @@ export async function fetchUserBackupData(
     .filter((link) => link.purpose === 'DEPENDENT_AURORA' || link.purpose === 'DEPENDENT' || link.purpose === 'ADI')
     .map((link) => link.account_id))
 
+  const allowedTransactions = rawData.transactions.filter((transaction) => !privateAccountIds.has(transaction.account_id))
+  const allowedIds = new Set(allowedTransactions.map((transaction) => transaction.id))
+  const allowedPayments = (rawData.installmentPayments ?? []).filter((payment) => allowedIds.has(payment.transaction_id))
+  const allowedPlanIds = new Set(allowedPayments.map((payment) => payment.plan_id))
   return {
     ...rawData,
+    installmentPlans: (rawData.installmentPlans ?? []).filter((plan) => allowedPlanIds.has(plan.id)),
+    installmentPayments: allowedPayments,
     accounts: rawData.accounts.filter((account) => !privateAccountIds.has(account.id)),
-    transactions: rawData.transactions.filter((transaction) => !privateAccountIds.has(transaction.account_id)),
+    transactions: allowedTransactions,
     recurringRules: rawData.recurringRules.filter((rule) => !privateAccountIds.has(rule.account_id)),
     dependentBeneficiaries: [],
     accountPurposeLinks: [],

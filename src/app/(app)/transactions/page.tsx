@@ -104,6 +104,23 @@ const transactionSchema = z
     category_id: z.string().optional(),
     notes: z.string().optional(),
     is_neutral: z.boolean().optional(),
+    installment_mode: z.enum(['none', 'new', 'existing']).default('none'),
+    installment_plan_id: z.string().optional(),
+    installment_title: z.string().optional(),
+    installment_total: z.coerce.number().optional(),
+    installment_number: z.coerce.number().optional(),
+  })
+  .refine((data) => data.type === 'expense' || data.installment_mode === 'none', {
+    message: 'Le rate sono disponibili solo per le uscite', path: ['installment_mode'],
+  })
+  .refine((data) => data.installment_mode !== 'new' || Boolean(data.installment_title?.trim()) && Number(data.installment_total) >= 2 && Number.isInteger(Number(data.installment_total)), {
+    message: 'Inserisci nome e numero totale delle rate', path: ['installment_total'],
+  })
+  .refine((data) => data.installment_mode !== 'existing' || Boolean(data.installment_plan_id), {
+    message: 'Seleziona un piano rateale', path: ['installment_plan_id'],
+  })
+  .refine((data) => data.installment_mode === 'none' || Number.isInteger(Number(data.installment_number)) && Number(data.installment_number) > 0 && Number(data.installment_number) <= (data.installment_mode === 'new' ? Number(data.installment_total) : 360), {
+    message: 'Numero della rata non valido', path: ['installment_number'],
   })
   .refine((data) => data.type !== 'transfer' || Boolean(data.destination_account_id), {
     message: 'Seleziona il conto di destinazione',
@@ -116,6 +133,9 @@ const transactionSchema = z
 
 type TransactionForm = z.infer<typeof transactionSchema>
 type TypeFilter = 'all' | 'income' | 'expense' | 'transfer'
+
+type InstallmentPlan = { id: string; title: string; total_installments: number; created_at: string }
+type InstallmentPayment = { transaction_id: string; plan_id: string; installment_number: number }
 
 interface TransactionWithPeer extends Transaction {
   destination_account_id?: string
@@ -133,6 +153,11 @@ const defaultValues: TransactionForm = {
   category_id: '',
   notes: '',
   is_neutral: false,
+  installment_mode: 'none',
+  installment_plan_id: '',
+  installment_title: '',
+  installment_total: 4,
+  installment_number: 1,
 }
 
 function getInitialSearchParams() {
@@ -242,6 +267,8 @@ export default function TransactionsPage() {
   const { accounts, refetch: refetchAccounts } = useAccounts()
   const { categories, getCategoryTree } = useCategories()
   const [transactions, setTransactions] = useState<TransactionWithPeer[]>([])
+  const [installmentPlans, setInstallmentPlans] = useState<InstallmentPlan[]>([])
+  const [installmentPayments, setInstallmentPayments] = useState<InstallmentPayment[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedMonth, setSelectedMonth] = useState(() => initialDateRange.from ? new Date(`${initialDateRange.from}T00:00:00`) : new Date())
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(() => getInitialTypeFilter())
@@ -299,6 +326,19 @@ export default function TransactionsPage() {
   const watchedDescription = form.watch('description')
   const watchedDate = form.watch('date')
   const watchedCategory = form.watch('category_id')
+
+  const paymentByTransaction = useMemo(
+    () => new Map(installmentPayments.map((payment) => [payment.transaction_id, payment])),
+    [installmentPayments],
+  )
+  const planById = useMemo(() => new Map(installmentPlans.map((plan) => [plan.id, plan])), [installmentPlans])
+  const lastInstallmentByPlan = useMemo(() => {
+    const result = new Map<string, number>()
+    for (const payment of installmentPayments) {
+      result.set(payment.plan_id, Math.max(result.get(payment.plan_id) ?? 0, payment.installment_number))
+    }
+    return result
+  }, [installmentPayments])
 
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts])
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
@@ -378,6 +418,16 @@ export default function TransactionsPage() {
     setAutomationIgnored(false)
     setCreateOpen(true)
   }
+
+  const fetchInstallments = async () => {
+    const response = await fetch('/api/installments')
+    if (!response.ok) { toast.error('Impossibile caricare i piani rateali'); return }
+    const data = await response.json()
+    setInstallmentPlans(data.plans ?? [])
+    setInstallmentPayments(data.payments ?? [])
+  }
+
+  useEffect(() => { void fetchInstallments() }, [])
 
   const fetchTransactions = async () => {
     setLoading(true)
@@ -461,7 +511,24 @@ export default function TransactionsPage() {
   const onCreate: SubmitHandler<TransactionForm> = async (values) => {
     try {
       setBusy(true)
-      await transactionRequest('POST', buildTransactionPayload(values))
+      if (values.type === 'expense' && values.installment_mode !== 'none') {
+        const payload = buildTransactionPayload(values)
+        const response = await fetch('/api/installments', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...payload,
+            plan_id: values.installment_mode === 'existing' ? values.installment_plan_id : null,
+            title: values.installment_mode === 'new' ? values.installment_title?.trim() : undefined,
+            total_installments: values.installment_mode === 'new' ? Number(values.installment_total) : undefined,
+            installment_number: Number(values.installment_number),
+          }),
+        })
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error ?? 'Impossibile salvare la rata')
+        await fetchInstallments()
+      } else {
+        await transactionRequest('POST', buildTransactionPayload(values))
+      }
 
       toast.success('Transazione creata')
       form.reset(defaultValues)
@@ -500,6 +567,11 @@ export default function TransactionsPage() {
       category_id: transaction.category_id ?? '',
       notes: transaction.notes ?? '',
       is_neutral: transaction.is_neutral === true,
+      installment_mode: paymentByTransaction.has(transaction.id) ? 'existing' : 'none',
+      installment_plan_id: paymentByTransaction.get(transaction.id)?.plan_id ?? '',
+      installment_title: '',
+      installment_total: 4,
+      installment_number: paymentByTransaction.get(transaction.id)?.installment_number ?? 1,
     })
   }
 
@@ -512,6 +584,7 @@ export default function TransactionsPage() {
 
       toast.success('Transazione eliminata')
       setDeletingTransaction(null)
+      await fetchInstallments()
       await fetchTransactions()
       await refetchAccounts()
     } catch (error) {
@@ -523,15 +596,32 @@ export default function TransactionsPage() {
 
   const onEdit: SubmitHandler<TransactionForm> = async (values) => {
     if (!editingTransaction) return
-
     try {
       setBusy(true)
-      await transactionRequest('PATCH', {
-        ...buildTransactionPayload(values),
-        transaction_id: editingTransaction.id,
-        clear_category: values.type === 'transfer' || !values.category_id,
-      })
-
+      const payload = buildTransactionPayload(values)
+      if (values.installment_mode !== 'none' || paymentByTransaction.has(editingTransaction.id)) {
+        const response = await fetch('/api/installments', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...payload,
+            transaction_id: editingTransaction.id,
+            clear_category: values.type === 'transfer' || !values.category_id,
+            installment_mode: values.installment_mode,
+            plan_id: values.installment_mode === 'existing' ? values.installment_plan_id : null,
+            title: values.installment_mode === 'new' ? values.installment_title?.trim() : undefined,
+            total_installments: values.installment_mode === 'new' ? Number(values.installment_total) : undefined,
+            installment_number: values.installment_mode === 'none' ? undefined : Number(values.installment_number),
+          }),
+        })
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error ?? 'Impossibile aggiornare la rata')
+        await fetchInstallments()
+      } else {
+        await transactionRequest('PATCH', {
+          ...payload, transaction_id: editingTransaction.id,
+          clear_category: values.type === 'transfer' || !values.category_id,
+        })
+      }
       toast.success('Transazione aggiornata')
       setEditingTransaction(null)
       await fetchTransactions()
@@ -661,7 +751,10 @@ export default function TransactionsPage() {
           <button
             key={item.value}
             type="button"
-            onClick={() => targetForm.setValue('type', item.value as TransactionType, { shouldValidate: true })}
+            onClick={() => {
+              targetForm.setValue('type', item.value as TransactionType, { shouldValidate: true })
+              if (item.value !== 'expense') targetForm.setValue('installment_mode', 'none')
+            }}
             className={cn(
               'flex h-10 items-center justify-center gap-2 rounded-xl text-sm font-medium transition',
               currentType === item.value ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900',
@@ -787,6 +880,49 @@ export default function TransactionsPage() {
           </div>
         )}
       </div>
+
+      {selectedType === 'expense' && (
+        <div className="space-y-3 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
+          <Label>Pagamento rateale</Label>
+          <SelectField {...targetForm.register('installment_mode')} className="h-10">
+            <option value="none">Pagamento normale</option>
+            <option value="new">Prima registrazione di un piano</option>
+            <option value="existing">Rata di un piano esistente</option>
+          </SelectField>
+          {targetForm.watch('installment_mode') === 'new' && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><Label>Nome acquisto</Label><Input {...targetForm.register('installment_title')} placeholder="Es. Telefono" /></div>
+              <div><Label>Numero totale di rate</Label><Input type="number" min="2" max="360" {...targetForm.register('installment_total')} /></div>
+            </div>
+          )}
+          {targetForm.watch('installment_mode') === 'existing' && (
+            <div>
+              <Label>Piano rateale</Label>
+              <SelectField {...targetForm.register('installment_plan_id')} onChange={(event) => {
+                targetForm.setValue('installment_plan_id', event.target.value, { shouldValidate: true })
+                targetForm.setValue('installment_number', Math.min(360, (lastInstallmentByPlan.get(event.target.value) ?? 0) + 1))
+              }}>
+                <option value="">Seleziona piano</option>
+                {installmentPlans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>{plan.title} · {lastInstallmentByPlan.get(plan.id) ?? 0}/{plan.total_installments}</option>
+                ))}
+              </SelectField>
+            </div>
+          )}
+          {targetForm.watch('installment_mode') !== 'none' && (
+            <div>
+              <Label>Quale rata stai registrando?</Label>
+              <Input type="number" min="1"
+                max={targetForm.watch('installment_mode') === 'new' ? Number(targetForm.watch('installment_total')) || 360 : planById.get(targetForm.watch('installment_plan_id') ?? '')?.total_installments ?? 360}
+                {...targetForm.register('installment_number')} />
+              <p className="mt-1 text-xs text-slate-500">Solo le rate addebitate diventano movimenti. Puoi iniziare anche dalla 2ª o 3ª rata.</p>
+            </div>
+          )}
+          {targetForm.formState.errors.installment_number && <p className="text-xs text-red-600">{targetForm.formState.errors.installment_number.message}</p>}
+          {targetForm.formState.errors.installment_total && <p className="text-xs text-red-600">{targetForm.formState.errors.installment_total.message}</p>}
+          {targetForm.formState.errors.installment_plan_id && <p className="text-xs text-red-600">{targetForm.formState.errors.installment_plan_id.message}</p>}
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <Label className="text-slate-700">Note</Label>
@@ -1151,6 +1287,30 @@ export default function TransactionsPage() {
           </Card>
         </section>
 
+        {installmentPlans.some((plan) => (lastInstallmentByPlan.get(plan.id) ?? 0) < plan.total_installments) && (
+          <section className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-900">Acquisti a rate</h2>
+            <p className="mt-1 text-xs text-slate-500">Le rate future sono previste: solo i movimenti registrati aggiornano i saldi.</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {installmentPlans.filter((plan) => (lastInstallmentByPlan.get(plan.id) ?? 0) < plan.total_installments).map((plan) => {
+                const last = lastInstallmentByPlan.get(plan.id) ?? 0
+                return (
+                  <div key={plan.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{plan.title}</p>
+                      <p className="text-xs text-slate-500">Ultima rata {last} di {plan.total_installments} · {plan.total_installments - last} da pagare</p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => {
+                      form.reset({ ...defaultValues, installment_mode: 'existing', installment_plan_id: plan.id, installment_number: last + 1 })
+                      setCreateOpen(true)
+                    }}>Registra rata</Button>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         {neutralExpenses > 0 && (
           <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900">
             <p className="font-semibold">Spese anticipate e neutre nei risultati: {formatCurrency(neutralExpenses)}</p>
@@ -1218,6 +1378,11 @@ export default function TransactionsPage() {
                           <div className="min-w-0">
                             <p className="flex items-center gap-2 truncate text-sm font-semibold text-slate-950">
                               <span className="truncate">{transaction.description || (isTransfer ? 'Trasferimento' : 'Movimento')}</span>
+                              {paymentByTransaction.has(transaction.id) && (() => {
+                                const payment = paymentByTransaction.get(transaction.id)!
+                                const plan = planById.get(payment.plan_id)
+                                return plan ? <span className="shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">Rata {payment.installment_number}/{plan.total_installments}</span> : null
+                              })()}
                               {transaction.is_neutral && (
                                 <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                                   Neutro
@@ -1229,6 +1394,11 @@ export default function TransactionsPage() {
                                 ? `${account?.name ?? 'Conto'} → ${peerAccount?.name ?? 'Conto destinazione'}`
                                 : `${category?.name ?? 'Senza categoria'} · ${account?.name ?? 'Conto'}`} · {format(parseISO(transaction.date), 'dd/MM/yyyy')}
                             </p>
+                            {paymentByTransaction.has(transaction.id) && (() => {
+                              const payment = paymentByTransaction.get(transaction.id)!
+                              const plan = planById.get(payment.plan_id)
+                              return plan ? <p className="mt-0.5 text-xs text-indigo-600">{plan.title} · {Math.max(0, plan.total_installments - (lastInstallmentByPlan.get(plan.id) ?? 0))} rate rimanenti</p> : null
+                            })()}
                             {!isTransfer && parentCategory && (
                               <p className="mt-0.5 truncate text-xs text-slate-400">{parentCategory.name}</p>
                             )}
