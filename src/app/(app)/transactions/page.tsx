@@ -596,38 +596,34 @@ export default function TransactionsPage() {
 
   const onEdit: SubmitHandler<TransactionForm> = async (values) => {
     if (!editingTransaction) return
-
     try {
       setBusy(true)
-      await transactionRequest('PATCH', {
-        ...buildTransactionPayload(values),
-        transaction_id: editingTransaction.id,
-        clear_category: values.type === 'transfer' || !values.category_id,
-      })
-
-      if (values.type === 'expense' && values.installment_mode !== 'none') {
+      const payload = buildTransactionPayload(values)
+      if (values.installment_mode !== 'none' || paymentByTransaction.has(editingTransaction.id)) {
         const response = await fetch('/api/installments', {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            ...payload,
             transaction_id: editingTransaction.id,
+            clear_category: values.type === 'transfer' || !values.category_id,
+            installment_mode: values.installment_mode,
             plan_id: values.installment_mode === 'existing' ? values.installment_plan_id : null,
             title: values.installment_mode === 'new' ? values.installment_title?.trim() : undefined,
             total_installments: values.installment_mode === 'new' ? Number(values.installment_total) : undefined,
-            installment_number: Number(values.installment_number),
+            installment_number: values.installment_mode === 'none' ? undefined : Number(values.installment_number),
           }),
         })
         const result = await response.json()
-        if (!response.ok) throw new Error(result.error ?? 'Movimento salvato, ma rata non collegata')
-      } else if (paymentByTransaction.has(editingTransaction.id)) {
-        const response = await fetch('/api/installments', {
-          method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transaction_id: editingTransaction.id }),
+        if (!response.ok) throw new Error(result.error ?? 'Impossibile aggiornare la rata')
+        await fetchInstallments()
+      } else {
+        await transactionRequest('PATCH', {
+          ...payload, transaction_id: editingTransaction.id,
+          clear_category: values.type === 'transfer' || !values.category_id,
         })
-        if (!response.ok) throw new Error('Movimento salvato, ma rata non scollegata')
       }
       toast.success('Transazione aggiornata')
       setEditingTransaction(null)
-      await fetchInstallments()
       await fetchTransactions()
       await refetchAccounts()
     } catch (error) {
