@@ -23,7 +23,28 @@ const createSchema = planFields.and(z.object({
   is_neutral: z.boolean().optional(),
 }))
 
-const linkSchema = planFields.and(z.object({ transaction_id: id }))
+const editSchema = z.object({
+  transaction_id: id,
+  account_id: id,
+  type: z.enum(['income', 'expense', 'transfer']),
+  amount: z.number().finite().positive(),
+  date: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/),
+  description: z.string().trim().min(1),
+  category_id: id.nullable().optional(),
+  notes: z.string().nullable().optional(),
+  destination_account_id: id.nullable().optional(),
+  clear_category: z.boolean().optional(),
+  is_neutral: z.boolean().optional(),
+  installment_mode: z.enum(['none', 'new', 'existing']),
+  plan_id: id.nullable().optional(),
+  title: z.string().trim().min(1).max(120).optional(),
+  total_installments: z.number().int().min(2).max(360).optional(),
+  installment_number: z.number().int().min(1).max(360).optional(),
+}).refine((d) => d.installment_mode === 'none' ||
+  d.type === 'expense' && Boolean(d.installment_number) &&
+  (d.installment_mode === 'existing' ? Boolean(d.plan_id) : Boolean(d.title && d.total_installments)), {
+  message: 'Dati del piano rateale non validi',
+})
 const unlinkSchema = z.object({ transaction_id: id })
 
 async function session() {
@@ -58,7 +79,11 @@ export async function GET() {
       .eq('user_id', user.id),
   ])
   if (plans.error || payments.error) return failed('Impossibile caricare le rate', 500)
-  return NextResponse.json({ plans: plans.data ?? [], payments: payments.data ?? [] })
+  const activeIds = new Set((payments.data ?? []).map((payment) => payment.plan_id))
+  return NextResponse.json({
+    plans: (plans.data ?? []).filter((plan) => activeIds.has(plan.id)),
+    payments: payments.data ?? [],
+  })
 }
 
 export async function POST(request: Request) {
@@ -86,20 +111,30 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const { supabase, user } = await session()
   if (!user) return failed('Non autenticato', 401)
-  const parsed = linkSchema.safeParse(await request.json().catch(() => null))
-  if (!parsed.success) return failed('Dati del piano rateale non validi')
+  const parsed = editSchema.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) return failed('Dati del movimento rateale non validi')
   const d = parsed.data
-  const { data: transaction, error: readError } = await supabase.from('transactions')
-    .select('account_id,type').eq('id', d.transaction_id).eq('user_id', user.id).maybeSingle()
-  if (readError || !transaction || transaction.type !== 'expense') return failed('Spesa non trovata', 404)
-  if (!(await allowedAccount(supabase, user, transaction.account_id))) return failed('Accesso non autorizzato', 403)
-  const { error } = await supabase.rpc('link_installment_payment', {
-    p_transaction_id: d.transaction_id, p_plan_id: d.plan_id ?? null,
-    p_title: d.title ?? null, p_total_installments: d.total_installments ?? null,
-    p_installment_number: d.installment_number,
+  const { data: current, error: readError } = await supabase.from('transactions')
+    .select('account_id').eq('id', d.transaction_id).eq('user_id', user.id).maybeSingle()
+  if (readError || !current) return failed('Movimento non trovato', 404)
+  if (!(await allowedAccount(supabase, user, current.account_id)) ||
+      !(await allowedAccount(supabase, user, d.account_id)) ||
+      (d.destination_account_id && !(await allowedAccount(supabase, user, d.destination_account_id))))
+    return failed('Accesso non autorizzato', 403)
+  const { data, error } = await supabase.rpc('update_installment_transaction', {
+    p_transaction_id: d.transaction_id, p_account_id: d.account_id,
+    p_type: d.type, p_amount: d.amount, p_date: d.date, p_description: d.description,
+    p_category_id: d.category_id ?? null, p_notes: d.notes ?? null,
+    p_destination_account_id: d.destination_account_id ?? null,
+    p_clear_category: d.clear_category ?? false, p_is_neutral: d.is_neutral ?? false,
+    p_plan_id: d.installment_mode === 'existing' ? d.plan_id : null,
+    p_title: d.installment_mode === 'new' ? d.title : null,
+    p_total_installments: d.installment_mode === 'new' ? d.total_installments : null,
+    p_installment_number: d.installment_mode === 'none' ? null : d.installment_number,
+    p_unlink: d.installment_mode === 'none',
   })
-  if (error) return failed(error.code === '23505' ? 'Questa rata è già registrata nel piano' : 'Impossibile collegare la rata', error.code === '23505' ? 409 : 400)
-  return NextResponse.json({ success: true })
+  if (error) return failed(error.code === '23505' ? 'Questa rata è già registrata nel piano' : 'Impossibile aggiornare il movimento rateale', error.code === '23505' ? 409 : 400)
+  return NextResponse.json({ data })
 }
 
 export async function DELETE(request: Request) {
