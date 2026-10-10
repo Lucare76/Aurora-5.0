@@ -175,3 +175,48 @@ end;
 $$;
 revoke all on function public.update_installment_transaction(uuid,uuid,text,numeric,date,text,uuid,text,uuid,boolean,boolean,uuid,text,integer,integer,boolean) from public, anon;
 grant execute on function public.update_installment_transaction(uuid,uuid,text,numeric,date,text,uuid,text,uuid,boolean,boolean,uuid,text,integer,integer,boolean) to authenticated;
+
+-- Extend the existing atomic restore with the installment metadata.
+-- The original restore builds _txn_map (source ID -> restored ID) ON COMMIT DROP.
+create or replace function public.restore_aurora_backup_with_installments(
+  p_token_id uuid, p_token text, p_backup jsonb
+) returns jsonb language plpgsql security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_result jsonb;
+  v_plans integer := jsonb_array_length(coalesce(p_backup #> '{data,installmentPlans}', '[]'::jsonb));
+  v_payments integer := jsonb_array_length(coalesce(p_backup #> '{data,installmentPayments}', '[]'::jsonb));
+  v_inserted integer;
+begin
+  if v_uid is null then raise exception 'UNAUTHENTICATED'; end if;
+  -- If any metadata fails validation, the base restore and token use roll back too.
+  v_result := public.restore_aurora_backup_v1_empty_account(p_token_id, p_token, p_backup);
+  create temporary table _installment_plan_map (
+    src_id uuid primary key, dst_id uuid not null
+  ) on commit drop;
+  insert into _installment_plan_map(src_id,dst_id)
+    select x.id, gen_random_uuid()
+    from jsonb_to_recordset(coalesce(p_backup #> '{data,installmentPlans}', '[]'::jsonb)) x(id uuid);
+  insert into public.installment_plans(id,user_id,title,total_installments,created_at)
+    select m.dst_id,v_uid,x.title,x.total_installments,coalesce(x.created_at,now())
+    from jsonb_to_recordset(coalesce(p_backup #> '{data,installmentPlans}', '[]'::jsonb))
+      x(id uuid,title text,total_installments integer,created_at timestamptz)
+    join _installment_plan_map m on m.src_id=x.id;
+  get diagnostics v_inserted = row_count;
+  if v_inserted <> v_plans then raise exception 'INVALID_BACKUP'; end if;
+  insert into public.installment_payments(transaction_id,plan_id,user_id,installment_number)
+    select tm.dst_id,pm.dst_id,v_uid,x.installment_number
+    from jsonb_to_recordset(coalesce(p_backup #> '{data,installmentPayments}', '[]'::jsonb))
+      x(transaction_id uuid,plan_id uuid,installment_number integer)
+    join _txn_map tm on tm.src_id=x.transaction_id
+    join _installment_plan_map pm on pm.src_id=x.plan_id
+    join public.transactions t on t.id=tm.dst_id and t.user_id=v_uid and t.type='expense';
+  get diagnostics v_inserted = row_count;
+  if v_inserted <> v_payments then raise exception 'INVALID_BACKUP'; end if;
+  return v_result;
+end;
+$$;
+revoke all on function public.restore_aurora_backup_with_installments(uuid,text,jsonb) from public, anon;
+grant execute on function public.restore_aurora_backup_with_installments(uuid,text,jsonb) to authenticated;
