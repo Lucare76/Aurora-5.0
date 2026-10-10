@@ -121,3 +121,57 @@ end;
 $$;
 revoke all on function public.unlink_installment_payment(uuid) from public, anon;
 grant execute on function public.unlink_installment_payment(uuid) to authenticated;
+
+-- Keep links consistent when a normal transaction edit changes an expense into another type.
+create or replace function public.remove_nonexpense_installment_link()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.type <> 'expense' or new.transfer_peer_id is not null then
+    delete from public.installment_payments where transaction_id = new.id;
+  end if;
+  return new;
+end;
+$$;
+create trigger remove_nonexpense_installment_link
+  after update of type, transfer_peer_id on public.transactions
+  for each row execute function public.remove_nonexpense_installment_link();
+revoke all on function public.remove_nonexpense_installment_link() from public, anon, authenticated;
+
+create or replace function public.update_installment_transaction(
+  p_transaction_id uuid,
+  p_account_id uuid,
+  p_type text,
+  p_amount numeric,
+  p_date date,
+  p_description text,
+  p_category_id uuid default null,
+  p_notes text default null,
+  p_destination_account_id uuid default null,
+  p_clear_category boolean default false,
+  p_is_neutral boolean default false,
+  p_plan_id uuid default null,
+  p_title text default null,
+  p_total_installments integer default null,
+  p_installment_number integer default null,
+  p_unlink boolean default false
+) returns jsonb language plpgsql security invoker set search_path = public as $$
+declare
+  v_tx jsonb;
+begin
+  v_tx := public.update_transaction_atomic(
+    p_transaction_id, p_account_id, p_type, p_amount, p_date,
+    p_description, p_category_id, p_notes, p_destination_account_id,
+    p_clear_category, p_is_neutral
+  );
+  if p_unlink or p_type <> 'expense' then
+    perform public.unlink_installment_payment(p_transaction_id);
+  else
+    perform public.link_installment_payment(
+      p_transaction_id, p_plan_id, p_title, p_total_installments, p_installment_number
+    );
+  end if;
+  return v_tx;
+end;
+$$;
+revoke all on function public.update_installment_transaction(uuid,uuid,text,numeric,date,text,uuid,text,uuid,boolean,boolean,uuid,text,integer,integer,boolean) from public, anon;
+grant execute on function public.update_installment_transaction(uuid,uuid,text,numeric,date,text,uuid,text,uuid,boolean,boolean,uuid,text,integer,integer,boolean) to authenticated;
