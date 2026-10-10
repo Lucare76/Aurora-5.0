@@ -754,7 +754,7 @@ export default function TransactionsPage() {
             onClick={() => {
               targetForm.setValue('type', item.value as TransactionType, { shouldValidate: true })
               if (item.value !== 'expense') targetForm.setValue('installment_mode', 'none')
-            }
+            }}
             className={cn(
               'flex h-10 items-center justify-center gap-2 rounded-xl text-sm font-medium transition',
               currentType === item.value ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900',
