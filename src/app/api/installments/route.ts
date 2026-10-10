@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
 
+export const dynamic = 'force-dynamic'
+
 const id = z.string().uuid()
 const planFields = z.object({
   plan_id: id.nullable().optional(),
