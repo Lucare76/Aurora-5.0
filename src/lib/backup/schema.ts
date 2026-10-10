@@ -510,6 +510,13 @@ export const auroraBackupV1Schema = z.object({
     leaveEntries: collection(leaveEntryBackupSchema).optional(),
     personalDeadlines: collection(personalDeadlineBackupSchema).optional(),
     personalTimelineEvents: collection(personalTimelineEventBackupSchema).optional(),
+    installmentPlans: collection(z.object({
+      id: uuid, title: shortString.min(1), total_installments: z.number().int().min(2).max(360),
+      created_at: maybeTimestamp,
+    }).passthrough()).optional(),
+    installmentPayments: collection(z.object({
+      transaction_id: uuid, plan_id: uuid, installment_number: z.number().int().min(1).max(360),
+    }).passthrough()).optional(),
   }).passthrough(),
   integrity: z.object({
     recordCounts: z.record(z.string(), z.number().int().min(0)),
