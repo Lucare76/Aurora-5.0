@@ -1287,6 +1287,30 @@ export default function TransactionsPage() {
           </Card>
         </section>
 
+        {installmentPlans.some((plan) => (lastInstallmentByPlan.get(plan.id) ?? 0) < plan.total_installments) && (
+          <section className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-900">Acquisti a rate</h2>
+            <p className="mt-1 text-xs text-slate-500">Le rate future sono previste: solo i movimenti registrati aggiornano i saldi.</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {installmentPlans.filter((plan) => (lastInstallmentByPlan.get(plan.id) ?? 0) < plan.total_installments).map((plan) => {
+                const last = lastInstallmentByPlan.get(plan.id) ?? 0
+                return (
+                  <div key={plan.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{plan.title}</p>
+                      <p className="text-xs text-slate-500">Ultima rata {last} di {plan.total_installments} · {plan.total_installments - last} da pagare</p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => {
+                      form.reset({ ...defaultValues, installment_mode: 'existing', installment_plan_id: plan.id, installment_number: last + 1 })
+                      setCreateOpen(true)
+                    }}>Registra rata</Button>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         {neutralExpenses > 0 && (
           <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900">
             <p className="font-semibold">Spese anticipate e neutre nei risultati: {formatCurrency(neutralExpenses)}</p>
