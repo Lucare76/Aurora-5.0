@@ -118,7 +118,7 @@ describe('backup restore prepare/restore API routes', () => {
 
     expect(response.status).toBe(200)
     expect(body.status).toBe('completed')
-    expect(rpcs).toEqual(['restore_aurora_backup_v1_empty_account'])
+    expect(rpcs).toEqual(['restore_aurora_backup_with_installments'])
     expect(writes).toEqual([])
   })
 
@@ -146,7 +146,7 @@ describe('backup restore prepare/restore API routes', () => {
 
     expect(response.status).toBe(200)
     expect(body.status).toBe('completed')
-    expect(rpcs).toEqual(['restore_aurora_backup_v1_empty_account'])
+    expect(rpcs).toEqual(['restore_aurora_backup_with_installments'])
   })
 
   it('restore restituisce reconciledCategories nel risultato', async () => {
