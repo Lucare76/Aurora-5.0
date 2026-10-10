@@ -377,12 +377,10 @@ export async function fetchUserBackupData(
       .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<PersonalTimelineEvent>>,
     (supabase as unknown as SupabaseClient)
       .from('installment_plans').select('id,title,total_installments,created_at')
-      .eq('user_id', user.id).order('created_at', { ascending: true })
-      as unknown as Promise<QueryResult<BackupInstallmentPlan>>,
+      .eq('user_id', user.id).order('created_at', { ascending: true }) as unknown as Promise<QueryResult<BackupInstallmentPlan>>,
     (supabase as unknown as SupabaseClient)
       .from('installment_payments').select('transaction_id,plan_id,installment_number')
-      .eq('user_id', user.id)
-      as unknown as Promise<QueryResult<BackupInstallmentPayment>>,
+      .eq('user_id', user.id) as unknown as Promise<QueryResult<BackupInstallmentPayment>>,
   ])
 
   assertNoQueryError('profiles', profile.error)
