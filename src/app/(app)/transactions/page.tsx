@@ -886,7 +886,7 @@ export default function TransactionsPage() {
           <Label>Pagamento rateale</Label>
           <SelectField {...targetForm.register('installment_mode')} className="h-10">
             <option value="none">Pagamento normale</option>
-            <option value="new">Prima registrazione di un piano</option>
+            <option value="new">Nuovo piano · imposta il numero totale di rate</option>
             <option value="existing">Rata di un piano esistente</option>
           </SelectField>
           {targetForm.watch('installment_mode') === 'new' && (
@@ -1453,7 +1453,7 @@ export default function TransactionsPage() {
       </div>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-xl border-[#e5e7f0] bg-white text-slate-950">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-lg overflow-y-auto overscroll-contain border-[#e5e7f0] bg-white p-4 text-slate-950 sm:p-6">
           <DialogHeader>
             <DialogTitle>Nuovo movimento</DialogTitle>
           </DialogHeader>
@@ -1462,7 +1462,7 @@ export default function TransactionsPage() {
       </Dialog>
 
       <Dialog open={Boolean(editingTransaction)} onOpenChange={(open) => !open && setEditingTransaction(null)}>
-        <DialogContent className="max-w-xl border-[#e5e7f0] bg-white text-slate-950">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-lg overflow-y-auto overscroll-contain border-[#e5e7f0] bg-white p-4 text-slate-950 sm:p-6">
           <DialogHeader>
             <DialogTitle>Modifica movimento</DialogTitle>
           </DialogHeader>
