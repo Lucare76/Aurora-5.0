@@ -1,5 +1,6 @@
+'use client'
+
 import { DateInput } from '@/components/ui/date-input'
-﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
