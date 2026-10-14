@@ -454,7 +454,7 @@ export default function AffordabilityPage() {
                 <Input id="totalPrice" value={form.totalPrice} onChange={set('totalPrice')} type="number" min="0.01" step="0.01" placeholder="0,00" required />
               </FieldGroup>
               <FieldGroup label="Data prevista *" htmlFor="purchaseDate">
-                <DateInput id="purchaseDate" value={form.purchaseDate} onChange={set('purchaseDate')} required />
+                <DateInput id="purchaseDate" value={form.purchaseDate} onChange={(event) => set('purchaseDate')(event.target.value)} required />
               </FieldGroup>
             </div>
 
@@ -503,7 +503,7 @@ export default function AffordabilityPage() {
                     <Input id="numberOfInstallments" value={form.numberOfInstallments} onChange={set('numberOfInstallments')} type="number" min="1" max="360" step="1" placeholder="12" />
                   </FieldGroup>
                   <FieldGroup label="Prima rata" htmlFor="firstInstallmentDate">
-                    <DateInput id="firstInstallmentDate" value={form.firstInstallmentDate} onChange={set('firstInstallmentDate')} />
+                    <DateInput id="firstInstallmentDate" value={form.firstInstallmentDate} onChange={(event) => set('firstInstallmentDate')(event.target.value)} />
                   </FieldGroup>
                 </div>
                 <FieldGroup label="Maxi-rata finale (€)" htmlFor="balloonPayment">

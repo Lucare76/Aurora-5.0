@@ -586,7 +586,7 @@ export default function CarEvaluation() {
             </div>
             <div>
               <Label htmlFor="purchaseDate">Data acquisto *</Label>
-              <DateInput id="purchaseDate" value={form.purchaseDate} onChange={set('purchaseDate')} />
+              <DateInput id="purchaseDate" value={form.purchaseDate} onChange={(event) => set('purchaseDate')(event.target.value)} />
             </div>
           </FieldGrid>
         </Section>
@@ -645,7 +645,7 @@ export default function CarEvaluation() {
               </div>
               <div>
                 <Label htmlFor="firstInstallmentDate">Prima rata</Label>
-                <DateInput id="firstInstallmentDate" value={form.firstInstallmentDate} onChange={set('firstInstallmentDate')} />
+                <DateInput id="firstInstallmentDate" value={form.firstInstallmentDate} onChange={(event) => set('firstInstallmentDate')(event.target.value)} />
               </div>
               <div>
                 <Label htmlFor="financingFees">Spese finanziamento (€)</Label>
