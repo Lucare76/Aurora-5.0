@@ -1,5 +1,6 @@
 'use client'
 
+import { FormDateInput } from '@/components/ui/date-input'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { Resolver, SubmitHandler } from 'react-hook-form'
@@ -374,11 +375,11 @@ export default function RecurringPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label className="text-slate-700">Data inizio</Label>
-                <Input type="date" {...form.register('start_date')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" />
+                <FormDateInput control={form.control} name="start_date" className="h-11 border-[#e5e7f0] bg-white text-slate-950" />
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-700">Data fine opzionale</Label>
-                <Input type="date" {...form.register('end_date')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" />
+                <FormDateInput control={form.control} name="end_date" className="h-11 border-[#e5e7f0] bg-white text-slate-950" />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">

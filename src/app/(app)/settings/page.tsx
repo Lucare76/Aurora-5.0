@@ -1,4 +1,6 @@
-﻿'use client'
+'use client'
+
+import { DateInput } from '@/components/ui/date-input'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -18,7 +20,7 @@ import { PwaInstallCard } from '@/components/pwa-install-card'
 import { downloadTransactionsCsv } from '@/lib/transactions/export-client'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
-import { cn } from '@/lib/utils'
+import { cn, formatDateTime } from '@/lib/utils'
 
 const profileSchema = z.object({
   display_name: z.string().trim().min(1, 'Il nome è obbligatorio'),
@@ -698,7 +700,7 @@ export default function SettingsPage() {
               ) : null}
               {aiSettings.lastCheckedAt ? (
                 <span className="text-xs text-slate-500">
-                  Ultima verifica: {new Date(aiSettings.lastCheckedAt).toLocaleString('it-IT')}
+                  Ultima verifica: {formatDateTime(aiSettings.lastCheckedAt)}
                 </span>
               ) : null}
             </div>
@@ -776,7 +778,7 @@ export default function SettingsPage() {
                   <AiUsageMetric label="Token output" value={formatCount(aiUsage.currentMonth.outputTokens)} />
                   <AiUsageMetric label="Token totali" value={formatCount(aiUsage.currentMonth.totalTokens)} />
                   <AiUsageMetric label="Costo stimato" value={formatEstimatedUsd(aiUsage.currentMonth.estimatedCost)} />
-                  <AiUsageMetric label="Ultima richiesta" value={aiUsage.currentMonth.lastRequestAt ? new Date(aiUsage.currentMonth.lastRequestAt).toLocaleString('it-IT') : 'Nessuna'} />
+                  <AiUsageMetric label="Ultima richiesta" value={aiUsage.currentMonth.lastRequestAt ? formatDateTime(aiUsage.currentMonth.lastRequestAt) : 'Nessuna'} />
                 </div>
               </div>
 
@@ -802,8 +804,8 @@ export default function SettingsPage() {
 
         <SectionCard title="Dati" description="Esporta i singoli movimenti nell'intervallo scelto, inclusi i giroconti." icon={Download}>
           <div className="mb-3 grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1"><Label htmlFor="export-from">Da (facoltativo)</Label><Input id="export-from" type="date" value={exportFrom} onChange={(event) => setExportFrom(event.target.value)} /></div>
-            <div className="space-y-1"><Label htmlFor="export-to">A (facoltativo)</Label><Input id="export-to" type="date" value={exportTo} onChange={(event) => setExportTo(event.target.value)} /></div>
+            <div className="space-y-1"><Label htmlFor="export-from">Da (facoltativo)</Label><DateInput id="export-from" value={exportFrom} onChange={(event) => setExportFrom(event.target.value)} /></div>
+            <div className="space-y-1"><Label htmlFor="export-to">A (facoltativo)</Label><DateInput id="export-to" value={exportTo} onChange={(event) => setExportTo(event.target.value)} /></div>
           </div>
           <Button variant="outline" className="gap-2" onClick={exportTransactions} disabled={exportBusy}>
             <Download className="h-4 w-4" />

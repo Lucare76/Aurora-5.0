@@ -1,3 +1,4 @@
+import { formatDate } from '@/lib/utils'
 import { MONTH_LABELS_IT } from './constants'
 
 export function clamp(value: number, min = 0, max = 100): number {
@@ -71,7 +72,7 @@ export function previousComparablePeriod(period: { from: string; to: string }): 
     from: dateKey(prevStart),
     to: dateKey(prevEnd),
     key,
-    label: `${dateKey(prevStart)} - ${dateKey(prevEnd)}`,
+    label: `${formatDate(dateKey(prevStart))} - ${formatDate(dateKey(prevEnd))}`,
     days,
     isCurrentPeriod: false,
   }

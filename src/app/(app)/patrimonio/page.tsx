@@ -1,5 +1,6 @@
 'use client'
 
+import { formatDate, formatDateTime } from '@/lib/utils'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BarChart3, CheckCircle2, Clock3, Landmark, Link2, Pencil, Plus, RefreshCw, Save, Trash2, TrendingDown, TrendingUp, Unlink, Upload, Wallet } from 'lucide-react'
 import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts'
@@ -203,7 +204,7 @@ function MiniHistoryChart({ points, id, height = 112 }: { points: HistoryPoint[]
           <Tooltip
             formatter={(value) => [formatMoney(Number(value)), 'Valore']}
             labelFormatter={(_, payload) => payload[0]?.payload?.observedAt
-              ? new Date(payload[0].payload.observedAt).toLocaleDateString('it-IT')
+              ? formatDate(payload[0].payload.observedAt)
               : ''}
             contentStyle={{ borderRadius: 12, borderColor: '#e2e8f0', fontSize: 12 }}
           />
@@ -638,8 +639,8 @@ export default function PatrimonioPage() {
                     <p className="text-sm font-semibold text-slate-950">{source.label}</p>
                     <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${needsAttention ? 'bg-amber-100 text-amber-800' : 'bg-white text-slate-600'}`}>{needsAttention ? 'Da controllare' : `${source.count} posizioni`}</span>
                   </div>
-                  <p className="mt-2 text-xs text-slate-600">{source.count} posizioni · ultimo valore {source.latest ? new Date(source.latest).toLocaleString('it-IT') : 'non disponibile'}</p>
-                  {source.key === 'SCALABLE' && <p className="mt-1 text-xs text-slate-600">Ultima sincronizzazione: {syncDate ? new Date(syncDate).toLocaleString('it-IT') : 'mai registrata'}{scalableStatus === null ? ' · stato collegamento non disponibile' : !scalableStatus.connected ? ' · collegamento assente' : scalableStatus.connection?.last_error ? ' · ultimo tentativo non riuscito' : ''}</p>}
+                  <p className="mt-2 text-xs text-slate-600">{source.count} posizioni · ultimo valore {source.latest ? formatDateTime(source.latest) : 'non disponibile'}</p>
+                  {source.key === 'SCALABLE' && <p className="mt-1 text-xs text-slate-600">Ultima sincronizzazione: {syncDate ? formatDateTime(syncDate) : 'mai registrata'}{scalableStatus === null ? ' · stato collegamento non disponibile' : !scalableStatus.connected ? ' · collegamento assente' : scalableStatus.connection?.last_error ? ' · ultimo tentativo non riuscito' : ''}</p>}
                   {source.overdue.length > 0 && <p className="mt-2 text-xs font-medium text-amber-800">{source.overdue.length} valori da verificare (oltre {source.maxAgeDays} giorni): {source.overdue.map(({ asset }) => asset.name).join(', ')}</p>}
                 </div>
               )
@@ -744,7 +745,7 @@ export default function PatrimonioPage() {
                   Aurora sincronizza Scalable direttamente in sola lettura. Per il primo collegamento serve una breve autorizzazione locale, perché Scalable non accetta callback web generiche per questa integrazione.
                 </p>
                 {scalableStatus?.connection?.last_synced_at && (
-                  <p className="mt-2 text-xs text-slate-400">Ultima sincronizzazione: {new Date(scalableStatus.connection.last_synced_at).toLocaleString('it-IT')}</p>
+                  <p className="mt-2 text-xs text-slate-400">Ultima sincronizzazione: {formatDateTime(scalableStatus.connection.last_synced_at)}</p>
                 )}
                 {scalableStatus?.connection?.last_error && (
                   <p className="mt-2 text-xs font-medium text-red-600">Ultimo errore: {scalableStatus.connection.last_error}</p>
@@ -973,7 +974,7 @@ export default function PatrimonioPage() {
                     </div>
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
                       <span>{linkedBalance != null ? 'Confronto con saldo conto Aurora' : pct == null ? 'Rendimento n/d' : `Rendimento ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`}</span>
-                      <span>Aggiornato {new Date(asset.observed_at).toLocaleDateString('it-IT')}</span>
+                      <span>Aggiornato {formatDate(asset.observed_at)}</span>
                     </div>
                     {!asset.include_in_net_worth && <p className="mt-2 text-xs font-semibold text-amber-700">Escluso dal patrimonio totale per evitare doppio conteggio.</p>}
                     <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 min-[360px]:flex-row">

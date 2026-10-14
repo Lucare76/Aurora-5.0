@@ -1,5 +1,6 @@
 'use client'
 
+import { DateInput } from '@/components/ui/date-input'
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -415,8 +416,8 @@ function ReportsPageContent() {
             </FilterSelect>
             {customRange && (
               <>
-                <input type="date" value={params.get('from') ?? ''} onChange={(event) => setParam('from', event.target.value)} className="h-10 rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100" aria-label="Data iniziale" />
-                <input type="date" value={params.get('to') ?? ''} onChange={(event) => setParam('to', event.target.value)} className="h-10 rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100" aria-label="Data finale" />
+                <DateInput value={params.get('from') ?? ''} onChange={(event) => setParam('from', event.target.value)} className="h-10 rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100" aria-label="Data iniziale" />
+                <DateInput value={params.get('to') ?? ''} onChange={(event) => setParam('to', event.target.value)} className="h-10 rounded-xl border border-[#e5e7f0] bg-white px-3 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100" aria-label="Data finale" />
               </>
             )}
             {showTypeFilter && (

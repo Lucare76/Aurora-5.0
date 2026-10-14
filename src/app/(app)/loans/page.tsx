@@ -1,5 +1,6 @@
 'use client'
 
+import { FormDateInput } from '@/components/ui/date-input'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { Resolver, SubmitHandler } from 'react-hook-form'
@@ -310,7 +311,7 @@ export default function LoansPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2"><Label>Importo</Label><Input type="number" step="0.01" {...loanForm.register('amount')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" /></div>
-              <div className="space-y-2"><Label>Data scadenza opzionale</Label><Input type="date" {...loanForm.register('due_date')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" /></div>
+              <div className="space-y-2"><Label>Data scadenza opzionale</Label><FormDateInput control={loanForm.control} name="due_date" className="h-11 border-[#e5e7f0] bg-white text-slate-950" /></div>
             </div>
             <div className="space-y-2"><Label>Descrizione</Label><Input {...loanForm.register('description')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" /></div>
             <Button type="submit" className="h-12 w-full" disabled={busy}>{busy ? 'Salvataggio...' : 'Salva prestito'}</Button>
@@ -324,7 +325,7 @@ export default function LoansPage() {
           <form onSubmit={paymentForm.handleSubmit(onPayment)} className="mt-6 space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2"><Label>Importo parziale</Label><Input type="number" step="0.01" {...paymentForm.register('amount')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" /></div>
-              <div className="space-y-2"><Label>Data</Label><Input type="date" {...paymentForm.register('paid_at')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" /></div>
+              <div className="space-y-2"><Label>Data</Label><FormDateInput control={paymentForm.control} name="paid_at" className="h-11 border-[#e5e7f0] bg-white text-slate-950" /></div>
             </div>
             <div className="space-y-2"><Label>Note</Label><Input {...paymentForm.register('notes')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" /></div>
             <Button type="submit" className="h-12 w-full" disabled={busy}>{busy ? 'Salvataggio...' : 'Registra pagamento'}</Button>

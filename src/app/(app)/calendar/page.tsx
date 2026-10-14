@@ -29,7 +29,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import type { CalendarDay, FinancialCalendarEvent, FinancialCalendarPayload } from '@/lib/financial-calendar/types'
 import {
   calendarDayAriaLabel,
@@ -213,12 +213,7 @@ function CalendarDayCell({
 }
 
 function AgendaDayCard({ day }: { day: CalendarDay }) {
-  const label = new Date(`${day.date}T00:00:00`).toLocaleDateString('it-IT', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
+  const label = formatDate(day.date)
   return (
     <article className="rounded-3xl border border-[#e5e7f0] bg-white p-4 shadow-sm" data-agenda-day-card>
       <div className="flex items-start justify-between gap-3">
@@ -296,7 +291,7 @@ function SelectedDayPanel({ selectedDay }: { selectedDay: CalendarDay | null }) 
       <CardHeader>
         <CardTitle className="text-lg">Dettaglio giorno</CardTitle>
         <p className="text-sm text-slate-500">
-          {new Date(`${selectedDay.date}T00:00:00`).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          {formatDate(selectedDay.date)}
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

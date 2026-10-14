@@ -1,5 +1,6 @@
 'use client'
 
+import { DateInput } from '@/components/ui/date-input'
 import { useState } from 'react'
 import { AlertCircle, AlertTriangle, ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Info, Loader2, Plane, RefreshCw, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -328,9 +329,9 @@ export default function TravelEvaluation() {
             <div><Label htmlFor="travelers">Viaggiatori *</Label><Input id="travelers" value={form.travelers} onChange={set('travelers')} type="number" min="1" max="100" /></div>
             <div><Label htmlFor="adults">Adulti</Label><Input id="adults" value={form.adults} onChange={set('adults')} type="number" min="0" /></div>
             <div><Label htmlFor="children">Bambini</Label><Input id="children" value={form.children} onChange={set('children')} type="number" min="0" /></div>
-            <div><Label htmlFor="bookingDate">Data prenotazione</Label><Input id="bookingDate" value={form.bookingDate} onChange={set('bookingDate')} type="date" /></div>
-            <div><Label htmlFor="departureDate">Partenza *</Label><Input id="departureDate" value={form.departureDate} onChange={set('departureDate')} type="date" /></div>
-            <div><Label htmlFor="returnDate">Rientro *</Label><Input id="returnDate" value={form.returnDate} onChange={set('returnDate')} type="date" /></div>
+            <div><Label htmlFor="bookingDate">Data prenotazione</Label><DateInput id="bookingDate" value={form.bookingDate} onChange={(event) => set('bookingDate')(event.target.value)} /></div>
+            <div><Label htmlFor="departureDate">Partenza *</Label><DateInput id="departureDate" value={form.departureDate} onChange={(event) => set('departureDate')(event.target.value)} /></div>
+            <div><Label htmlFor="returnDate">Rientro *</Label><DateInput id="returnDate" value={form.returnDate} onChange={(event) => set('returnDate')(event.target.value)} /></div>
           </FieldGrid>
         </Section>
         <Section title="2. Trasporti">
@@ -356,9 +357,9 @@ export default function TravelEvaluation() {
         <Section title="5. Calendario pagamenti e prudenza">
           <FieldGrid>
             <div><Label htmlFor="payment1Amount">Acconto (€)</Label><Input id="payment1Amount" value={form.payment1Amount} onChange={set('payment1Amount')} type="number" min="0" /></div>
-            <div><Label htmlFor="payment1Date">Data acconto</Label><Input id="payment1Date" value={form.payment1Date} onChange={set('payment1Date')} type="date" /></div>
+            <div><Label htmlFor="payment1Date">Data acconto</Label><DateInput id="payment1Date" value={form.payment1Date} onChange={(event) => set('payment1Date')(event.target.value)} /></div>
             <div><Label htmlFor="payment2Amount">Saldo (€)</Label><Input id="payment2Amount" value={form.payment2Amount} onChange={set('payment2Amount')} type="number" min="0" /></div>
-            <div><Label htmlFor="payment2Date">Data saldo</Label><Input id="payment2Date" value={form.payment2Date} onChange={set('payment2Date')} type="date" /></div>
+            <div><Label htmlFor="payment2Date">Data saldo</Label><DateInput id="payment2Date" value={form.payment2Date} onChange={(event) => set('payment2Date')(event.target.value)} /></div>
             <div><Label htmlFor="currentMonthlySaving">Accantonamento già previsto (€ / mese)</Label><Input id="currentMonthlySaving" value={form.currentMonthlySaving} onChange={set('currentMonthlySaving')} type="number" min="0" /></div>
             <div><Label htmlFor="minimumLiquidityMonths">Fondo minimo (mesi)</Label><Input id="minimumLiquidityMonths" value={form.minimumLiquidityMonths} onChange={set('minimumLiquidityMonths')} type="number" min="0" /></div>
           </FieldGrid>

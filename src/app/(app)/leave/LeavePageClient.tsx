@@ -1,5 +1,6 @@
 'use client'
 
+import { DateInput } from '@/components/ui/date-input'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CalendarDays, Download, Edit2, Plus, Trash2 } from 'lucide-react'
@@ -212,9 +213,9 @@ export function LeavePageClient() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-5">
-        <SmallMetric label="Ultime ferie" value={lastVacation ? `${lastVacation.start_date} · ${lastVacation.days}g` : 'Nessuna'} />
-        <SmallMetric label="Prossime ferie" value={nextVacation ? `${nextVacation.start_date} · ${nextVacation.days}g` : 'Nessuna'} />
-        <SmallMetric label="Ultimo permesso" value={lastPermit ? `${lastPermit.start_date} · ${lastPermit.hours}h` : 'Nessuno'} />
+        <SmallMetric label="Ultime ferie" value={lastVacation ? `${formatDate(lastVacation.start_date)} · ${lastVacation.days}g` : 'Nessuna'} />
+        <SmallMetric label="Prossime ferie" value={nextVacation ? `${formatDate(nextVacation.start_date)} · ${nextVacation.days}g` : 'Nessuna'} />
+        <SmallMetric label="Ultimo permesso" value={lastPermit ? `${formatDate(lastPermit.start_date)} · ${lastPermit.hours}h` : 'Nessuno'} />
         <SmallMetric label="Ore 104 anno" value={`${permitYearHours} ore`} />
         <SmallMetric label="Giorni ferie anno" value={`${vacationUsed} giorni`} />
       </div>
@@ -285,8 +286,8 @@ export function LeavePageClient() {
           <DialogHeader><DialogTitle>{form.id ? 'Modifica' : 'Nuovo'} {form.type === 'VACATION' ? 'ferie' : 'permesso 104'}</DialogTitle></DialogHeader>
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Tipo"><Select ariaLabel="Tipo voce" value={form.type} onChange={(value) => setForm((f) => ({ ...f, type: value as LeaveEntryType }))}><option value="VACATION">Ferie</option><option value="PERMIT_104">Permesso 104</option></Select></Field>
-            <Field label="Data inizio"><Input type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value, end_date: f.type === 'PERMIT_104' ? e.target.value : f.end_date }))} /></Field>
-            {form.type === 'VACATION' ? <Field label="Data fine"><Input type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} /></Field> : null}
+            <Field label="Data inizio"><DateInput value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value, end_date: f.type === 'PERMIT_104' ? e.target.value : f.end_date }))} /></Field>
+            {form.type === 'VACATION' ? <Field label="Data fine"><DateInput value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} /></Field> : null}
             {form.type === 'VACATION' ? <Field label="Giorni consumati"><Input type="number" step="0.5" min="0" value={form.days} onChange={(e) => setForm((f) => ({ ...f, days: e.target.value }))} /></Field> : null}
             {form.type === 'PERMIT_104' ? <Field label="Ore"><Input type="number" step="0.25" min="0" value={form.hours} onChange={(e) => setForm((f) => ({ ...f, hours: e.target.value }))} /></Field> : null}
             {form.type === 'PERMIT_104' ? <Field label="Ora inizio"><Input type="time" value={form.start_time} onChange={(e) => setForm((f) => ({ ...f, start_time: e.target.value }))} /></Field> : null}

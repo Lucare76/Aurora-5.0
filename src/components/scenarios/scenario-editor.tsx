@@ -1,5 +1,6 @@
 'use client'
 
+import { DateInput } from '@/components/ui/date-input'
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -92,8 +93,7 @@ function ParamsEditor({
   const date = (key: string, label: string) => (
     <div key={key}>
       <Label className="text-xs text-slate-500">{label}</Label>
-      <Input
-        type="date"
+      <DateInput
         value={String(p[key] ?? '')}
         onChange={(e) => set(key, e.target.value || undefined)}
         className="mt-0.5 h-8 text-sm"

@@ -29,7 +29,7 @@ import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { useAccounts } from '@/hooks/use-accounts'
 import { createClient } from '@/lib/supabase/client'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import { ACCOUNT_TYPES, ACCOUNT_TYPE_LABELS, type AccountType } from '@/lib/constants'
 import { listLatestReconciliationsByAccount } from '@/lib/reconciliation/service'
 import { isReconciliationBalanced } from '@/domain/accounting/reconciliation'
@@ -531,7 +531,7 @@ export default function AccountsPage() {
                               )
                             }
                             const balanced = isReconciliationBalanced(Number(reconciliation.difference))
-                            const dateLabel = new Date(`${reconciliation.statement_date}T00:00:00`).toLocaleDateString('it-IT')
+                            const dateLabel = formatDate(reconciliation.statement_date)
                             return (
                               <div className="flex items-center gap-2 text-[11px]">
                                 <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium', balanced ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>

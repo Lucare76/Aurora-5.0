@@ -1,3 +1,4 @@
+import { formatDate } from '@/lib/utils'
 import type { LeaveEntry, LeaveSettings } from '@/types/database'
 import {
   annualVacationRemaining,
@@ -52,7 +53,7 @@ function buildLines(params: {
       `Residui: ${vacationRemaining} giorni`,
       '',
       'Dettaglio periodi:',
-      ...vacationEntries.map((entry) => `${entry.start_date} - ${entry.end_date}: ${entry.days ?? 0} giorni ${entry.note ?? ''}`),
+      ...vacationEntries.map((entry) => `${formatDate(entry.start_date)} - ${formatDate(entry.end_date)}: ${entry.days ?? 0} giorni ${entry.note ?? ''}`),
       ...common,
     ]
   }
@@ -65,7 +66,7 @@ function buildLines(params: {
       `Residui: ${permitRemaining} ore`,
       '',
       'Dettaglio ore:',
-      ...permitEntries.map((entry) => `${entry.start_date}: ${entry.hours ?? 0} ore ${entry.start_time ?? ''}-${entry.end_time ?? ''} ${entry.note ?? ''}`),
+      ...permitEntries.map((entry) => `${formatDate(entry.start_date)}: ${entry.hours ?? 0} ore ${entry.start_time ?? ''}-${entry.end_time ?? ''} ${entry.note ?? ''}`),
       ...common,
     ]
   }

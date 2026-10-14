@@ -1,5 +1,6 @@
 'use client'
 
+import { DateInput } from '@/components/ui/date-input'
 import { useState } from 'react'
 import {
   AlertCircle,
@@ -613,7 +614,7 @@ export default function HomeEvaluation() {
             <div><Label htmlFor="purpose">Uso</Label><Select id="purpose" value={form.purpose} onChange={set('purpose')}>{Object.entries(HOME_PURPOSE_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></div>
             <div><Label htmlFor="askingPrice">Prezzo richiesto (€) *</Label><Input id="askingPrice" value={form.askingPrice} onChange={set('askingPrice')} type="number" min="1" step="1000" /></div>
             <div><Label htmlFor="agreedPrice">Prezzo concordato (€) *</Label><Input id="agreedPrice" value={form.agreedPrice} onChange={set('agreedPrice')} type="number" min="1" step="1000" /></div>
-            <div><Label htmlFor="purchaseDate">Data prevista acquisto *</Label><Input id="purchaseDate" value={form.purchaseDate} onChange={set('purchaseDate')} type="date" /></div>
+            <div><Label htmlFor="purchaseDate">Data prevista acquisto *</Label><DateInput id="purchaseDate" value={form.purchaseDate} onChange={(event) => set('purchaseDate')(event.target.value)} /></div>
             <div><Label htmlFor="ownershipYears">Anni previsti di possesso</Label><Input id="ownershipYears" value={form.ownershipYears} onChange={set('ownershipYears')} type="number" min="1" max="60" /></div>
           </FieldGrid>
         </Section>
@@ -643,7 +644,7 @@ export default function HomeEvaluation() {
                 <div><Label htmlFor="mortgageAmount">Importo mutuo (€)</Label><Input id="mortgageAmount" value={form.mortgageAmount} onChange={set('mortgageAmount')} type="number" min="0" /></div>
                 <div><Label htmlFor="mortgageMonthlyPayment">Rata mensile (€) *</Label><Input id="mortgageMonthlyPayment" value={form.mortgageMonthlyPayment} onChange={set('mortgageMonthlyPayment')} type="number" min="0" /></div>
                 <div><Label htmlFor="mortgageDurationMonths">Durata mutuo (mesi) *</Label><Input id="mortgageDurationMonths" value={form.mortgageDurationMonths} onChange={set('mortgageDurationMonths')} type="number" min="1" max="600" /></div>
-                <div><Label htmlFor="firstMortgagePaymentDate">Prima rata</Label><Input id="firstMortgagePaymentDate" value={form.firstMortgagePaymentDate} onChange={set('firstMortgagePaymentDate')} type="date" /></div>
+                <div><Label htmlFor="firstMortgagePaymentDate">Prima rata</Label><DateInput id="firstMortgagePaymentDate" value={form.firstMortgagePaymentDate} onChange={(event) => set('firstMortgagePaymentDate')(event.target.value)} /></div>
                 <div><Label htmlFor="mortgageRateType">Tipo tasso</Label><Select id="mortgageRateType" value={form.mortgageRateType} onChange={set('mortgageRateType')}><option value="">Non indicato</option>{Object.entries(MORTGAGE_RATE_TYPE_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></div>
               </>
             )}

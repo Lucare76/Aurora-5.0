@@ -1,3 +1,4 @@
+import { formatDate } from '@/lib/utils'
 import type { Account, Loan, LoanPayment, RecurringRule, SavingsGoal, Transaction, AutomationRuleApplication } from '@/types/database'
 import type { BudgetEntry } from '@/lib/budgets/service'
 import type { NotificationCandidate, NotificationSeverity } from './types'
@@ -137,9 +138,7 @@ export function evaluateBalanceRules(
     const severity: NotificationSeverity =
       lowestBalance < criticalBelow ? 'CRITICAL' : 'WARNING'
 
-    const displayDate = firstNegDate.toLocaleDateString('it-IT', {
-      day: 'numeric', month: 'long', timeZone: 'UTC',
-    })
+    const displayDate = formatDate(negDateStr)
 
     candidates.push({
       dedupeKey:  `negative_projected_balance:${account.id}:${negDateStr}`,
@@ -274,7 +273,7 @@ export function evaluateRecurrenceRules(
         type:        'overdue_recurrence',
         severity,
         title:       `Ricorrenza scaduta — ${rule.description}`,
-        message:     `${rule.description} (${eur(Number(rule.amount))}) era prevista il ${due.toLocaleDateString('it-IT', { timeZone: 'UTC' })} e non è stata registrata (${overdueDays} ${overdueDays === 1 ? 'giorno' : 'giorni'} fa).`,
+        message:     `${rule.description} (${eur(Number(rule.amount))}) era prevista il ${formatDate(due.toISOString().slice(0, 10))} e non è stata registrata (${overdueDays} ${overdueDays === 1 ? 'giorno' : 'giorni'} fa).`,
         sourceType:  'recurring_rule',
         sourceId:    rule.id,
         sourceUrl:   `/recurring`,
@@ -379,7 +378,7 @@ export function evaluateLoanRules(
         type:        'overdue_loan_payment',
         severity:    'CRITICAL',
         title:       `Prestito scaduto — ${loan.counterpart}`,
-        message:     `Il prestito con ${loan.counterpart} (${eur(Number(loan.remaining))} residui) era in scadenza il ${due.toLocaleDateString('it-IT', { timeZone: 'UTC' })}.`,
+        message:     `Il prestito con ${loan.counterpart} (${eur(Number(loan.remaining))} residui) era in scadenza il ${formatDate(due.toISOString().slice(0, 10))}.`,
         sourceType:  'loan',
         sourceId:    loan.id,
         sourceUrl:   `/loans`,

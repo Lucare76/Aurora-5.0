@@ -1,3 +1,4 @@
+import { formatDate } from '@/lib/utils'
 import * as XLSX from 'xlsx'
 import type { ReportPayload } from './types'
 
@@ -21,8 +22,8 @@ function sheetSummary(report: ReportPayload): SheetRow[] {
     ['Media mensile uscite', report.summary.averageMonthlyExpenses, 'EUR'],
     ['Media mensile cash flow', report.summary.averageMonthlyCashFlow, 'EUR'],
     [],
-    ['Periodo corrente', report.period.from, report.period.to],
-    ['Periodo precedente', report.previousPeriod.from, report.previousPeriod.to],
+    ['Periodo corrente', formatDate(report.period.from), formatDate(report.period.to)],
+    ['Periodo precedente', formatDate(report.previousPeriod.from), formatDate(report.previousPeriod.to)],
     [],
     ['Confronto', 'Valore corrente', 'Valore precedente', 'Variazione assoluta', 'Variazione %', 'Trend'],
     ['Entrate', report.comparison.totalIncome.currentValue, report.comparison.totalIncome.previousValue, report.comparison.totalIncome.absoluteChange, report.comparison.totalIncome.percentageChange, report.comparison.totalIncome.trend],
@@ -38,8 +39,8 @@ function sheetMonthlySeries(report: ReportPayload): SheetRow[] {
     ['Mese', 'Da', 'A', 'Entrate', 'Uscite', 'Cash flow', 'Tasso risparmio (%)', 'Movimenti', 'Cash flow cumulativo', 'Patrimonio netto'],
     ...report.monthlySeries.map((row) => [
       row.key,
-      row.from,
-      row.to,
+      formatDate(row.from),
+      formatDate(row.to),
       row.income,
       row.expenses,
       row.cashFlow,

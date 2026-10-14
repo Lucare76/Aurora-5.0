@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAccounts } from '@/hooks/use-accounts'
 import { useCategories } from '@/hooks/use-categories'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency, formatDateTime } from '@/lib/utils'
 import type { AutomationApplication, AutomationPreviewRow, AutomationRule } from '@/lib/automation/types'
 
 type RuleForm = {
@@ -401,7 +401,7 @@ export default function AutomationPage() {
             <div key={item.id} className="flex flex-col justify-between gap-2 rounded-2xl border border-[#e5e7f0] p-4 sm:flex-row sm:items-center">
               <div>
                 <p className="font-semibold text-slate-950">{item.application_mode} · {item.result}</p>
-                <p className="text-sm text-slate-500">{new Date(item.applied_at).toLocaleString('it-IT')} · campi: {Object.keys(item.applied_values ?? {}).join(', ') || 'nessuno'}</p>
+                <p className="text-sm text-slate-500">{formatDateTime(item.applied_at)} · campi: {Object.keys(item.applied_values ?? {}).join(', ') || 'nessuno'}</p>
               </div>
               {item.application_batch_id && item.result === 'APPLIED' && (
                 <Button variant="outline" size="sm" className="gap-1" onClick={() => revertBatch(item.application_batch_id!)}><RefreshCcw className="h-3.5 w-3.5" />Annulla batch</Button>

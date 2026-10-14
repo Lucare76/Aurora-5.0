@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { DateInput } from '@/components/ui/date-input'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 import {
   AlarmClock,
@@ -19,7 +20,7 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, formatDateTime } from '@/lib/utils'
 import type { Notification, NotificationType } from '@/lib/notifications/types'
 import { tomorrowAt9 } from '@/lib/notifications/preferences-defaults'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -72,7 +73,7 @@ function relativeTime(isoString: string): string {
 
 function snoozedUntilLabel(iso: string): string {
   const d = new Date(iso)
-  return `Posticipata fino al ${d.toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+  return `Posticipata fino al ${formatDateTime(d)}`
 }
 
 // ── Snooze dialog ──────────────────────────────────────────────────────────
@@ -95,7 +96,10 @@ function SnoozeDialog({
   onSnooze: (until: Date) => Promise<void>
   isCritical: boolean
 }) {
-  const [custom, setCustom] = useState('')
+  const [customDate, setCustomDate] = useState('')
+  const [customTime, setCustomTime] = useState('09:00')
+  const customDateRef = useRef<HTMLInputElement>(null)
+  const custom = customDate && customTime ? `${customDate}T${customTime}` : ''
   const [busy, setBusy] = useState(false)
 
   async function doSnooze(until: Date) {
@@ -130,18 +134,19 @@ function SnoozeDialog({
             </button>
           ))}
           <div className="flex gap-2 pt-1">
-            <input
-              type="datetime-local"
-              value={custom}
-              onChange={(e) => setCustom(e.target.value)}
-              min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
-              className="h-10 flex-1 rounded-xl border border-[#e5e7f0] px-3 text-sm text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              aria-label="Data e ora personalizzata"
-            />
+            <div className="grid min-w-0 flex-1 gap-2">
+              <DateInput ref={customDateRef} value={customDate}
+                onChange={(event) => setCustomDate(event.target.value)}
+                min={new Date().toLocaleDateString('en-CA')}
+                aria-label="Data personalizzata" />
+              <input type="time" value={customTime} onChange={(event) => setCustomTime(event.target.value)}
+                className="h-10 w-full rounded-xl border border-[#e5e7f0] px-3 text-sm text-slate-950"
+                aria-label="Ora personalizzata" />
+            </div>
             <button
               type="button"
-              disabled={busy || !custom}
-              onClick={() => custom && doSnooze(new Date(custom))}
+              disabled={busy || !custom || new Date(custom).getTime() <= Date.now()}
+              onClick={() => custom && customDateRef.current?.reportValidity() && doSnooze(new Date(custom))}
               className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               OK

@@ -1,5 +1,6 @@
 'use client'
 
+import { DateInput } from '@/components/ui/date-input'
 import { useState } from 'react'
 import {
   AlertCircle,
@@ -585,7 +586,7 @@ export default function CarEvaluation() {
             </div>
             <div>
               <Label htmlFor="purchaseDate">Data acquisto *</Label>
-              <Input id="purchaseDate" value={form.purchaseDate} onChange={set('purchaseDate')} type="date" />
+              <DateInput id="purchaseDate" value={form.purchaseDate} onChange={(event) => set('purchaseDate')(event.target.value)} />
             </div>
           </FieldGrid>
         </Section>
@@ -644,7 +645,7 @@ export default function CarEvaluation() {
               </div>
               <div>
                 <Label htmlFor="firstInstallmentDate">Prima rata</Label>
-                <Input id="firstInstallmentDate" value={form.firstInstallmentDate} onChange={set('firstInstallmentDate')} type="date" />
+                <DateInput id="firstInstallmentDate" value={form.firstInstallmentDate} onChange={(event) => set('firstInstallmentDate')(event.target.value)} />
               </div>
               <div>
                 <Label htmlFor="financingFees">Spese finanziamento (€)</Label>

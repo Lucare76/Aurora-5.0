@@ -1,5 +1,7 @@
 'use client'
 
+import { parseItalianDate } from '@/lib/dates/italian'
+import { FormDateInput, DateInput } from '@/components/ui/date-input'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { Resolver, SubmitHandler } from 'react-hook-form'
@@ -215,9 +217,9 @@ function TextareaField(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>)
 
 function dateLabel(date: string) {
   const parsed = parseISO(date)
-  if (isToday(parsed)) return 'Oggi'
-  if (isYesterday(parsed)) return 'Ieri'
-  return format(parsed, 'EEEE d MMMM', { locale: it })
+  if (isToday(parsed)) return `Oggi · ${formatDate(date)}`
+  if (isYesterday(parsed)) return `Ieri · ${formatDate(date)}`
+  return formatDate(date)
 }
 
 function monthLabel(date: Date) {
@@ -815,9 +817,8 @@ export default function TransactionsPage() {
         </div>
         <div className="space-y-1.5">
           <Label className="text-slate-700">Data</Label>
-          <Input
-            type="date"
-            {...targetForm.register('date')}
+          <FormDateInput
+            control={targetForm.control} name="date"
             className="h-10 border-[#e5e7f0] bg-white text-slate-900"
           />
         </div>
@@ -995,13 +996,13 @@ export default function TransactionsPage() {
       const parsed: ImportRow[] = dataRows.map((row) => {
         const [dateStr, tipoStr, desc, catName] = row
         const amtStr = row[amtCol]
-        const date = dateStr?.trim() ?? ''
+        const date = parseItalianDate(dateStr?.trim() ?? '') ?? ''
         const typeRaw = tipoStr?.trim().toLowerCase() ?? ''
         const type: 'income' | 'expense' = typeRaw === 'entrata' ? 'income' : 'expense'
         const description = desc?.trim() ?? ''
         const categoryName = catName?.trim() ?? ''
         const amount = parseFloat((amtStr?.trim() ?? '').replace(',', '.'))
-        const isValidDate = /^\d{4}-\d{2}-\d{2}$/.test(date)
+        const isValidDate = Boolean(date)
         const isValidType = typeRaw === 'entrata' || typeRaw === 'uscita'
         const isValidAmount = !isNaN(amount) && amount > 0
         const valid = isValidDate && isValidType && isValidAmount && description.length > 0
@@ -1114,15 +1115,13 @@ export default function TransactionsPage() {
               ) : (
                 <div className="flex items-center gap-2 rounded-2xl border border-indigo-300 bg-indigo-50 px-3 py-2 shadow-sm">
                   <CalendarDays className="h-4 w-4 shrink-0 text-indigo-500" />
-                  <input
-                    type="date"
+                  <DateInput
                     value={dateRangeFrom}
                     onChange={(e) => setDateRangeFrom(e.target.value)}
                     className="h-7 rounded border border-[#e5e7f0] bg-white px-2 text-sm text-slate-900 outline-none focus:border-indigo-400"
                   />
                   <span className="text-sm text-slate-400">—</span>
-                  <input
-                    type="date"
+                  <DateInput
                     value={dateRangeTo}
                     onChange={(e) => setDateRangeTo(e.target.value)}
                     className="h-7 rounded border border-[#e5e7f0] bg-white px-2 text-sm text-slate-900 outline-none focus:border-indigo-400"
@@ -1401,7 +1400,7 @@ export default function TransactionsPage() {
                             <p className="mt-1 truncate text-xs text-slate-500">
                               {isTransfer
                                 ? `${account?.name ?? 'Conto'} → ${peerAccount?.name ?? 'Conto destinazione'}`
-                                : `${category?.name ?? 'Senza categoria'} · ${account?.name ?? 'Conto'}`} · {format(parseISO(transaction.date), 'dd/MM/yyyy')}
+                                : `${category?.name ?? 'Senza categoria'} · ${account?.name ?? 'Conto'}`} · {formatDate(transaction.date)}
                             </p>
                             {paymentByTransaction.has(transaction.id) && (() => {
                               const payment = paymentByTransaction.get(transaction.id)!

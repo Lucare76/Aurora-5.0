@@ -1,10 +1,11 @@
 'use client'
 
+import { DateInput } from '@/components/ui/date-input'
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, ArrowLeftRight, BadgeCheck, Landmark, Loader2, Pencil, Plus, Save, Trash2, X, RefreshCw, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InlineEmptyState, PageLoadingState } from '@/components/shared/PageState'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 
 type Account = { id: string; name: string; balance: number; currency: string; is_active: boolean; type: string; color?: string | null }
 type Tx = { id: string; account_id: string; type: string; amount: number; date: string; description: string | null; notes?: string | null; transfer_peer_id: string | null; auroraImpact?: number }
@@ -260,7 +261,7 @@ export function AuroraSavingsPageClient() {
             <Field label="Tipo"><select value={movement.type} onChange={(e) => setMovement({ ...movement, type: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3"><option value="income">Entrata</option><option value="expense">Uscita</option></select></Field>
             <Field label="Conto Aurora"><select required value={movement.accountId} onChange={(e) => setMovement({ ...movement, accountId: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3">{data?.auroraAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></Field>
             <Field label="Importo"><input required type="number" min="0.01" step="0.01" value={movement.amount} onChange={(e) => setMovement({ ...movement, amount: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
-            <Field label="Data"><input required type="date" value={movement.date} onChange={(e) => setMovement({ ...movement, date: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
+            <Field label="Data"><DateInput required value={movement.date} onChange={(e) => setMovement({ ...movement, date: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
             <Field label="Descrizione"><input required value={movement.description} onChange={(e) => setMovement({ ...movement, description: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
             <Field label="Note"><input value={movement.notes} onChange={(e) => setMovement({ ...movement, notes: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
           </div>
@@ -274,7 +275,7 @@ export function AuroraSavingsPageClient() {
             <Field label="Da"><select required value={transfer.sourceAccountId} onChange={(e) => setTransfer({ ...transfer, sourceAccountId: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3"><option value="">Seleziona conto</option>{data?.accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></Field>
             <Field label="A"><select required value={transfer.destinationAccountId} onChange={(e) => setTransfer({ ...transfer, destinationAccountId: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3"><option value="">Seleziona conto</option>{data?.accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></Field>
             <Field label="Importo"><input required type="number" min="0.01" step="0.01" value={transfer.amount} onChange={(e) => setTransfer({ ...transfer, amount: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
-            <Field label="Data"><input required type="date" value={transfer.date} onChange={(e) => setTransfer({ ...transfer, date: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
+            <Field label="Data"><DateInput required value={transfer.date} onChange={(e) => setTransfer({ ...transfer, date: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
             <Field label="Descrizione"><input required value={transfer.description} onChange={(e) => setTransfer({ ...transfer, description: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
             <Field label="Motivo se verso personale"><input value={transfer.reason} onChange={(e) => setTransfer({ ...transfer, reason: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
           </div>
@@ -311,7 +312,7 @@ export function AuroraSavingsPageClient() {
                       <Field label="Tipo"><select value={editingMovement.type} onChange={(event) => setEditingMovement({ ...editingMovement, type: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3"><option value="income">Entrata</option><option value="expense">Uscita</option></select></Field>
                       <Field label="Conto"><select value={editingMovement.accountId} onChange={(event) => setEditingMovement({ ...editingMovement, accountId: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3">{data?.auroraAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></Field>
                       <Field label="Importo"><input required type="number" min="0.01" step="0.01" value={editingMovement.amount} onChange={(event) => setEditingMovement({ ...editingMovement, amount: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
-                      <Field label="Data"><input required type="date" value={editingMovement.date} onChange={(event) => setEditingMovement({ ...editingMovement, date: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
+                      <Field label="Data"><DateInput required value={editingMovement.date} onChange={(event) => setEditingMovement({ ...editingMovement, date: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
                       <Field label="Descrizione"><input required value={editingMovement.description} onChange={(event) => setEditingMovement({ ...editingMovement, description: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
                       <Field label="Note"><input value={editingMovement.notes} onChange={(event) => setEditingMovement({ ...editingMovement, notes: event.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3" /></Field>
                     </div>
@@ -322,7 +323,7 @@ export function AuroraSavingsPageClient() {
                   </form>
                 ) : (
                   <>
-                    <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-950">{tx.description ?? 'Movimento Aurora'}</p><p className="text-xs text-slate-500">{tx.date}{tx.transfer_peer_id ? ' · Giroconto' : ''}</p></div>
+                    <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-950">{tx.description ?? 'Movimento Aurora'}</p><p className="text-xs text-slate-500">{formatDate(tx.date)}{tx.transfer_peer_id ? ' · Giroconto' : ''}</p></div>
                     <div className="flex items-center gap-2">
                       <p className={impact < 0 ? 'text-sm font-bold tabular-nums text-red-600' : impact > 0 ? 'text-sm font-bold tabular-nums text-emerald-600' : 'text-sm font-bold tabular-nums text-slate-500'}>{impact < 0 ? '-' : impact > 0 ? '+' : ''}{formatCurrency(Math.abs(impact))}</p>
                       {!tx.transfer_peer_id && (

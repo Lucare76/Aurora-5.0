@@ -9,7 +9,7 @@ import {
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import { DISCLAIMER_TEXT, SIMULATION_BADGE } from '@/lib/scenarios/constants'
 import type { FinancialScenario, ScenarioEngineResult } from '@/lib/scenarios/types'
 import { ScenarioResults } from '@/components/scenarios/scenario-results'
@@ -227,7 +227,7 @@ export default function ScenarioDetailPage() {
         {scenario.last_calculated_at && (
           <>
             <span>·</span>
-            <span>Calcolato {new Date(scenario.last_calculated_at).toLocaleDateString('it-IT')}</span>
+            <span>Calcolato {formatDate(scenario.last_calculated_at)}</span>
           </>
         )}
       </div>
@@ -273,7 +273,7 @@ export default function ScenarioDetailPage() {
         <Card className="border-dashed border-slate-200 bg-slate-50">
           <CardContent className="p-5">
             <p className="text-sm text-slate-500 mb-4 text-center">
-              Risultato del {new Date(scenario.last_calculated_at!).toLocaleDateString('it-IT')}.
+              Risultato del {formatDate(scenario.last_calculated_at!)}.
               Ricalcola per aggiornare.
             </p>
             {/* Summary KPIs */}

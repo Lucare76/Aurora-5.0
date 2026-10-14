@@ -20,7 +20,7 @@ import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { cn } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import type { ResolvedUserSettings } from '@/lib/notifications/preferences-types'
 import type {
   NotificationType,
@@ -645,7 +645,7 @@ export default function NotificationSettingsPage() {
                   <p className="mt-0.5 font-mono text-xs text-slate-400">{m.source_id.slice(0, 8)}…</p>
                   {m.muted_until && (
                     <p className="mt-0.5 text-xs text-slate-400">
-                      Fino al {new Date(m.muted_until).toLocaleString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      Fino al {formatDate(m.muted_until)}
                     </p>
                   )}
                 </div>

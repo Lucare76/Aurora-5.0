@@ -1,12 +1,13 @@
 'use client'
 
+import { DateInput } from '@/components/ui/date-input'
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, BadgeEuro, ChevronLeft, ChevronRight, Loader2, Pencil, Plus, Save, WalletCards, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InlineEmptyState, PageLoadingState } from '@/components/shared/PageState'
 import { ADI_CATEGORY_LABELS, ADI_CATEGORIES } from '@/lib/dependent-finance/constants'
 import type { AdiCategory, AdiEntry } from '@/lib/dependent-finance/types'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 
 type Payload = {
   entries: AdiEntry[]
@@ -248,7 +249,7 @@ export function AdiPageClient() {
           <p className="mb-4 text-sm text-slate-500">Entrata nel fondo ADI separato. Non aumenta reddito personale, margine o affordability.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm font-medium text-slate-700">Importo<input required type="number" min="0.01" step="0.01" value={credit.amount} onChange={(e) => setCredit({ ...credit, amount: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
-            <label className="text-sm font-medium text-slate-700">Data accredito<input required type="date" value={credit.date} onChange={(e) => setCredit({ ...credit, date: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
+            <label className="text-sm font-medium text-slate-700">Data accredito<DateInput required value={credit.date} onChange={(e) => setCredit({ ...credit, date: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
             <label className="text-sm font-medium text-slate-700">Periodo<input type="month" value={credit.referencePeriod} onChange={(e) => setCredit({ ...credit, referencePeriod: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
             <label className="text-sm font-medium text-slate-700">Descrizione<input required value={credit.description} onChange={(e) => setCredit({ ...credit, description: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
           </div>
@@ -282,7 +283,7 @@ export function AdiPageClient() {
           <p className="mb-4 text-sm text-slate-500">Sono disponibili solo Supermercato, Benzina, Abbigliamento Aurora, Macelleria e Farmacia. Conferma sempre “Pagato con ADI”.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm font-medium text-slate-700">Importo<input required type="number" min="0.01" step="0.01" value={debit.amount} onChange={(e) => setDebit({ ...debit, amount: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
-            <label className="text-sm font-medium text-slate-700">Data<input required type="date" value={debit.date} onChange={(e) => setDebit({ ...debit, date: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
+            <label className="text-sm font-medium text-slate-700">Data<DateInput required value={debit.date} onChange={(e) => setDebit({ ...debit, date: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
             <label className="text-sm font-medium text-slate-700">Categoria ADI<select value={debit.adiCategory} onChange={(e) => setDebit({ ...debit, adiCategory: e.target.value as AdiCategory })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3">{ADI_CATEGORIES.map((key) => <option key={key} value={key}>{ADI_CATEGORY_LABELS[key]}</option>)}</select></label>
             <label className="text-sm font-medium text-slate-700">Transazione collegata<input value={debit.transactionId} onChange={(e) => setDebit({ ...debit, transactionId: e.target.value })} placeholder="UUID facoltativo" className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
             <label className="sm:col-span-2 text-sm font-medium text-slate-700">Descrizione<input required value={debit.description} onChange={(e) => setDebit({ ...debit, description: e.target.value })} className="mt-1 h-11 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
@@ -316,7 +317,7 @@ export function AdiPageClient() {
                 <form onSubmit={updateEntry} className="w-full space-y-3 rounded-xl bg-slate-50 p-3">
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <label className="text-sm font-medium text-slate-700">Importo<input required type="number" min="0.01" step="0.01" value={editing.amount} onChange={(e) => setEditing({ ...editing, amount: e.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
-                    <label className="text-sm font-medium text-slate-700">Data<input required type="date" value={editing.date} onChange={(e) => setEditing({ ...editing, date: e.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
+                    <label className="text-sm font-medium text-slate-700">Data<DateInput required value={editing.date} onChange={(e) => setEditing({ ...editing, date: e.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
                     {editing.entryType === 'credit' ? (
                       <label className="text-sm font-medium text-slate-700">Periodo<input type="month" value={editing.referencePeriod} onChange={(e) => setEditing({ ...editing, referencePeriod: e.target.value })} className="mt-1 h-10 w-full rounded-xl border border-[#e5e7f0] px-3" /></label>
                     ) : (
@@ -337,7 +338,7 @@ export function AdiPageClient() {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-950">{entry.description}</p>
                     <p className="text-xs text-slate-500">
-                      {entry.date} · {entry.entry_type === 'credit' ? 'Accredito' : ADI_CATEGORY_LABELS[entry.adi_category as AdiCategory]}
+                      {formatDate(entry.date)} · {entry.entry_type === 'credit' ? 'Accredito' : ADI_CATEGORY_LABELS[entry.adi_category as AdiCategory]}
                       {entry.transaction_id ? ` · Transazione ${entry.transaction_id}` : ''}
                     </p>
                   </div>

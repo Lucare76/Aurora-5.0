@@ -1,5 +1,6 @@
 'use client'
 
+import { DateInput } from '@/components/ui/date-input'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, ArrowLeft, CheckCircle2, History } from 'lucide-react'
@@ -12,7 +13,7 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { PageLoadingState } from '@/components/shared/PageState'
 import { useAccounts } from '@/hooks/use-accounts'
 import { createClient } from '@/lib/supabase/client'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import {
   calculateReconciliationDifference,
   isReconciliationBalanced,
@@ -176,7 +177,7 @@ export default function ReconciliationPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-slate-700">Data estratto conto</Label>
-              <Input type="date" value={statementDate} onChange={(e) => setStatementDate(e.target.value)} className="h-11" />
+              <DateInput value={statementDate} onChange={(e) => setStatementDate(e.target.value)} className="h-11" />
             </div>
           </div>
 
@@ -246,7 +247,7 @@ export default function ReconciliationPage() {
                 return (
                   <div key={row.id} className="flex items-center justify-between gap-3 py-3 text-sm">
                     <div>
-                      <p className="font-medium text-slate-900">{new Date(`${row.statement_date}T00:00:00`).toLocaleDateString('it-IT')}</p>
+                      <p className="font-medium text-slate-900">{formatDate(row.statement_date)}</p>
                       <p className="text-xs text-slate-500">Banca {formatCurrency(Number(row.bank_balance))} · Aurora {formatCurrency(Number(row.app_balance_snapshot))}</p>
                     </div>
                     <div className="flex items-center gap-2">
