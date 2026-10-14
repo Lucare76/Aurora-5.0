@@ -1,5 +1,6 @@
 'use client'
 
+import { DateInput } from '@/components/ui/date-input'
 import { useState } from 'react'
 import {
   AlertCircle,
@@ -453,7 +454,7 @@ export default function AffordabilityPage() {
                 <Input id="totalPrice" value={form.totalPrice} onChange={set('totalPrice')} type="number" min="0.01" step="0.01" placeholder="0,00" required />
               </FieldGroup>
               <FieldGroup label="Data prevista *" htmlFor="purchaseDate">
-                <Input id="purchaseDate" value={form.purchaseDate} onChange={set('purchaseDate')} type="date" required />
+                <DateInput id="purchaseDate" value={form.purchaseDate} onChange={set('purchaseDate')} required />
               </FieldGroup>
             </div>
 
@@ -502,7 +503,7 @@ export default function AffordabilityPage() {
                     <Input id="numberOfInstallments" value={form.numberOfInstallments} onChange={set('numberOfInstallments')} type="number" min="1" max="360" step="1" placeholder="12" />
                   </FieldGroup>
                   <FieldGroup label="Prima rata" htmlFor="firstInstallmentDate">
-                    <Input id="firstInstallmentDate" value={form.firstInstallmentDate} onChange={set('firstInstallmentDate')} type="date" />
+                    <DateInput id="firstInstallmentDate" value={form.firstInstallmentDate} onChange={set('firstInstallmentDate')} />
                   </FieldGroup>
                 </div>
                 <FieldGroup label="Maxi-rata finale (€)" htmlFor="balloonPayment">

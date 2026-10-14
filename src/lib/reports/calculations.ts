@@ -1,3 +1,4 @@
+import { formatDate } from '@/lib/utils'
 import {
   isCountableExpense,
   isCountableIncome,
@@ -150,11 +151,11 @@ export function buildReportPeriods(from: string, to: string): { period: ReportPe
   const prevEnd = addDays(start, -1)
   const prevStart = addDays(prevEnd, -(days - 1))
   return {
-    period: { from, to, label: `${from} - ${to}`, days },
+    period: { from, to, label: `${formatDate(from)} - ${formatDate(to)}`, days },
     previousPeriod: {
       from: dateKey(prevStart),
       to: dateKey(prevEnd),
-      label: `${dateKey(prevStart)} - ${dateKey(prevEnd)}`,
+      label: `${formatDate(dateKey(prevStart))} - ${formatDate(dateKey(prevEnd))}`,
       days,
     },
   }

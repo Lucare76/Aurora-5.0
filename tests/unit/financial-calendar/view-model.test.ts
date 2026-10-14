@@ -79,7 +79,7 @@ describe('financial calendar view model', () => {
       eventCount: 3,
       warnings: [{ date: '2026-07-12', type: 'BELOW_THRESHOLD', severity: 'WARNING', message: 'Saldo sotto soglia', amount: 50 }],
     }))
-    expect(label).toContain('12 luglio 2026')
+    expect(label).toContain('12/07/2026')
     expect(label).toContain('3 eventi')
     expect(label).toContain('Saldo sotto soglia')
   })

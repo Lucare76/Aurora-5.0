@@ -1,5 +1,6 @@
 'use client'
 
+import { DateInput } from '@/components/ui/date-input'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CalendarClock, CheckCircle2, Edit2, Plus, RotateCcw, Trash2 } from 'lucide-react'
@@ -251,7 +252,7 @@ export function DeadlinesPageClient() {
           <DialogHeader><DialogTitle>{form.id ? 'Modifica scadenza' : 'Nuova scadenza'}</DialogTitle></DialogHeader>
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Titolo *"><Input value={form.title} onChange={(event) => setForm((f) => ({ ...f, title: event.target.value }))} /></Field>
-            <Field label="Data *"><Input type="date" value={form.due_date} onChange={(event) => setForm((f) => ({ ...f, due_date: event.target.value }))} /></Field>
+            <Field label="Data *"><DateInput value={form.due_date} onChange={(event) => setForm((f) => ({ ...f, due_date: event.target.value }))} /></Field>
             <Field label="Categoria"><Select value={form.category} onChange={(value) => setForm((f) => ({ ...f, category: value as DeadlineCategory }))}>{DEADLINE_CATEGORIES.map((category) => <option key={category} value={category}>{DEADLINE_CATEGORY_LABELS[category]}</option>)}</Select></Field>
             <Field label="Priorità"><Select value={form.priority} onChange={(value) => setForm((f) => ({ ...f, priority: value as DeadlinePriority }))}>{Object.entries(DEADLINE_PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></Field>
             <div className="flex items-end gap-2"><div className="flex-1"><Field label="Ricorrenza"><Select value={form.recurrence} onChange={(value) => setForm((f) => ({ ...f, recurrence: value as DeadlineRecurrence }))}>{Object.entries(DEADLINE_RECURRENCE_LABELS).map(([value, label]) => <option key={value} value={value}>{value === 'MONTHLY' ? 'Ogni N mesi' : value === 'YEARLY' ? 'Ogni N anni' : label}</option>)}</Select></Field></div>{form.recurrence !== 'NONE' && <div className="w-24"><Field label="Ogni"><Input type="number" min={1} max={120} value={form.recurrence_interval} onChange={(event) => setForm((f) => ({ ...f, recurrence_interval: event.target.value }))} /></Field></div>}</div>

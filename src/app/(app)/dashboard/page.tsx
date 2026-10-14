@@ -1,5 +1,6 @@
 'use client'
 
+import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -23,7 +24,7 @@ import { StatusBadge, type StatusTone } from '@/components/ui/status-badge'
 import type { OverviewAlertTone, PersonalOverviewPayload } from '@/lib/dashboard/personal-overview'
 
 const euroFormatter = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' })
-const dateFormatter = new Intl.DateTimeFormat('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+
 
 function toneToStatusTone(tone: OverviewAlertTone): StatusTone {
   if (tone === 'critical') return 'critical'
@@ -45,9 +46,7 @@ function formatMoney(value: number) {
   return euroFormatter.format(value)
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short' }).format(new Date(`${value}T00:00:00`))
-}
+
 
 function greeting() {
   const hour = new Date().getHours()
@@ -131,7 +130,7 @@ export default function DashboardPage() {
     void load()
   }, [load])
 
-  const dateLabel = useMemo(() => dateFormatter.format(new Date()), [])
+  const dateLabel = useMemo(() => formatDate(new Date()), [])
   const hasLeaveOverview = Boolean(data?.month.metrics.leave)
 
   if (loading && !data) return <DashboardLoading />

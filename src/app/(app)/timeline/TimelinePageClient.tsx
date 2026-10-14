@@ -1,5 +1,6 @@
 'use client'
 
+import { DateInput } from '@/components/ui/date-input'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CalendarDays, Edit2, Eye, History, MapPin, Plus, Search, Trash2 } from 'lucide-react'
@@ -356,8 +357,8 @@ function TimelineFormDialog({ open, form, onChange, onClose, onSave }: { open: b
           <Field label="Soggetto *"><NativeSelect value={form.subject} onChange={(value) => onChange({ ...form, subject: value as TimelineSubject })}>{TIMELINE_SUBJECTS.map((subject) => <option key={subject} value={subject}>{TIMELINE_SUBJECT_LABELS[subject]}</option>)}</NativeSelect></Field>
           <Field label="Categoria *"><NativeSelect value={form.category} onChange={(value) => onChange({ ...form, category: value as TimelineCategory })}>{TIMELINE_CATEGORIES.map((category) => <option key={category} value={category}>{TIMELINE_CATEGORY_LABELS[category]}</option>)}</NativeSelect></Field>
           <Field label="Importanza"><NativeSelect value={form.importance} onChange={(value) => onChange({ ...form, importance: value as TimelineImportance })}>{Object.entries(TIMELINE_IMPORTANCE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</NativeSelect></Field>
-          <Field label="Data *"><Input type="date" value={form.event_date} onChange={(event) => onChange({ ...form, event_date: event.target.value })} /></Field>
-          <Field label="Data fine"><Input type="date" value={form.end_date} onChange={(event) => onChange({ ...form, end_date: event.target.value })} /></Field>
+          <Field label="Data *"><DateInput value={form.event_date} onChange={(event) => onChange({ ...form, event_date: event.target.value })} /></Field>
+          <Field label="Data fine"><DateInput value={form.end_date} onChange={(event) => onChange({ ...form, end_date: event.target.value })} /></Field>
           <Field label="Luogo"><Input value={form.location} onChange={(event) => onChange({ ...form, location: event.target.value })} /></Field>
           <Field label="Struttura/Professionista"><Input value={form.provider} onChange={(event) => onChange({ ...form, provider: event.target.value })} /></Field>
           <div className="md:col-span-2"><Field label="Descrizione"><textarea value={form.description} onChange={(event) => onChange({ ...form, description: event.target.value })} className="min-h-24 w-full rounded-xl border border-[#e5e7f0] bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100" /></Field></div>

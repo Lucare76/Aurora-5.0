@@ -19,7 +19,7 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, formatDateTime } from '@/lib/utils'
 import type { Notification, NotificationType } from '@/lib/notifications/types'
 import { tomorrowAt9 } from '@/lib/notifications/preferences-defaults'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -72,7 +72,7 @@ function relativeTime(isoString: string): string {
 
 function snoozedUntilLabel(iso: string): string {
   const d = new Date(iso)
-  return `Posticipata fino al ${d.toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+  return `Posticipata fino al ${formatDateTime(d)}`
 }
 
 // ── Snooze dialog ──────────────────────────────────────────────────────────

@@ -1,3 +1,4 @@
+import { formatDate } from '@/lib/utils'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { GoalContribution, SavingsGoal, SavingsGoalStatus } from '@/types/database'
 import { loadGoalLinkedAggregates } from '@/lib/goals/linked-sources'
@@ -512,7 +513,7 @@ export function buildGoalInsights(
     add({ type: 'MONTHLY_AMOUNT_REQUIRED', severity: pace.intelligentStatus === 'BEHIND' ? 'WARNING' : 'INFO', title: 'Quota mensile necessaria', message: `Per rispettare la scadenza dovresti accantonare circa ${eur(pace.requiredMonthlyContribution)} al mese.` })
   }
   if (forecast.hasEnoughData && forecast.estimatedCompletionDate) {
-    add({ type: 'FORECAST_AVAILABLE', severity: 'INFO', title: 'Previsione disponibile', message: `Con questo ritmo raggiungerai l’obiettivo intorno a ${forecast.estimatedCompletionDate}.` })
+    add({ type: 'FORECAST_AVAILABLE', severity: 'INFO', title: 'Previsione disponibile', message: `Con questo ritmo raggiungerai l’obiettivo intorno a ${formatDate(forecast.estimatedCompletionDate!)}.` })
   } else if (!forecast.hasEnoughData && goal.status !== 'COMPLETED') {
     add({ type: 'INSUFFICIENT_DATA', severity: 'INFO', title: 'Dati insufficienti', message: 'Servono altri versamenti per stimare la data di completamento.' })
   }

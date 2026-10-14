@@ -22,7 +22,7 @@ import { toast } from 'sonner'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency, formatDate } from '@/lib/utils'
 import type { FinancialJournalPayload, JournalInsightTone } from '@/lib/financial-journal/types'
 
 const toneStyles: Record<JournalInsightTone, string> = {
@@ -31,9 +31,7 @@ const toneStyles: Record<JournalInsightTone, string> = {
   INFO: 'border-indigo-200 bg-indigo-50 text-indigo-900',
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('it-IT', { dateStyle: 'medium' }).format(new Date(value))
-}
+
 
 function formatPeriod(period: string) {
   const [year, month] = period.split('-').map(Number)

@@ -1,5 +1,5 @@
 import type { CalendarDay, CriticalDay, FinancialCalendarEvent } from './types'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 
 export type CalendarViewport = 'desktop' | 'tablet' | 'mobile'
 
@@ -42,11 +42,7 @@ export function dayWarningLabel(warnings: CriticalDay[]): string {
 
 export function calendarDayAriaLabel(day: CalendarDay): string {
   if (day.day === 0) return 'Giorno vuoto'
-  const date = new Date(`${day.date}T00:00:00`).toLocaleDateString('it-IT', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
+  const date = formatDate(day.date)
   const eventText = day.eventCount === 1 ? '1 evento' : `${day.eventCount} eventi`
   return `${date}, ${eventText}, saldo previsto ${formatCurrency(day.closingBalance)}, ${dayWarningLabel(day.warnings)}`
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { DateInput } from '@/components/ui/date-input'
 import { useMemo, useState } from 'react'
 import { Link2, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -309,7 +310,7 @@ export function GoalLinkedSourcesCard({
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label>Prossima esecuzione PAC</Label>
-              <Input type="date" value={form.nextPlanDate} onChange={(e) => update('nextPlanDate', e.target.value)} />
+              <DateInput value={form.nextPlanDate} onChange={(e) => update('nextPlanDate', e.target.value)} />
             </div>
           </div>
           <Button type="button" className="h-11 w-full" disabled={saving} onClick={saveSnapshot}>

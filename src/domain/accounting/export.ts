@@ -1,3 +1,4 @@
+import { formatDate } from '@/lib/utils'
 import type { Account, Category } from '@/types/database'
 
 import type { AppTransaction } from './transaction-adapter'
@@ -37,7 +38,7 @@ export function buildTransactionExportRows(
           : 'Uscita'
 
       return {
-        data: transaction.date,
+        data: formatDate(transaction.date),
         tipo,
         descrizione: transaction.description ?? '',
         categoria: isTransfer

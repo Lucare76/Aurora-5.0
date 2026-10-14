@@ -1,5 +1,6 @@
 'use client'
 
+import { FormDateInput } from '@/components/ui/date-input'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -358,7 +359,7 @@ export default function GoalDetailPage() {
             </div>
             <div className="space-y-2">
               <Label>Data</Label>
-              <Input type="date" {...form.register('date')} className="h-11 border-[#e5e7f0] bg-white" />
+              <FormDateInput control={form.control} name="date" className="h-11 border-[#e5e7f0] bg-white" />
             </div>
             <div className="space-y-2">
               <Label>Nota</Label>

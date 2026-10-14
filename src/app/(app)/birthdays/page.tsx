@@ -1,5 +1,6 @@
 'use client'
 
+import { FormDateInput } from '@/components/ui/date-input'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { Resolver, SubmitHandler } from 'react-hook-form'
@@ -144,7 +145,7 @@ export default function BirthdaysPage() {
         <div className="min-w-0">
           <p className="font-semibold text-slate-950">{birthday.name}</p>
           <p className="mt-1 text-sm text-slate-500">
-            {formatDate(birthday.birth_date, 'dd MMMM yyyy')} · compirà {age} anni
+            {formatDate(birthday.birth_date)} · compirà {age} anni
           </p>
           {birthday.notes && <p className="mt-1 text-xs text-slate-400">{birthday.notes}</p>}
         </div>
@@ -218,7 +219,7 @@ export default function BirthdaysPage() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2"><Label>Nome</Label><Input {...form.register('name')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" /></div>
-              <div className="space-y-2"><Label>Data nascita</Label><Input type="date" {...form.register('birth_date')} className="h-11 border-[#e5e7f0] bg-white text-slate-950" /></div>
+              <div className="space-y-2"><Label>Data nascita</Label><FormDateInput control={form.control} name="birth_date" className="h-11 border-[#e5e7f0] bg-white text-slate-950" /></div>
             </div>
             <div className="space-y-2">
               <Label>Reminder</Label>

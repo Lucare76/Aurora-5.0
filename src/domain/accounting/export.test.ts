@@ -11,7 +11,7 @@ describe('transaction export', () => {
   })
 
   it('exports income rows', () => {
-    expect(rows.find((row) => row.descrizione === 'Movimento' && row.data === '2026-01-05')).toMatchObject({
+    expect(rows.find((row) => row.descrizione === 'Movimento' && row.data === '05/01/2026')).toMatchObject({
       tipo: 'Entrata',
       categoria: 'Stipendio',
       conto: 'Banca',
@@ -47,14 +47,14 @@ describe('transaction export', () => {
   })
 
   it('exports uncategorized movements', () => {
-    expect(rows.find((row) => row.data === '2026-01-13')).toMatchObject({
+    expect(rows.find((row) => row.data === '13/01/2026')).toMatchObject({
       categoria: 'Senza categoria',
       importo: '39.90',
     })
   })
 
   it('keeps same date and same amount rows distinct by description', () => {
-    const duplicated = rows.filter((row) => row.data === '2025-12-29' && row.importo === '45.00')
+    const duplicated = rows.filter((row) => row.data === '29/12/2025' && row.importo === '45.00')
     expect(duplicated.map((row) => row.descrizione).sort()).toEqual(['Spesa carta A', 'Spesa carta B'])
   })
 
@@ -77,7 +77,7 @@ describe('transaction export', () => {
 
   it('sorts export rows by date descending', () => {
     expect(rows[0].data >= rows[1].data).toBe(true)
-    expect(rows[0].data).toBe('2026-03-02')
+    expect(rows[0].data).toBe('02/03/2026')
   })
 
   it('uses Giroconto category for transfer rows', () => {

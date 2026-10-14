@@ -1,5 +1,6 @@
 'use client'
 
+import { formatDate, formatDateTime } from '@/lib/utils'
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -45,9 +46,8 @@ const severityOptions = ['all', 'CRITICAL', 'WARNING', 'INFO'] as const
 const statusOptions = ['open', 'acknowledged', 'ignored', 'resolved', 'stale', 'all'] as const
 const categoryOptions = ['all', ...Object.keys(DATA_INTEGRITY_CATEGORY_LABELS)] as Array<'all' | DataIntegrityCategory>
 
-function formatDateTime(value?: string | null) {
-  if (!value) return 'Mai'
-  return new Intl.DateTimeFormat('it-IT', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+function scanDateTime(value?: string | null) {
+  return value ? formatDateTime(value) : 'Mai'
 }
 
 function DataIntegrityPageContent() {
@@ -162,7 +162,7 @@ function DataIntegrityPageContent() {
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
               Analizza anomalie, duplicazioni e riferimenti incoerenti senza modificare automaticamente i dati finanziari.
             </p>
-            <p className="mt-1 text-xs text-slate-400">Ultima scansione: {formatDateTime(payload?.latestScan?.completed_at ?? payload?.latestScan?.started_at)}</p>
+            <p className="mt-1 text-xs text-slate-400">Ultima scansione: {scanDateTime(payload?.latestScan?.completed_at ?? payload?.latestScan?.started_at)}</p>
           </div>
           <Button onClick={runScan} disabled={scanning} className="gap-2">
             <RefreshCw className={`h-4 w-4 ${scanning ? 'animate-spin' : ''}`} />
@@ -215,7 +215,7 @@ function DataIntegrityPageContent() {
                     </div>
                     <h3 className="mt-3 font-bold text-slate-950">{issue.title}</h3>
                     <p className="mt-1 text-sm text-slate-500">{issue.explanation}</p>
-                    <p className="mt-3 text-xs text-slate-400">Ultima rilevazione: {formatDateTime(issue.lastDetectedAt)}</p>
+                    <p className="mt-3 text-xs text-slate-400">Ultima rilevazione: {scanDateTime(issue.lastDetectedAt)}</p>
                   </button>
                 ))}
               </div>
@@ -268,7 +268,7 @@ function IssueDetail({ issue, onStatus }: { issue: DataIntegrityIssue | null; on
             {issue.evidence.length === 0 ? <p className="text-sm text-slate-500">Nessuna evidenza aggiuntiva.</p> : issue.evidence.map((item, index) => (
               <div key={`${item.label}-${index}`} className="rounded-xl border border-slate-200 bg-white p-3">
                 <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">{item.label}</dt>
-                <dd className="mt-1 break-words text-sm font-medium text-slate-800">{String(item.value ?? 'n.d.')}</dd>
+                <dd className="mt-1 break-words text-sm font-medium text-slate-800">{item.kind === 'date' && typeof item.value === 'string' ? formatDate(item.value) : String(item.value ?? 'n.d.')}</dd>
               </div>
             ))}
           </dl>
@@ -338,7 +338,7 @@ function DuplicateComparison({ issue, onStatus }: { issue: DataIntegrityIssue; o
 
   const deleteMovement = async (movement: DuplicateMovement, label: 'A' | 'B') => {
     if (!issue.id) return
-    const confirmed = window.confirm(`Eliminare il Movimento ${label}?\n\nData: ${movement.date}\nImporto: ${formatMoney(movement.amount)}\nDescrizione: ${movement.description || 'Senza descrizione'}\nConto: ${movement.accountName}\n\nL'azione usa il flusso atomico esistente e non viene eseguita automaticamente.`)
+    const confirmed = window.confirm(`Eliminare il Movimento ${label}?\n\nData: ${formatDate(movement.date)}\nImporto: ${formatMoney(movement.amount)}\nDescrizione: ${movement.description || 'Senza descrizione'}\nConto: ${movement.accountName}\n\nL'azione usa il flusso atomico esistente e non viene eseguita automaticamente.`)
     if (!confirmed) return
     setDeleting(movement.id)
     try {
@@ -417,7 +417,7 @@ function DuplicateComparison({ issue, onStatus }: { issue: DataIntegrityIssue; o
 function MovementCard({ label, movement, other }: { label: 'A' | 'B'; movement: DuplicateMovement; other: DuplicateMovement }) {
   const fields = [
     ['ID', shortId(movement.id), shortId(other.id), true],
-    ['Data', movement.date, other.date],
+    ['Data', formatDate(movement.date), formatDate(other.date)],
     ['Descrizione', movement.description || 'Senza descrizione', other.description || 'Senza descrizione'],
     ['Importo', formatMoney(movement.amount), formatMoney(other.amount)],
     ['Tipo', movementTypeLabel(movement.type), movementTypeLabel(other.type)],

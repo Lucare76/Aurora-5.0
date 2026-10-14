@@ -1,4 +1,4 @@
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import type {
   AgendaGroup,
   CalendarAccountBalance,
@@ -480,8 +480,8 @@ export function buildInsights(params: {
   const large = params.criticalDays.find((day) => day.type === 'LARGE_EXPENSE')
   const multiple = params.criticalDays.find((day) => day.type === 'MULTIPLE_EXPENSES')
   const goal = params.criticalDays.find((day) => day.type === 'GOAL_AT_RISK')
-  if (negative) insights.push({ type: 'NEGATIVE_BALANCE_EXPECTED', severity: 'DANGER', title: 'Saldo sotto zero possibile', message: `${negative.date}: il saldo previsto potrebbe scendere a ${formatCurrency(Number(negative.amount ?? 0))}.` })
-  else if (below) insights.push({ type: 'BELOW_THRESHOLD_EXPECTED', severity: 'WARNING', title: 'Soglia a rischio', message: `${below.date}: il saldo previsto potrebbe scendere sotto la soglia configurata.` })
+  if (negative) insights.push({ type: 'NEGATIVE_BALANCE_EXPECTED', severity: 'DANGER', title: 'Saldo sotto zero possibile', message: `${formatDate(negative.date)}: il saldo previsto potrebbe scendere a ${formatCurrency(Number(negative.amount ?? 0))}.` })
+  else if (below) insights.push({ type: 'BELOW_THRESHOLD_EXPECTED', severity: 'WARNING', title: 'Soglia a rischio', message: `${formatDate(below.date)}: il saldo previsto potrebbe scendere sotto la soglia configurata.` })
   else insights.push({ type: 'BALANCE_STAYS_POSITIVE', severity: 'INFO', title: 'Saldo previsto positivo', message: `Il saldo previsto rimane sopra ${formatCurrency(params.summary.minimumProjectedBalance)} per tutto il periodo.` })
   if (large) insights.push({ type: 'HIGH_EXPENSE_DAY', severity: 'WARNING', title: 'Giornata con uscite elevate', message: large.message })
   if (multiple) insights.push({ type: 'MULTIPLE_DUE_ITEMS', severity: 'INFO', title: 'Scadenze concentrate', message: multiple.message })
