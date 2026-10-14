@@ -30,7 +30,7 @@ const editSchema = z.object({
   account_id: id,
   type: z.enum(['income', 'expense', 'transfer']),
   amount: z.number().finite().positive(),
-  date: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   description: z.string().trim().min(1),
   category_id: id.nullable().optional(),
   notes: z.string().nullable().optional(),
