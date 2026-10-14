@@ -779,7 +779,7 @@ export default function TransactionsPage() {
     const descriptionField = targetForm.register('description')
 
     return (
-    <form onSubmit={targetForm.handleSubmit(onSubmit)} className="mt-4 space-y-3">
+    <form onSubmit={targetForm.handleSubmit(onSubmit)} className="mt-3 space-y-2">
       {renderTypeToggle(targetForm)}
 
       <div className="space-y-1.5 text-center">
@@ -789,7 +789,7 @@ export default function TransactionsPage() {
           step="0.01"
           inputMode="decimal"
           {...targetForm.register('amount')}
-          className="h-14 border-[#e5e7f0] bg-white text-center text-3xl font-semibold tabular-nums text-slate-950 placeholder:text-slate-300"
+          className="h-10 border-[#e5e7f0] bg-white text-center text-2xl font-semibold tabular-nums text-slate-950 placeholder:text-slate-300"
           placeholder="0,00"
         />
         {targetForm.formState.errors.amount && (
@@ -886,9 +886,14 @@ export default function TransactionsPage() {
           <Label>Pagamento rateale</Label>
           <SelectField {...targetForm.register('installment_mode')} className="h-10">
             <option value="none">Pagamento normale</option>
-            <option value="new">Nuovo piano · imposta il numero totale di rate</option>
-            <option value="existing">Rata di un piano esistente</option>
+            <option value="new">Nuovo piano (numero totale di rate)</option>
+            <option value="existing" disabled={installmentPlans.length === 0}>
+              {installmentPlans.length === 0 ? 'Piano esistente (nessun piano creato)' : 'Rata di un piano esistente'}
+            </option>
           </SelectField>
+          {installmentPlans.length === 0 && targetForm.watch('installment_mode') === 'none' && (
+            <p className="text-xs text-slate-500">Per impostare le rate, scegli “Nuovo piano”.</p>
+          )}
           {targetForm.watch('installment_mode') === 'new' && (
             <div className="grid gap-3 sm:grid-cols-2">
               <div><Label>Nome acquisto</Label><Input {...targetForm.register('installment_title')} placeholder="Es. Telefono" /></div>
@@ -924,10 +929,14 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      <div className="space-y-1.5">
-        <Label className="text-slate-700">Note</Label>
-        <TextareaField {...targetForm.register('notes')} placeholder="Aggiungi una nota opzionale" />
-      </div>
+      <details className="rounded-xl border border-[#e5e7f0] p-2">
+        <summary className="cursor-pointer text-sm font-medium text-slate-700">
+          {targetForm.watch('notes') ? 'Note (presenti)' : 'Aggiungi una nota'}
+        </summary>
+        <div className="mt-2">
+          <TextareaField {...targetForm.register('notes')} aria-label="Note" placeholder="Aggiungi una nota opzionale" />
+        </div>
+      </details>
 
       {selectedType !== 'transfer' && (
         <label className="flex items-start gap-2 rounded-xl border border-[#e5e7f0] bg-white p-3 text-sm text-slate-700">
@@ -935,7 +944,7 @@ export default function TransactionsPage() {
           <span>
             <span className="font-medium text-slate-900">Movimento neutro / partita di giro</span>
             <br />
-            <span className="text-xs text-slate-500">Modifica il saldo reale del conto, senza entrare nelle spese o entrate personali. Per una vacanza anticipata da te e rimborsata da Aurora, registra la spesa come neutra, con categoria e descrizione della vacanza. Registra poi il rimborso come giroconto dal conto Aurora al tuo conto: la spesa rimane visibile, ma non si somma alle tue uscite.</span>
+            <span className="text-xs text-slate-500">Incide sul saldo del conto, ma è escluso dalle statistiche personali.</span>
           </span>
         </label>
       )}
@@ -1453,7 +1462,7 @@ export default function TransactionsPage() {
       </div>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-lg overflow-y-auto overscroll-contain border-[#e5e7f0] bg-white p-4 text-slate-950 sm:p-6">
+        <DialogContent className="max-h-[min(80dvh,44rem)] max-w-lg overflow-y-auto overscroll-contain border-[#e5e7f0] bg-white p-4 text-slate-950">
           <DialogHeader>
             <DialogTitle>Nuovo movimento</DialogTitle>
           </DialogHeader>
@@ -1462,22 +1471,25 @@ export default function TransactionsPage() {
       </Dialog>
 
       <Dialog open={Boolean(editingTransaction)} onOpenChange={(open) => !open && setEditingTransaction(null)}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-lg overflow-y-auto overscroll-contain border-[#e5e7f0] bg-white p-4 text-slate-950 sm:p-6">
+        <DialogContent className="max-h-[min(80dvh,44rem)] max-w-lg overflow-y-auto overscroll-contain border-[#e5e7f0] bg-white p-4 text-slate-950">
           <DialogHeader>
             <DialogTitle>Modifica movimento</DialogTitle>
           </DialogHeader>
           {renderTransactionForm(editForm, 'Salva modifiche', onEdit, watchedEditType, watchedEditAccount, editCategoryTree)}
           {editingTransaction?.type === 'expense' && !editingTransaction.is_neutral
             && editingTransaction.app?.transferReferenceKind === 'none' && (
-              <div className="mt-4 space-y-2 rounded-xl border border-indigo-200 p-3">
-                <Label htmlFor="reimbursed-amount">Rimborso parziale di questa spesa (€)</Label>
+              <details className="mt-3 rounded-xl border border-indigo-200 p-3">
+                <summary className="cursor-pointer text-sm font-medium">Rimborso parziale di questa spesa</summary>
+                <div className="mt-2 space-y-2">
+                <Label htmlFor="reimbursed-amount">Importo rimborsato (€)</Label>
                 <div className="flex gap-2">
                   <Input id="reimbursed-amount" inputMode="decimal" placeholder="Es. 334,90" value={reimbursedAmount}
                     onChange={(event) => setReimbursedAmount(event.target.value)} />
                   <Button type="button" variant="outline" disabled={busy} onClick={splitReimbursement}>Dividi spesa</Button>
                 </div>
                 <p className="text-xs text-slate-500">La quota rimborsata diventa neutra; il resto è spesa personale. Il totale della vacanza e il saldo restano invariati. Registra il rimborso effettivo come giroconto.</p>
-              </div>
+                </div>
+              </details>
             )}
         </DialogContent>
       </Dialog>
