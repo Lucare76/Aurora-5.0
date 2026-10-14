@@ -25,6 +25,7 @@ export function eventDirectionSymbol(event: FinancialCalendarEvent): string {
 
 export function eventTypeLabel(event: FinancialCalendarEvent): string {
   switch (event.sourceType) {
+    case 'INSTALLMENT': return 'Rata acquisto'
     case 'RECURRING': return 'Ricorrenza'
     case 'LOAN': return 'Prestito'
     case 'BUDGET': return 'Budget'

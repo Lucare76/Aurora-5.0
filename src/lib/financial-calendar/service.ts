@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { loadInstallments } from '@/lib/installments/load'
+import { addInstallmentEvents } from '@/lib/installments/schedule'
 import {
   applyCalendarFilters,
   buildAgendaGroups,
@@ -118,7 +120,7 @@ export function parseFinancialCalendarFilters(searchParams: URLSearchParams, now
     range,
     account: uuidParam(searchParams.get('account'), 'INVALID_ACCOUNT'),
     category: uuidParam(searchParams.get('category'), 'INVALID_CATEGORY'),
-    sourceType: enumParam<CalendarSourceType | 'ALL'>(searchParams.get('sourceType'), ['ALL', 'RECURRING', 'LOAN', 'BUDGET', 'SAVINGS_GOAL', 'EXISTING_TRANSACTION'], 'ALL'),
+    sourceType: enumParam<CalendarSourceType | 'ALL'>(searchParams.get('sourceType'), ['ALL', 'RECURRING', 'LOAN', 'BUDGET', 'SAVINGS_GOAL', 'EXISTING_TRANSACTION', 'INSTALLMENT'], 'ALL'),
     direction: enumParam<CalendarDirection | 'ALL'>(searchParams.get('direction'), ['ALL', 'INCOME', 'EXPENSE', 'NEUTRAL'], 'ALL'),
     status: enumParam<CalendarEventStatus | 'ALL'>(searchParams.get('status'), ['ALL', 'EXPECTED', 'COMPLETED', 'OVERDUE', 'INFORMATIONAL'], 'ALL'),
     includeActual: boolParam(searchParams.get('includeActual'), true),
@@ -159,6 +161,7 @@ export async function buildFinancialCalendarPayload(
     goalsRes,
     budgetsRes,
     transactionsRes,
+    installments,
   ] = await Promise.all([
     supabase.from('profiles').select('timezone').eq('id', userId).maybeSingle(),
     supabase.from('accounts').select('id,name,type,balance,currency,is_active,is_hidden').eq('user_id', userId),
@@ -168,6 +171,7 @@ export async function buildFinancialCalendarPayload(
     supabase.from('savings_goals').select('id,name,target_amount,current_amount,target_date,status,archived').eq('user_id', userId),
     supabase.from('budgets').select('id,category_id,amount,month,year').eq('user_id', userId).gte('year', startYear).lte('year', endYear),
     supabase.from('transactions').select('id,account_id,category_id,type,amount,description,date,transfer_peer_id,recurring_id').eq('user_id', userId).gte('date', filters.from).lte('date', filters.to),
+    loadInstallments(supabase, userId),
   ])
 
   const responses = [profileRes, accountsRes, categoriesRes, recurringRes, loansRes, goalsRes, budgetsRes, transactionsRes]
@@ -185,13 +189,14 @@ export async function buildFinancialCalendarPayload(
   const transactions = (transactionsRes.data ?? []) as CalendarTransactionInput[]
   assertOwnership(filters, accounts, categories)
 
-  const allEvents = [
+  const baseEvents = [
     ...generateRecurringEvents({ rules: recurring, accounts, categories, period: generationPeriod, today }),
     ...generateLoanEvents({ loans, period: generationPeriod, today }),
     ...generateGoalEvents({ goals, period: generationPeriod, today }),
     ...generateBudgetEvents({ budgets, categories, transactions, period: generationPeriod, today }),
     ...generateActualTransactionEvents({ transactions, accounts, categories }),
   ]
+  const allEvents = addInstallmentEvents({ ...installments, events: baseEvents, accounts, categories, from: generationFrom, to: filters.to, today })
   const filteredForecastEvents = applyCalendarFilters(allEvents, filters)
   const periodEvents = filteredForecastEvents.filter((event) => event.date >= period.from && event.date <= period.to)
   const truncated = periodEvents.length > eventLimit()
@@ -227,7 +232,7 @@ export async function buildFinancialCalendarPayload(
     metadata: {
       generatedAt: new Date().toISOString(),
       timezone: (profileRes.data as { timezone?: string } | null)?.timezone ?? 'Europe/Rome',
-      queryCount: 8,
+      queryCount: 10,
       eventCount: events.length,
       forecastHorizonDays: period.days,
       completeness: confidence.completenessPercentage,

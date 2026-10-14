@@ -1,8 +1,9 @@
 import type { AccountType, RecurringFrequency, TransactionType } from '@/types/database'
 
 export type CalendarView = 'month' | 'agenda'
-export type CalendarSourceType = 'RECURRING' | 'LOAN' | 'BUDGET' | 'SAVINGS_GOAL' | 'EXISTING_TRANSACTION'
+export type CalendarSourceType = 'RECURRING' | 'LOAN' | 'BUDGET' | 'SAVINGS_GOAL' | 'EXISTING_TRANSACTION' | 'INSTALLMENT'
 export type CalendarEventType =
+  | 'INSTALLMENT_DUE'
   | 'EXPECTED_INCOME'
   | 'EXPECTED_EXPENSE'
   | 'LOAN_INSTALLMENT'

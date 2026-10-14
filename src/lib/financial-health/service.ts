@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { loadInstallments } from '@/lib/installments/load'
+import { addInstallmentEvents, type InstallmentPlan, type InstallmentPayment } from '@/lib/installments/schedule'
 import {
   buildFinancialCalendarPeriod,
   computeCalendarForecast,
@@ -81,6 +83,8 @@ function monthlyMetrics(transactions: Transaction[], accounts: Account[], from: 
 }
 
 function buildProjectedLiquidity(params: {
+  installmentPlans: InstallmentPlan[]
+  installmentPayments: InstallmentPayment[]
   accounts: Account[]
   categories: Category[]
   recurringRules: RecurringRule[]
@@ -92,13 +96,16 @@ function buildProjectedLiquidity(params: {
   in90: string
 }): ProjectedLiquidityInput {
   const period = buildFinancialCalendarPeriod(params.today, params.in90)
-  const events = [
+  const baseEvents = [
     ...generateRecurringEvents({ rules: params.recurringRules, accounts: params.accounts.map(toCalendarAccount), categories: params.categories, period, today: params.today }),
     ...generateLoanEvents({ loans: params.loans, period, today: params.today }),
     ...generateGoalEvents({ goals: params.goals, period, today: params.today }),
     ...generateBudgetEvents({ budgets: params.budgets, categories: params.categories, transactions: params.transactions, period, today: params.today }),
     ...generateActualTransactionEvents({ transactions: params.transactions.filter((tx) => tx.date >= params.today), accounts: params.accounts.map(toCalendarAccount), categories: params.categories }),
   ]
+  const events = addInstallmentEvents({ plans: params.installmentPlans, payments: params.installmentPayments,
+    events: baseEvents, accounts: params.accounts.map(toCalendarAccount), categories: params.categories,
+    from: params.today, to: params.in90, today: params.today })
   const forecast = computeCalendarForecast({
     accounts: params.accounts.map(toCalendarAccount),
     events,
@@ -163,6 +170,7 @@ export async function buildFinancialHealthPayload(
     loanPaymentsRes,
     notificationsRes,
     accountPurposeRes,
+    installments,
   ] = await Promise.all([
     supabase.from('profiles').select('timezone,display_name').eq('id', userId).maybeSingle(),
     supabase.from('accounts').select('id,user_id,name,type,balance,currency,is_active,is_hidden,color,icon,sort_order,created_at,updated_at').eq('user_id', userId),
@@ -176,6 +184,7 @@ export async function buildFinancialHealthPayload(
     supabase.from('loan_payments').select('id,loan_id,user_id,amount,paid_at,notes,created_at').eq('user_id', userId).gte('paid_at', `${twelveMonthsAgo}T00:00:00.000Z`),
     (supabase as unknown as SupabaseClient).from('notifications').select('id,type,severity,source_type,source_id,source_url,is_read,archived_at,resolved_at,snoozed_until,created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(5000),
     (supabase as unknown as SupabaseClient).from('account_purpose_links').select('account_id,purpose').eq('user_id', userId),
+    loadInstallments(supabase as unknown as SupabaseClient, userId),
   ])
 
   const required = [profileRes, accountsRes, categoriesRes, transactionsRes, budgetsRes, recurringRes, goalsRes, contributionsRes, loansRes, loanPaymentsRes, accountPurposeRes]
@@ -191,7 +200,7 @@ export async function buildFinancialHealthPayload(
   const recurringRules = ((recurringRes.data ?? []) as RecurringRule[]).filter((rule) => !dedicatedAccountIds.has(rule.account_id))
   const goals = (goalsRes.data ?? []) as SavingsGoal[]
   const loans = (loansRes.data ?? []) as Loan[]
-  const projectedLiquidity = buildProjectedLiquidity({ accounts, categories, recurringRules, loans, goals, budgets, transactions, today, in90 })
+  const projectedLiquidity = buildProjectedLiquidity({ accounts, categories, recurringRules, loans, goals, budgets, transactions, today, in90, installmentPlans: installments.plans, installmentPayments: installments.payments })
   const history = monthlyMetrics(transactions, accounts, twelveMonthsAgo, period.to)
 
   const profile = profileRes.data as { timezone?: string; display_name?: string | null } | null

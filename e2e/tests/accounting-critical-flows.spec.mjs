@@ -376,3 +376,44 @@ test('riconciliazione -> Patrimonio: RPC atomica e snapshot consolidato vengono 
     difference: 120,
   })
 })
+
+
+test('rate: pianificazione e collegamento di una spesa esistente senza duplicare addebiti', async ({ page }) => {
+  const plan = { id: '88888888-8888-4888-8888-888888888888', title: 'Computer a rate', total_installments: 4, created_at: '2026-09-25T06:00:00Z', schedule: null }
+  const first = newTransactionRow({ id: '99999999-9999-4999-8999-999999999999', accountId: ACCOUNT_MAIN, type: 'expense', amount: 50, description: 'Computer prima rata', date: '2026-09-25' })
+  const second = newTransactionRow({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', accountId: ACCOUNT_MAIN, type: 'expense', amount: 50, description: 'Computer addebito esistente', date: '2026-09-25' })
+  const state = { accounts: [account(ACCOUNT_MAIN, 'Bancoposta', 900)], transactions: [first, second], accountsReads: 0 }
+  const payments = [{ transaction_id: first.id, plan_id: plan.id, installment_number: 1, transaction: first }]
+  await seedSupabaseSession(page)
+  await installSupabaseMocks(page, state)
+  let transactionWrites = 0
+  await page.route('**/api/transactions', async (route) => { transactionWrites++; await route.fulfill({ status: 500, body: '{}' }) })
+  await page.route('**/api/installments', async (route) => {
+    if (route.request().method() === 'PUT') plan.schedule = route.request().postDataJSON().schedule
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ plans: [plan], payments }) })
+  })
+  await page.route('**/api/installments/link', async (route) => {
+    const body = route.request().postDataJSON()
+    expect(body).toEqual({ plan_id: plan.id, transaction_id: second.id, installment_number: 2 })
+    payments.push({ ...body, transaction: second })
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{"success":true}' })
+  })
+  await page.goto('/transactions')
+  const panel = page.locator('#piani-rateali')
+  await expect(panel.getByText('3 rate ancora aperte su 4', { exact: false })).toBeVisible()
+  await panel.getByRole('button', { name: 'Pianifica rate', exact: true }).click()
+  await page.getByLabel('Importo di ogni rata (€)').fill('50')
+  await page.getByLabel('Prima rata da pianificare').fill('2')
+  await page.getByLabel('Scadenza di questa rata').fill('25/10/2026')
+  await page.getByRole('button', { name: 'Salva pianificazione', exact: true }).click()
+  await expect(panel.getByText('Prossima rata 2:', { exact: false })).toContainText('25/10/2026')
+  expect(plan.schedule).toMatchObject({ amount: 50, first_due_date: '2026-10-25', first_installment_number: 2 })
+  await panel.getByRole('button', { name: 'Collega addebito', exact: true }).click()
+  await page.getByLabel('Spesa nel mese visualizzato').selectOption(second.id)
+  await page.getByRole('button', { name: 'Collega senza nuovo addebito' }).click()
+  await expect(panel.getByText('2 rate ancora aperte su 4', { exact: false })).toBeVisible()
+  await expect(panel.getByText('Prossima rata 3:', { exact: false })).toContainText('25/11/2026')
+  expect(state.accounts[0].balance).toBe(900)
+  expect(state.transactions).toHaveLength(2)
+  expect(transactionWrites).toBe(0)
+})
