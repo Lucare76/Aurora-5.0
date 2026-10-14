@@ -443,6 +443,7 @@ export default function FinancialCalendarPage() {
                     <option value="ALL">Tutte le fonti</option>
                     <option value="RECURRING">Ricorrenze</option>
                     <option value="LOAN">Prestiti</option>
+                    <option value="INSTALLMENT">Rate acquisti</option>
                     <option value="BUDGET">Budget</option>
                     <option value="SAVINGS_GOAL">Obiettivi</option>
                     <option value="EXISTING_TRANSACTION">Movimenti reali</option>
@@ -484,6 +485,7 @@ export default function FinancialCalendarPage() {
                 <option value="ALL">Tutte le fonti</option>
                 <option value="RECURRING">Ricorrenze</option>
                 <option value="LOAN">Prestiti</option>
+                    <option value="INSTALLMENT">Rate acquisti</option>
                 <option value="BUDGET">Budget</option>
                 <option value="SAVINGS_GOAL">Obiettivi</option>
                 <option value="EXISTING_TRANSACTION">Movimenti reali</option>

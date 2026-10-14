@@ -93,7 +93,7 @@ export type BackupAuthenticatedUser = {
   email?: string | null
 }
 
-type BackupInstallmentPlan = { id: string; title: string; total_installments: number; created_at: string }
+type BackupInstallmentPlan = { id: string; title: string; total_installments: number; created_at: string; schedule?: import('@/lib/installments/schedule').InstallmentSchedule | null }
 type BackupInstallmentPayment = { transaction_id: string; plan_id: string; installment_number: number }
 
 export type UserBackupData = {
@@ -376,7 +376,7 @@ export async function fetchUserBackupData(
       .order('event_date', { ascending: true })
       .order('created_at', { ascending: true }) as unknown as Promise<QueryResult<PersonalTimelineEvent>>,
     (supabase as unknown as SupabaseClient)
-      .from('installment_plans').select('id,title,total_installments,created_at')
+      .from('installment_plans').select('id,title,total_installments,created_at,schedule')
       .eq('user_id', user.id).order('created_at', { ascending: true }) as unknown as Promise<QueryResult<BackupInstallmentPlan>>,
     (supabase as unknown as SupabaseClient)
       .from('installment_payments').select('transaction_id,plan_id,installment_number')

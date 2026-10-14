@@ -476,6 +476,7 @@ export type AuroraBackupInstallmentPlanV1 = {
   id: string
   title: string
   total_installments: number
+  schedule?: import('@/lib/installments/schedule').InstallmentSchedule | null
   created_at?: string
 }
 

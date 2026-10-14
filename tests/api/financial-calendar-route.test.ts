@@ -53,7 +53,7 @@ describe('GET /api/financial-calendar', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('Cache-Control')).toBe('no-store')
     expect(body.summary).toHaveProperty('projectedClosingBalance')
-    expect(body.metadata.queryCount).toBe(8)
+    expect(body.metadata.queryCount).toBe(10)
     expect(JSON.stringify(body)).not.toContain('user_id')
   }, 60000)
 

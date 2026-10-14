@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { installmentScheduleSchema } from '@/lib/installments/schema'
 
 import {
   AURORA_BACKUP_FORMAT,
@@ -512,6 +513,7 @@ export const auroraBackupV1Schema = z.object({
     personalTimelineEvents: collection(personalTimelineEventBackupSchema).optional(),
     installmentPlans: collection(z.object({
       id: uuid, title: shortString.min(1), total_installments: z.number().int().min(2).max(360),
+      schedule: installmentScheduleSchema.nullable().optional(),
       created_at: maybeTimestamp,
     }).passthrough()).optional(),
     installmentPayments: collection(z.object({

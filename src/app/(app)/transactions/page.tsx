@@ -29,6 +29,8 @@ import { format, isToday, isYesterday, parseISO } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { InstallmentPlans } from '@/components/installments/installment-plans'
+import { latestPayment, unpaidNumbers, type InstallmentPlan, type InstallmentPayment } from '@/lib/installments/schedule'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -136,8 +138,6 @@ const transactionSchema = z
 type TransactionForm = z.infer<typeof transactionSchema>
 type TypeFilter = 'all' | 'income' | 'expense' | 'transfer'
 
-type InstallmentPlan = { id: string; title: string; total_installments: number; created_at: string }
-type InstallmentPayment = { transaction_id: string; plan_id: string; installment_number: number }
 
 interface TransactionWithPeer extends Transaction {
   destination_account_id?: string
@@ -334,14 +334,6 @@ export default function TransactionsPage() {
     [installmentPayments],
   )
   const planById = useMemo(() => new Map(installmentPlans.map((plan) => [plan.id, plan])), [installmentPlans])
-  const lastInstallmentByPlan = useMemo(() => {
-    const result = new Map<string, number>()
-    for (const payment of installmentPayments) {
-      result.set(payment.plan_id, Math.max(result.get(payment.plan_id) ?? 0, payment.installment_number))
-    }
-    return result
-  }, [installmentPayments])
-
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts])
   const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
   const parentCategoryByChildId = useMemo(() => {
@@ -906,11 +898,12 @@ export default function TransactionsPage() {
               <Label>Piano rateale</Label>
               <SelectField {...targetForm.register('installment_plan_id')} onChange={(event) => {
                 targetForm.setValue('installment_plan_id', event.target.value, { shouldValidate: true })
-                targetForm.setValue('installment_number', Math.min(360, (lastInstallmentByPlan.get(event.target.value) ?? 0) + 1))
+                const selectedPlan = planById.get(event.target.value)
+                targetForm.setValue('installment_number', selectedPlan ? unpaidNumbers(selectedPlan, installmentPayments)[0] ?? selectedPlan.total_installments : 1)
               }}>
                 <option value="">Seleziona piano</option>
                 {installmentPlans.map((plan) => (
-                  <option key={plan.id} value={plan.id}>{plan.title} · {lastInstallmentByPlan.get(plan.id) ?? 0}/{plan.total_installments}</option>
+                  <option key={plan.id} value={plan.id}>{plan.title} · {unpaidNumbers(plan, installmentPayments).length} da pagare</option>
                 ))}
               </SelectField>
             </div>
@@ -1295,29 +1288,15 @@ export default function TransactionsPage() {
           </Card>
         </section>
 
-        {installmentPlans.some((plan) => (lastInstallmentByPlan.get(plan.id) ?? 0) < plan.total_installments) && (
-          <section className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900">Acquisti a rate</h2>
-            <p className="mt-1 text-xs text-slate-500">Le rate future sono previste: solo i movimenti registrati aggiornano i saldi.</p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {installmentPlans.filter((plan) => (lastInstallmentByPlan.get(plan.id) ?? 0) < plan.total_installments).map((plan) => {
-                const last = lastInstallmentByPlan.get(plan.id) ?? 0
-                return (
-                  <div key={plan.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{plan.title}</p>
-                      <p className="text-xs text-slate-500">Ultima rata {last} di {plan.total_installments} · {plan.total_installments - last} da pagare</p>
-                    </div>
-                    <Button type="button" variant="outline" size="sm" onClick={() => {
-                      form.reset({ ...defaultValues, installment_mode: 'existing', installment_plan_id: plan.id, installment_number: last + 1 })
-                      setCreateOpen(true)
-                    }}>Registra rata</Button>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-        )}
+        <InstallmentPlans plans={installmentPlans} payments={installmentPayments} transactions={transactions}
+          accounts={accounts} onRefresh={fetchInstallments} onRegister={(plan, number) => {
+            const transaction = latestPayment(plan.id, installmentPayments)?.transaction
+            form.reset({ ...defaultValues, amount: plan.schedule?.amount ?? Number(transaction?.amount ?? 0),
+              account_id: transaction?.account_id ?? '', category_id: transaction?.category_id ?? '',
+              description: plan.title, date: new Date().toLocaleDateString('en-CA'),
+              installment_mode: 'existing', installment_plan_id: plan.id, installment_number: number })
+            setCreateOpen(true)
+          }} />
 
         {neutralExpenses > 0 && (
           <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900">
@@ -1405,7 +1384,7 @@ export default function TransactionsPage() {
                             {paymentByTransaction.has(transaction.id) && (() => {
                               const payment = paymentByTransaction.get(transaction.id)!
                               const plan = planById.get(payment.plan_id)
-                              return plan ? <p className="mt-0.5 text-xs text-indigo-600">{plan.title} · {Math.max(0, plan.total_installments - (lastInstallmentByPlan.get(plan.id) ?? 0))} rate rimanenti</p> : null
+                              return plan ? <p className="mt-0.5 text-xs text-indigo-600">{plan.title} · {unpaidNumbers(plan, installmentPayments).length} rate rimanenti</p> : null
                             })()}
                             {!isTransfer && parentCategory && (
                               <p className="mt-0.5 truncate text-xs text-slate-400">{parentCategory.name}</p>

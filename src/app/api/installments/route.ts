@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { canAccessPrivateFinance } from '@/lib/access/private-finance-access'
+import { allowedInstallmentAccount as allowedAccount } from '@/lib/installments/access'
+import { loadInstallments } from '@/lib/installments/load'
+import { installmentScheduleSchema } from '@/lib/installments/schema'
+import { latestPayment } from '@/lib/installments/schedule'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,18 +58,6 @@ async function session() {
   return { supabase, user }
 }
 
-async function allowedAccount(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  user: { id: string; email?: string | null },
-  accountId: string,
-) {
-  if (canAccessPrivateFinance(user.email)) return true
-  const { data, error } = await supabase.from('account_purpose_links')
-    .select('purpose').eq('user_id', user.id).eq('account_id', accountId)
-  return !error && !(data ?? []).some((row) =>
-    ['DEPENDENT_AURORA', 'DEPENDENT', 'ADI'].includes(row.purpose ?? ''))
-}
-
 function failed(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status })
 }
@@ -74,18 +65,36 @@ function failed(message: string, status = 400) {
 export async function GET() {
   const { supabase, user } = await session()
   if (!user) return failed('Non autenticato', 401)
-  const [plans, payments] = await Promise.all([
-    supabase.from('installment_plans').select('id,title,total_installments,created_at')
-      .eq('user_id', user.id).order('created_at', { ascending: false }),
-    supabase.from('installment_payments').select('transaction_id,plan_id,installment_number')
-      .eq('user_id', user.id),
-  ])
-  if (plans.error || payments.error) return failed('Impossibile caricare le rate', 500)
-  const activeIds = new Set((payments.data ?? []).map((payment) => payment.plan_id))
-  return NextResponse.json({
-    plans: (plans.data ?? []).filter((plan) => activeIds.has(plan.id)),
-    payments: payments.data ?? [],
-  })
+  try {
+    const data = await loadInstallments(supabase, user.id)
+    const accounts = [...new Set(data.payments.flatMap((p) => p.transaction ? [p.transaction.account_id] : []))]
+    const access = await Promise.all(accounts.map(async (account) => [account, await allowedAccount(supabase, user, account)] as const))
+    const allowed = new Set(access.filter(([, ok]) => ok).map(([account]) => account))
+    const payments = data.payments.filter((p) => p.transaction && allowed.has(p.transaction.account_id))
+    const plans = data.plans.filter((plan) => data.payments.filter((p) => p.plan_id === plan.id).every((p) => p.transaction && allowed.has(p.transaction.account_id)))
+    const ids = new Set(plans.map((plan) => plan.id))
+    return NextResponse.json({ plans, payments: payments.filter((p) => ids.has(p.plan_id)) })
+  } catch { return failed('Impossibile caricare le rate', 500) }
+}
+
+export async function PUT(request: Request) {
+  const { supabase, user } = await session()
+  if (!user) return failed('Non autenticato', 401)
+  const parsed = z.object({ plan_id: id, schedule: installmentScheduleSchema.nullable() }).safeParse(await request.json().catch(() => null))
+  if (!parsed.success) return failed('Controlla importo, frequenza, data e numero della rata')
+  try {
+    const data = await loadInstallments(supabase, user.id)
+    const plan = data.plans.find((p) => p.id === parsed.data.plan_id)
+    const transaction = latestPayment(parsed.data.plan_id, data.payments)?.transaction
+    if (!plan || !transaction) return failed('Piano non trovato', 404)
+    for (const payment of data.payments.filter((p) => p.plan_id === plan.id)) {
+      if (!payment.transaction || !await allowedAccount(supabase, user, payment.transaction.account_id)) return failed('Accesso non autorizzato', 403)
+    }
+    if (parsed.data.schedule && parsed.data.schedule.first_installment_number > plan.total_installments) return failed('Numero della rata oltre il totale del piano')
+    const { error } = await supabase.rpc('update_installment_schedule', { p_plan_id: plan.id, p_schedule: parsed.data.schedule })
+    if (error) return failed('Impossibile salvare la pianificazione')
+    return NextResponse.json({ success: true })
+  } catch { return failed('Impossibile caricare il piano', 500) }
 }
 
 export async function POST(request: Request) {
