@@ -27,6 +27,8 @@ import type { SeasonalForecast } from '@/lib/seasonal-plan/engine'
 type Payload = {
   plan: SeasonalPlan
   saved: boolean
+  needsReview?: boolean
+  reviewSignature?: string
   forecast: SeasonalForecast
   accounts: Array<{ id: string; name: string; balance: number; type: string }>
   automaticCommitments: Array<{
@@ -104,7 +106,11 @@ export default function SeasonalPlanPage() {
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(plan),
+          body: JSON.stringify({
+            ...plan,
+            review_signature: data?.reviewSignature,
+            review_account_ids: data?.plan.account_ids,
+          }),
         },
       )
       const p = await r.json()
@@ -147,6 +153,15 @@ export default function SeasonalPlanPage() {
       {error && (
         <p role="alert" className="rounded-xl bg-red-50 p-3 text-red-700">
           {error}
+        </p>
+      )}
+      {data.needsReview && (
+        <p
+          role="status"
+          className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800"
+        >
+          I saldi sono cambiati dall’ultima verifica. Controlla gli importi già
+          incassati e gli addebiti: poi conferma di nuovo il piano e ricalcola.
         </p>
       )}
       {dirty && (
@@ -199,7 +214,10 @@ export default function SeasonalPlanPage() {
           {formatCurrency(forecast.minimumConfirmed)}.
         </p>
       )}
-      <details open={!data.saved} className="rounded-2xl border bg-white p-4">
+      <details
+        open={!data.saved || Boolean(data.needsReview)}
+        className="rounded-2xl border bg-white p-4"
+      >
         <summary className="cursor-pointer font-semibold">
           Imposta il tuo piano
         </summary>

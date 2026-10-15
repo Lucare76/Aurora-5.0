@@ -49,6 +49,24 @@ beforeEach(() => {
   upsert.mockResolvedValue({ error: null })
 })
 describe('seasonal plan route', () => {
+  it('suspends the result when balances change between display and calculation', async () => {
+    const r = await PUT(
+      request(
+        {
+          ...plan(),
+          review_signature: 'old-signature',
+          review_account_ids: [account],
+        },
+        true,
+      ),
+    )
+    const p = await r.json()
+    expect(p.needsReview).toBe(true)
+    expect(p.plan.reviewed).toBe(false)
+    expect(p.forecast.spendableConfirmed).toBeNull()
+    expect(upsert).not.toHaveBeenCalled()
+  })
+
   it('requires authentication for reading and saving', async () => {
     client.auth.getUser.mockResolvedValue({ data: { user: null } })
     expect((await GET()).status).toBe(401)

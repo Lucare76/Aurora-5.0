@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { seasonalPlanSchema } from '@/lib/seasonal-plan/schema'
 import {
+  balanceSignature,
   forecastPlan,
   getSeasonalPayload,
   seasonalContext,
@@ -29,9 +30,8 @@ export async function PUT(request: Request) {
     error,
   } = await client.auth.getUser()
   if (error || !user) return json({ error: 'Non autenticato' }, 401)
-  const parsed = seasonalPlanSchema.safeParse(
-    await request.json().catch(() => null),
-  )
+  const raw = await request.json().catch(() => null)
+  const parsed = seasonalPlanSchema.safeParse(raw)
   if (!parsed.success)
     return json({ error: 'Controlla conti, importi e date del piano.' }, 400)
   try {
@@ -60,7 +60,21 @@ export async function PUT(request: Request) {
         },
         400,
       )
-    const payload = forecastPlan(parsed.data, context)
+    const reviewSignature = balanceSignature(parsed.data, context)
+    const sameSelection =
+      !Array.isArray(raw?.review_account_ids) ||
+      JSON.stringify([...raw.review_account_ids].sort()) ===
+        JSON.stringify([...parsed.data.account_ids].sort())
+    const changedBalances =
+      sameSelection &&
+      typeof raw?.review_signature === 'string' &&
+      raw.review_signature !== reviewSignature
+    if (changedBalances) parsed.data.reviewed = false
+    const payload = {
+      ...forecastPlan(parsed.data, context),
+      needsReview: changedBalances,
+      reviewSignature,
+    }
     // Preview and persistence share the same engine. Neither writes financial transactions.
     if (new URL(request.url).searchParams.get('preview') === 'true')
       return json({ plan: parsed.data, saved: false, ...payload })
@@ -70,6 +84,7 @@ export async function PUT(request: Request) {
         {
           user_id: user.id,
           config: parsed.data,
+          balance_signature: reviewSignature,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' },

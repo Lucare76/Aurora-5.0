@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { filterPersonalAccounts } from '@/lib/dependent-finance/calculations'
 import {
@@ -29,7 +30,7 @@ export async function seasonalContext(
     await Promise.all([
       client
         .from('accounts')
-        .select('id,name,type,balance,currency,is_active,is_hidden')
+        .select('id,name,type,balance,currency,is_active,is_hidden,updated_at')
         .eq('user_id', userId),
       client
         .from('account_purpose_links')
@@ -52,7 +53,9 @@ export async function seasonalContext(
   if (accounts.error || links.error || recurring.error || transactions.error)
     throw new Error('Lettura previsioni non riuscita')
   const eligible = filterPersonalAccounts(
-    (accounts.data ?? []) as CalendarAccountInput[],
+    (accounts.data ?? []) as Array<
+      CalendarAccountInput & { updated_at?: string }
+    >,
     links.data ?? [],
   ).filter(
     (a) =>
@@ -131,11 +134,16 @@ export function forecastPlan(plan: SeasonalPlan, context: SeasonalContext) {
 export async function loadSeasonalPlan(client: SupabaseClient, userId: string) {
   const { data, error } = await client
     .from('seasonal_cash_plans')
-    .select('config')
+    .select('config,balance_signature')
     .eq('user_id', userId)
     .maybeSingle()
   if (error) throw new Error('Lettura piano non riuscita')
-  return data ? seasonalPlanSchema.parse(data.config) : null
+  return data
+    ? {
+        plan: seasonalPlanSchema.parse(data.config),
+        signature: data.balance_signature as string | null,
+      }
+    : null
 }
 export async function getSeasonalPayload(
   client: SupabaseClient,
@@ -146,7 +154,7 @@ export async function getSeasonalPayload(
     loadSeasonalPlan(client, userId),
   ])
   const plan =
-    saved ??
+    saved?.plan ??
     emptyPlan(
       context.today,
       context.accounts
@@ -155,5 +163,35 @@ export async function getSeasonalPayload(
         )
         .map((a) => a.id),
     )
-  return { plan, saved: Boolean(saved), ...forecastPlan(plan, context) }
+  const { needsReview, plan: checkedPlan } = saved
+    ? reviewSavedPlan(plan, saved.signature, context)
+    : { needsReview: false, plan }
+  return {
+    plan: checkedPlan,
+    saved: Boolean(saved),
+    needsReview,
+    reviewSignature: balanceSignature(plan, context),
+    ...forecastPlan(checkedPlan, context),
+  }
+}
+
+export function balanceSignature(plan: SeasonalPlan, context: SeasonalContext) {
+  const selected = context.accounts
+    .filter((a) => plan.account_ids.includes(a.id))
+    .map((a) => [a.id, String(a.balance), a.updated_at ?? ''])
+    .sort((a, b) => a[0].localeCompare(b[0]))
+  return createHash('sha256').update(JSON.stringify(selected)).digest('hex')
+}
+
+export function reviewSavedPlan(
+  plan: SeasonalPlan,
+  savedSignature: string | null,
+  context: SeasonalContext,
+) {
+  const needsReview =
+    plan.reviewed && savedSignature !== balanceSignature(plan, context)
+  return {
+    needsReview,
+    plan: needsReview ? { ...plan, reviewed: false } : plan,
+  }
 }

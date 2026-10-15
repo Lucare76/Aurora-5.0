@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { forecastPlan, romeToday } from '@/lib/seasonal-plan/service'
+import {
+  balanceSignature,
+  reviewSavedPlan,
+  forecastPlan,
+  romeToday,
+} from '@/lib/seasonal-plan/service'
 import { emptyPlan } from '@/lib/seasonal-plan/schema'
 import type { SeasonalContext } from '@/lib/seasonal-plan/service'
 const id = '11111111-1111-4111-8111-111111111111'
@@ -35,6 +40,23 @@ const context = (): SeasonalContext => ({
   posted: [],
 })
 describe('seasonal integrations', () => {
+  it('requires review when balances change and detects even an unchanged balance with a new update timestamp', () => {
+    const c = context(),
+      p = { ...emptyPlan(c.today, [id]), reviewed: true }
+    const signature = balanceSignature(p, c)
+    expect(reviewSavedPlan(p, signature, c).needsReview).toBe(false)
+    c.accounts[0] = { ...c.accounts[0], balance: 2000 }
+    const stale = reviewSavedPlan(p, signature, c)
+    expect(stale.needsReview).toBe(true)
+    expect(forecastPlan(stale.plan, c).forecast.spendableConfirmed).toBeNull()
+    c.accounts[0] = {
+      ...c.accounts[0],
+      balance: 1000,
+      updated_at: '2026-10-15T10:00:00Z',
+    }
+    expect(reviewSavedPlan(p, signature, c).needsReview).toBe(true)
+  })
+
   it('uses Rome midnight rather than UTC midnight', () => {
     expect(romeToday(new Date('2026-10-14T22:30:00Z'))).toBe('2026-10-15')
   })

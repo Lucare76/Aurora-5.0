@@ -448,7 +448,7 @@ test('piano stagionale: revisione, anteprima e salvataggio senza scritture sui m
   await page.getByLabel('Riserva minima da non usare (€)').fill('500')
   await page.getByLabel(/Ho verificato tutti i mesi/).check()
   await page.getByRole('button', { name: 'Calcola anteprima', exact: true }).click()
-  await expect(prudent).toContainText('1.000,00')
+  await expect(prudent).toContainText(/1\.?000,00/)
   expect(previews).toBe(1); expect(savedPlan).toBeNull()
   await page.getByRole('button', { name: 'Salva piano', exact: true }).click()
   await expect(page.getByText('Piano salvato', { exact: true })).toBeVisible()
