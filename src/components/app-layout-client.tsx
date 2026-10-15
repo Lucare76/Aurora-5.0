@@ -106,6 +106,7 @@ function buildAllGroups(financialAssistantEnabled: boolean): NavGroup[] {
       label: 'Pianificazione',
       items: [
         { path: '/calendar', label: 'Calendario', icon: CalendarDays },
+        { path: '/seasonal-plan', label: 'Piano stagionale', icon: CalendarDays },
         { path: '/recurring', label: 'Ricorrenti', icon: Repeat },
         { path: '/loans', label: 'Prestiti', icon: HandCoins },
         { path: '/automation', label: 'Automazioni', icon: Sparkles },

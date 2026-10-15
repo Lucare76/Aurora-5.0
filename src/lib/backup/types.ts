@@ -527,6 +527,7 @@ export type AuroraBackupDataV1 = {
   personalDeadlines?: AuroraBackupPersonalDeadlineV1[]
   // Optional: included from Sprint 36 onwards; private manual timeline, separate from finance
   personalTimelineEvents?: AuroraBackupPersonalTimelineEventV1[]
+  seasonalPlan?: import('@/lib/seasonal-plan/schema').SeasonalPlan
   installmentPlans?: AuroraBackupInstallmentPlanV1[]
   installmentPayments?: AuroraBackupInstallmentPaymentV1[]
 }

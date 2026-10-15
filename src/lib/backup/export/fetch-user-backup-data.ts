@@ -102,6 +102,7 @@ export type UserBackupData = {
   accounts: Account[]
   categories: Category[]
   transactions: Transaction[]
+  seasonalPlan?: import('@/lib/seasonal-plan/schema').SeasonalPlan
   installmentPlans?: BackupInstallmentPlan[]
   installmentPayments?: BackupInstallmentPayment[]
   budgets: Budget[]
@@ -209,6 +210,7 @@ export async function fetchUserBackupData(
     personalTimelineEvents,
     installmentPlans,
     installmentPayments,
+    seasonalPlan,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -381,12 +383,14 @@ export async function fetchUserBackupData(
     (supabase as unknown as SupabaseClient)
       .from('installment_payments').select('transaction_id,plan_id,installment_number')
       .eq('user_id', user.id) as unknown as Promise<QueryResult<BackupInstallmentPayment>>,
+    supabase.from('seasonal_cash_plans').select('config').eq('user_id', user.id).maybeSingle() as unknown as Promise<SingleQueryResult<{ config: import('@/lib/seasonal-plan/schema').SeasonalPlan }>>,
   ])
 
   assertNoQueryError('profiles', profile.error)
   assertNoQueryError('accounts', accounts.error)
   assertNoQueryError('categories', categories.error)
   assertNoQueryError('transactions', transactions.error)
+  assertNoQueryError('seasonal_cash_plans', seasonalPlan.error)
   assertNoQueryError('installment_plans', installmentPlans.error)
   assertNoQueryError('installment_payments', installmentPayments.error)
   assertNoQueryError('budgets', budgets.error)
@@ -409,6 +413,7 @@ export async function fetchUserBackupData(
     accounts: accounts.data ?? [],
     categories: categories.data ?? [],
     transactions: transactions.data ?? [],
+    seasonalPlan: seasonalPlan.data?.config,
     installmentPlans: installmentPlans.data ?? [],
     installmentPayments: installmentPayments.data ?? [],
     budgets: budgets.data ?? [],
@@ -454,6 +459,7 @@ export async function fetchUserBackupData(
     ...rawData,
     installmentPlans: (rawData.installmentPlans ?? []).filter((plan) => allowedPlanIds.has(plan.id)),
     installmentPayments: allowedPayments,
+    seasonalPlan: rawData.seasonalPlan && rawData.seasonalPlan.account_ids.every((id) => !privateAccountIds.has(id)) ? rawData.seasonalPlan : undefined,
     accounts: rawData.accounts.filter((account) => !privateAccountIds.has(account.id)),
     transactions: allowedTransactions,
     recurringRules: rawData.recurringRules.filter((rule) => !privateAccountIds.has(rule.account_id)),
