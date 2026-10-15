@@ -1,3 +1,4 @@
+import { seasonalPlanSchema } from '@/lib/seasonal-plan/schema'
 import { z } from 'zod'
 import { installmentScheduleSchema } from '@/lib/installments/schema'
 
@@ -511,6 +512,7 @@ export const auroraBackupV1Schema = z.object({
     leaveEntries: collection(leaveEntryBackupSchema).optional(),
     personalDeadlines: collection(personalDeadlineBackupSchema).optional(),
     personalTimelineEvents: collection(personalTimelineEventBackupSchema).optional(),
+    seasonalPlan: seasonalPlanSchema.optional(),
     installmentPlans: collection(z.object({
       id: uuid, title: shortString.min(1), total_installments: z.number().int().min(2).max(360),
       schedule: installmentScheduleSchema.nullable().optional(),

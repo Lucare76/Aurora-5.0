@@ -25,3 +25,13 @@ La baseline attuale include:
 ## Sviluppo
 
 Il flusso raccomandato e: branch dedicato -> pull request -> CI verde -> Vercel Preview verde -> merge su `main` -> smoke test produzione quando necessario.
+
+## Piano stagionale
+
+In **Pianificazione → Piano stagionale** puoi simulare i prossimi 12 mesi con stipendio, NASpI e una seconda entrata mensile, distinguendo importi confermati, stimati e già incassati. Il modello 8 mesi/4 mesi è modificabile e richiede di scegliere il primo mese di stipendio; la NASpI rimane una stima inserita dall’utente.
+
+La disponibilità spendibile usa la liquidità personale selezionata, protegge la riserva e considera il saldo minimo lungo il percorso (uscite prima degli incassi nello stesso giorno). Il limite prudente esclude entrate stimate, ma include tutte le uscite. Il saldo iniziale limita sempre quanto è spendibile oggi.
+
+Uscite ricorrenti e rate pianificate sono incluse automaticamente. Le entrate ricorrenti vengono sostituite dagli importi mensili espliciti nella sola simulazione; gli importi già incassati non si aggiungono di nuovo al saldo. Spese quotidiane extra e impegni mensili/PAC mancanti vanno inseriti senza duplicare gli automatici. Gli impegni manuali anteriori a oggi sono esclusi: indica il prossimo addebito ancora da pagare. Budget e prestiti non rappresentati non vengono aggiunti automaticamente. Rivedi il piano dopo ogni incasso/addebito o variazione. Se i saldi o le date di aggiornamento dei conti cambiano dopo la verifica, lo spendibile viene sospeso al nuovo caricamento finché non riconfermi il piano.
+
+Il piano non crea transazioni, non cambia saldi, calendario o score. Il backup lo include e al ripristino rimappa i conti e richiede una nuova verifica. Conti investiti, ADI e fondi dei beneficiari sono esclusi; le carte personali con saldo negativo devono essere comprese. Nessuna disponibilità viene mostrata finché il piano non è verificato o se mancano mesi/conti.

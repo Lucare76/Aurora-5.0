@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       return json(error('TOKEN_INVALID'), 403)
     }
 
-    const { data, error: rpcError } = await supabase.rpc('restore_aurora_backup_with_installments', {
+    const { data, error: rpcError } = await supabase.rpc('restore_aurora_backup_with_seasonal_plan', {
       p_token_id: tokenId,
       p_token: token,
       p_backup: buildRestoreRpcPayload(validated.backup),

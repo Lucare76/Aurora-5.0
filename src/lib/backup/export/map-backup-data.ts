@@ -67,6 +67,7 @@ export function mapUserBackupDataToV1Data(input: UserBackupData): AuroraBackupDa
     accounts: input.accounts.map(mapAccount),
     categories: input.categories.map(mapCategory),
     transactions: input.transactions.map(mapTransaction),
+    ...(input.seasonalPlan ? { seasonalPlan: input.seasonalPlan } : {}),
     installmentPlans: input.installmentPlans ?? [],
     installmentPayments: input.installmentPayments ?? [],
     budgets: input.budgets.map(mapBudget),

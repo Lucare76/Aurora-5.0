@@ -409,6 +409,7 @@ export default function FinancialCalendarPage() {
             <p className="mt-2 max-w-2xl text-sm text-slate-500">Visualizza scadenze, ricorrenze e saldo previsto. La previsione è prudenziale, non garantita.</p>
           </div>
           <div className="aurora-no-print flex flex-wrap gap-2">
+            <Link href="/seasonal-plan" className="rounded-xl border border-indigo-200 px-3 py-2 text-sm font-medium text-indigo-700">Piano stagionale · 12 mesi</Link>
             <Button variant="outline" className="gap-2" onClick={() => setParam('month', currentMonth())}><CalendarDays className="h-4 w-4" />Oggi</Button>
             <Button variant="outline" className="gap-2" onClick={() => window.print()}><Printer className="h-4 w-4" />Stampa calendario</Button>
           </div>

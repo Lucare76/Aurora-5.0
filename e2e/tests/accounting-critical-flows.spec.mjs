@@ -417,3 +417,42 @@ test('rate: pianificazione e collegamento di una spesa esistente senza duplicare
   expect(state.transactions).toHaveLength(2)
   expect(transactionWrites).toBe(0)
 })
+
+
+test('piano stagionale: revisione, anteprima e salvataggio senza scritture sui movimenti', async ({ page }) => {
+  await seedSupabaseSession(page)
+  await installSupabaseMocks(page, { accounts: [account(ACCOUNT_MAIN, 'Bancoposta', 3000)], transactions: [], accountsReads: 0 })
+  const months = Array.from({ length: 12 }, (_, i) => ({ month: new Date(Date.UTC(2026, 9 + i, 1)).toISOString().slice(0, 7), kind: 'NONE', amount: 0, day: 27, confidence: 'ESTIMATED', received: false, extra: { amount: 0, day: 27, confidence: 'ESTIMATED', received: false, label: 'Altre entrate' } }))
+  const initial = { account_ids: [ACCOUNT_MAIN], reserve: 0, monthly_extra_expenses: 0, reviewed: false, commitments: [], months }
+  let savedPlan = null
+  let previews = 0
+  let transactionWrites = 0
+  await page.route('**/api/transactions', async (route) => { transactionWrites++; await route.fulfill({ status: 500, body: '{}' }) })
+  await page.route('**/api/seasonal-plan*', async (route) => {
+    const method = route.request().method()
+    const plan = method === 'GET' ? initial : route.request().postDataJSON()
+    const preview = route.request().url().includes('preview=true')
+    if (method === 'PUT' && !preview) savedPlan = plan
+    if (preview) previews++
+    const rows = months.map((m) => ({ month: m.month, confirmedIncome: 0, estimatedIncome: 0, confirmedExpenses: 0, estimatedExpenses: 0, closing: 2000, closingConservative: 1000, belowReserve: false }))
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ plan, saved: Boolean(savedPlan), accounts: [{ id: ACCOUNT_MAIN, name: 'Bancoposta', type: 'checking', balance: 3000 }], automaticCommitments: [], forecast: { from: '2026-10-15', to: '2027-09-30', complete: plan.reviewed, coverage: true, openingBalance: 3000, reserve: plan.reserve, spendableConfirmed: plan.reviewed ? 1000 : null, spendableEstimated: plan.reviewed ? 2000 : null, shortfall: 0, minimumConfirmed: 1000, minimumEstimated: 2000, minimumDate: '2027-02-01', rows, events: [] } }) })
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/seasonal-plan')
+  await expect(page.getByRole('heading', { name: 'Piano stagionale', exact: true })).toBeVisible()
+  const prudent = page.getByRole('heading', { name: 'Spendibile oggi · solo entrate confermate' }).locator('..')
+  await expect(prudent).toContainText('Da verificare')
+  await page.locator('#kind-0').selectOption('SALARY')
+  await page.locator('#amount-0').fill('1750')
+  await page.locator('#confidence-0').selectOption('CONFIRMED')
+  await page.getByLabel('Riserva minima da non usare (€)').fill('500')
+  await page.getByLabel(/Ho verificato tutti i mesi/).check()
+  await page.getByRole('button', { name: 'Calcola anteprima', exact: true }).click()
+  await expect(prudent).toContainText(/1\.?000,00/)
+  expect(previews).toBe(1); expect(savedPlan).toBeNull()
+  await page.getByRole('button', { name: 'Salva piano', exact: true }).click()
+  await expect(page.getByText('Piano salvato', { exact: true })).toBeVisible()
+  expect(savedPlan.months[0]).toMatchObject({ kind: 'SALARY', amount: 1750, confidence: 'CONFIRMED' })
+  expect(savedPlan.reserve).toBe(500); expect(transactionWrites).toBe(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})

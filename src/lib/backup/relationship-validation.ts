@@ -12,6 +12,10 @@ export function validateBackupRelationships(backup: AuroraBackupV1): BackupValid
   const birthdayIds = new Set(backup.data.birthdays.map((birthday) => birthday.id))
   const beneficiaryIds = new Set((backup.data.dependentBeneficiaries ?? []).map((beneficiary) => beneficiary.id))
 
+  backup.data.seasonalPlan?.account_ids.forEach((id, index) => {
+    if (!accountIds.has(id)) issues.push(issue('SEASONAL_ACCOUNT_MISSING', 'error', ['data', 'seasonalPlan', 'account_ids', index], 'Conto del piano stagionale mancante.'))
+  })
+
   backup.data.categories.forEach((category, index) => {
     if (category.parent_id === category.id) {
       issues.push(issue('CATEGORY_SELF_REFERENCE', 'error', ['data', 'categories', index, 'parent_id'], 'Una categoria non puo essere padre di se stessa.'))

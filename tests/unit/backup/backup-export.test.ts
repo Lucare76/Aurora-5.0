@@ -1,3 +1,4 @@
+import { emptyPlan } from '@/lib/seasonal-plan/schema'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -35,6 +36,13 @@ const txId = '44444444-4444-4444-8444-444444444444'
 const txPeerId = '44444444-4444-4444-8444-444444444445'
 
 describe('Aurora Backup v1 export', () => {
+  it('preserva il piano stagionale con checksum e verifica i riferimenti ai conti', () => {
+    const data = userBackupData(); data.seasonalPlan = emptyPlan('2026-10-15', [accountId]);
+    const generated = generateAuroraBackup(data, { appVersion: '5.0.0-test' });
+    const inspected = inspectAuroraBackup(generated.backup);
+    expect(inspected.valid).toBe(true); expect(inspected.normalizedBackup?.data.seasonalPlan).toEqual(data.seasonalPlan);
+  })
+
   it('crea filename filesystem-safe e deterministico in UTC', () => {
     const filename = createAuroraBackupFilename(new Date('2026-07-17T15:04:05.000Z'))
 
