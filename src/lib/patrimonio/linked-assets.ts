@@ -22,6 +22,8 @@ export type AssetSnapshotLike = {
 const SCALABLE_ACCOUNT_RULES = [
   { needle: 'ishares core msci world', accountNames: ['iShares Core MSCI World', 'Aurora Piano di Accumulo'] },
   { needle: 'vanguard ftse all-world', accountNames: ['Vanguard FTSE All-World', 'Scalable'] },
+  { needle: 'ishares digital security', accountNames: ['iShares Digital Security'] },
+  { needle: 'ishares msci world small cap', accountNames: ['iShares MSCI World Small Cap'] },
 ] as const
 
 function normalize(value: string | null | undefined) {

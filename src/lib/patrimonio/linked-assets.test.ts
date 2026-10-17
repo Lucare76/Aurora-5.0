@@ -34,3 +34,33 @@ describe('Scalable positions already represented by Aurora accounts', () => {
     expect(resolveAssetLinkedAccount({ name: 'iShares Digital Security (Acc)', source_type: 'SCALABLE' }, accounts)).toBeNull()
   })
 })
+
+
+describe('Scalable ETF account reconciliation', () => {
+  it('counts Digital Security and Small Cap once, including negative returns', () => {
+    const linkedAccounts = [
+      { id: 'digital', name: 'iShares Digital Security', balance: 700 },
+      { id: 'small-cap', name: 'iShares MSCI World Small Cap', balance: 100 },
+    ]
+    const holdings = [
+      { id: 'digital-position', name: 'iShares Digital Security (Acc)', current_value: 677.56, expected: 'digital' },
+      { id: 'small-position', name: 'iShares MSCI World Small Cap (Acc)', current_value: 99.58, expected: 'small-cap' },
+    ]
+    const adjustments = holdings.map((holding) => {
+      const linked = resolveAssetLinkedAccount({ ...holding, source_type: 'SCALABLE' }, linkedAccounts)
+      expect(linked?.id).toBe(holding.expected)
+      return assetNetWorthContribution({ ...holding, include_in_net_worth: true, linked_account_id: linked?.id }, linked?.balance ?? null)
+    })
+    expect(adjustments[0]).toBeCloseTo(-22.44, 2)
+    expect(adjustments[1]).toBeCloseTo(-0.42, 2)
+    expect(800 + adjustments.reduce((sum, value) => sum + value, 0)).toBeCloseTo(777.14, 2)
+  })
+
+  it('resolves stable links for every sync without overriding an explicit account', () => {
+    const linkedAccounts = [{ id: 'digital', name: ' iShares Digital Security ', balance: 700 }]
+    expect(resolveScalableLinkedAccount('ISHARES DIGITAL SECURITY (ACC)', linkedAccounts)?.id).toBe('digital')
+    expect(resolveScalableLinkedAccount('iShares Digital Security (Acc)', linkedAccounts)?.id).toBe('digital')
+    expect(resolveAssetLinkedAccount({ name: 'iShares Digital Security (Acc)', source_type: 'SCALABLE', linked_account_id: 'custom' }, [...linkedAccounts, { id: 'custom', name: 'Scelto manualmente', balance: 1 }])?.id).toBe('custom')
+    expect(resolveAssetLinkedAccount({ name: 'iShares Digital Security (Acc)', source_type: 'MANUAL' }, linkedAccounts)).toBeNull()
+  })
+})
