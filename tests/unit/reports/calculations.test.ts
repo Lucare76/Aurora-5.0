@@ -42,6 +42,16 @@ function report() {
 }
 
 describe('financial reports calculations', () => {
+  it('confronta le sottocategorie con i loro importi precedenti senza cambiare i totali', () => {
+    const payload = report()
+    const casa = payload.expenseCategories.find((row) => row.categoryId === categories[1].id)!
+    const affitto = casa.children.find((row) => row.categoryId === categories[2].id)!
+    expect(affitto).toMatchObject({ amount: 700, previousAmount: 650, changeAmount: 50, transactionCount: 1 })
+    expect(affitto.changePercentage).toBe(7.69)
+    expect(casa.amount).toBe(700)
+    expect(payload.summary.totalExpenses).toBe(880)
+  })
+
   it('calcola entrate, uscite e cash flow escludendo i trasferimenti interni', () => {
     const payload = report()
     expect(payload.summary.totalIncome).toBe(2000)
