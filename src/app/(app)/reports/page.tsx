@@ -1,7 +1,7 @@
 'use client'
 
 import { DateInput } from '@/components/ui/date-input'
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -10,6 +10,7 @@ import {
   ArrowUp,
   BarChart3,
   Download,
+  ChevronRight,
   FileSpreadsheet,
   FileText,
   LayoutGrid,
@@ -50,7 +51,7 @@ import {
   resolveInitialFilters,
   shouldShowTypeFilter,
 } from '@/lib/reports/template-view'
-import type { ReportDetailTableView, ReportPayload, ReportRange, ReportTransactionTypeFilter } from '@/lib/reports/types'
+import type { ReportCategoryRow, ReportDetailTableView, ReportPayload, ReportRange, ReportTransactionTypeFilter } from '@/lib/reports/types'
 
 // Every ReportSection in the registry maps to exactly one block below:
 //   kpi-income/kpi-expenses/kpi-cashflow/kpi-net-worth -> the 4 KPI cards
@@ -158,6 +159,49 @@ function KpiCard({
     </Card>
   )
   return href ? <Link href={href} aria-label={`Apri movimenti per ${title}`}>{body}</Link> : body
+}
+
+
+function CategoryDetailRows({ row, transactionBase, side, depth = 0 }: {
+  row: ReportCategoryRow
+  transactionBase: string
+  side: 'income' | 'expense'
+  depth?: number
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const hasChildren = row.children.length > 0
+  return (
+    <Fragment>
+      <tr className={cn('border-b last:border-b-0', depth > 0 && 'bg-slate-50/70')}>
+        <td className="px-5 py-3" style={{ paddingLeft: 20 + depth * 24 }}>
+          <div className="flex items-center gap-2">
+            {hasChildren && (
+              <button type="button" onClick={() => setExpanded((value) => !value)}
+                aria-expanded={expanded}
+                aria-label={`${expanded ? 'Nascondi' : 'Mostra'} sottocategorie di ${row.categoryName}`}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-indigo-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+                <ChevronRight aria-hidden="true" className={cn('h-4 w-4 transition-transform', expanded && 'rotate-90')} />
+              </button>
+            )}
+            <div>
+              <Link className={cn('text-slate-900 hover:text-indigo-600', depth === 0 && 'font-semibold')}
+                href={`${transactionBase}&category=${encodeURIComponent(row.categoryId)}&type=${side}`}>
+                {row.icon} {row.categoryName}
+              </Link>
+              {hasChildren && <p className="mt-1 text-xs text-slate-500">{row.children.length} sottocategorie · {expanded ? 'Dettaglio aperto' : 'Apri con la freccia'}</p>}
+            </div>
+          </div>
+        </td>
+        <td className="px-5 py-3 text-right tabular-nums font-semibold">{formatCurrency(row.amount)}</td>
+        <td className="px-5 py-3 text-right tabular-nums">{row.percentage.toFixed(1)}%</td>
+        <td className="px-5 py-3 text-right tabular-nums">{row.changeAmount >= 0 ? '+' : ''}{formatCurrency(row.changeAmount)}</td>
+        <td className="px-5 py-3 text-right tabular-nums">{row.transactionCount}</td>
+      </tr>
+      {expanded && row.children.map((child) => (
+        <CategoryDetailRows key={child.categoryId} row={child} transactionBase={transactionBase} side={side} depth={depth + 1} />
+      ))}
+    </Fragment>
+  )
 }
 
 function buildCsv(report: ReportPayload) {
@@ -623,7 +667,7 @@ function ReportsPageContent() {
                       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                         <div>
                           <CardTitle className="text-lg">Tabella dati</CardTitle>
-                          <p className="text-sm text-slate-500">Dataset già aggregato dal server.</p>
+                          <p className="text-sm text-slate-500">{tableView === 'categories' ? 'Apri le categorie con la freccia per vedere importi e confronti delle sottocategorie. Le percentuali sono sul totale del periodo.' : 'Dati del periodo selezionato.'}</p>
                         </div>
                         {availableTableViews.length > 1 && (
                           <div className="aurora-no-print flex rounded-xl bg-slate-100 p-1">
@@ -654,7 +698,9 @@ function ReportsPageContent() {
                             )}
                             <table className="w-full min-w-[680px] text-sm">
                               <thead><tr className="border-b bg-slate-50 text-left text-slate-500"><th className="px-5 py-3">Categoria</th><th className="px-5 py-3 text-right">Importo</th><th className="px-5 py-3 text-right">%</th><th className="px-5 py-3 text-right">Confronto</th><th className="px-5 py-3 text-right">Movimenti</th></tr></thead>
-                              <tbody>{activeCategoryRows.map((row) => <tr key={row.categoryId} className="border-b last:border-b-0"><td className="px-5 py-3"><Link className="font-semibold text-slate-900 hover:text-indigo-600" href={`${transactionBase}&category=${row.categoryId}&type=${effectiveCategorySide}`}>{row.icon} {row.categoryName}</Link>{row.children.length > 0 && <p className="mt-1 text-xs text-slate-400">{row.children.map((child) => child.categoryName).join(', ')}</p>}</td><td className="px-5 py-3 text-right tabular-nums font-semibold">{formatCurrency(row.amount)}</td><td className="px-5 py-3 text-right tabular-nums">{row.percentage.toFixed(1)}%</td><td className="px-5 py-3 text-right tabular-nums">{row.changeAmount >= 0 ? '+' : ''}{formatCurrency(row.changeAmount)}</td><td className="px-5 py-3 text-right tabular-nums">{row.transactionCount}</td></tr>)}</tbody>
+                              <tbody>{activeCategoryRows.map((row) => (
+                                <CategoryDetailRows key={`${queryString}:${effectiveCategorySide}:${row.categoryId}`} row={row} transactionBase={transactionBase} side={effectiveCategorySide} />
+                              ))}</tbody>
                             </table>
                           </>
                         )}
