@@ -305,11 +305,15 @@ function categoryRows(
 ): ReportCategoryRow[] {
   const current = new Map<string, { amount: number; count: number; children: Map<string, { amount: number; count: number }> }>()
   const previous = new Map<string, number>()
+  const previousChildren = new Map<string, number>()
   const filterFn = mode === 'income' ? isCountableIncome : isCountableExpense
 
   for (const tx of previousTxs.filter(filterFn)) {
     const root = rootCategoryId(tx.categoryId, categories)
     previous.set(root, roundMoney((previous.get(root) ?? 0) + tx.amount))
+    if (tx.categoryId && tx.categoryId !== root) {
+      previousChildren.set(tx.categoryId, roundMoney((previousChildren.get(tx.categoryId) ?? 0) + tx.amount))
+    }
   }
 
   for (const tx of currentTxs.filter(filterFn)) {
@@ -332,6 +336,7 @@ function categoryRows(
       const children = [...entry.children.entries()]
         .map(([childId, child]) => {
           const childDisplay = categoryDisplay(childId, categories)
+          const previousChildAmount = previousChildren.get(childId) ?? 0
           return {
             categoryId: childId,
             categoryName: childDisplay.name,
@@ -342,9 +347,9 @@ function categoryRows(
             percentage: total > 0 ? roundMoney((child.amount / total) * 100) : 0,
             transactionCount: child.count,
             averageTransaction: child.count > 0 ? roundMoney(child.amount / child.count) : 0,
-            previousAmount: 0,
-            changeAmount: child.amount,
-            changePercentage: null,
+            previousAmount: previousChildAmount,
+            changeAmount: roundMoney(child.amount - previousChildAmount),
+            changePercentage: previousChildAmount > 0 ? roundMoney(((child.amount - previousChildAmount) / previousChildAmount) * 100) : null,
             rank: 0,
             children: [],
           }
